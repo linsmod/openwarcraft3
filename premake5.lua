@@ -57,6 +57,9 @@ project "openwarcraft3"
 	includedirs
 	{
 		"src",
+		"src/game",
+		"src/game/api",
+		"src/renderer",
 		path.join(VENDOR_DIR, "stormlib/src"),
         path.join(VENDOR_DIR, "sdl/include"),
         "/opt/homebrew/Cellar/jpeg/9e/include",

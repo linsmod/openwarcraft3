@@ -1,6 +1,8 @@
 #include "r_mdx.h"
 #include "r_local.h"
 
+// LPMODEL is already defined in shared.h as struct model*
+
 #define LPCSTR const char *
 #define FOR_EACH_LIST(type, property, list) \
 for (type *property = list, *next = list ? (list)->next : NULL; \
@@ -69,9 +71,9 @@ enum {
 };
 
 typedef struct {
-    DWORD header;
-    DWORD size;
-    DWORD start;
+    uint32_t id;
+    uint32_t size;
+    void* data;
 } tFileBlock_t;
 
 DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType) {
@@ -795,4 +797,3 @@ void MDLX_Release(mdxModel_t *model) {
     SAFE_DELETE(model->globalSequences, ri.MemFree);
     SAFE_DELETE(model->pivots, ri.MemFree);
 }
-
