@@ -60,6 +60,8 @@ project "openwarcraft3"
 		"src/game",
 		"src/game/api",
 		"src/renderer",
+		"src/server",
+		"src/lib",
 		path.join(VENDOR_DIR, "stormlib/src"),
         path.join(VENDOR_DIR, "sdl/include"),
         "/opt/homebrew/Cellar/jpeg/9e/include",
@@ -67,7 +69,21 @@ project "openwarcraft3"
 	filter "system:windows"
 		links { "gdi32", "kernel32", "psapi" }
 	filter "system:linux"
-		links { "dl", "GL", "pthread", "X11" }
+		links { 
+			"dl", 
+			"GL", 
+			"pthread", 
+			"X11",
+			"m",  -- 数学库
+			"SDL2",  -- SDL2库
+			"jpeg",  -- libjpeg库
+			"storm"  -- StormLib库
+		}
+		libdirs {
+			path.join(VENDOR_DIR, "stormlib/build"),
+			path.join(VENDOR_DIR, "sdl/build"),
+			"/opt/homebrew/Cellar/jpeg/9e/lib"
+		}
 	filter "system:macosx"
 		links { "QuartzCore.framework", "Metal.framework", "Cocoa.framework", "IOKit.framework", "CoreVideo.framework" }
 		linkoptions { 

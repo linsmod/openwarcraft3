@@ -485,8 +485,8 @@ mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR nam
 DWORD MDLX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
     mdxSequence_t const *seq = R_FindSequenceAtTime(model, frame);
     if (!seq) return frame;
-    char buffer[64] = { 0 };
-    sprintf(buffer, "%s %s", seq->name, str);
+    char buffer[128] = { 0 };
+    snprintf(buffer, sizeof(buffer), "%s %s", seq->name, str);
     mdxSequence_t const *other = MDLX_FindSequenceByName(model, buffer);
     if (other) {
         return frame + other->interval[0] - seq->interval[0];
