@@ -155,4 +155,7 @@ bool Cmd_Exists(LPCSTR cmd_name);
 void Cmd_ExecuteString(LPCSTR text);
 void Cmd_ForwardToServer(LPCSTR text);
 
+// Character classification
+int isnumber(int c);
+
 #endif

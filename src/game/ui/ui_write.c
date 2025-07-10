@@ -1,4 +1,5 @@
 #include "../g_local.h"
+#include "../../common/net.h"
 
 #define SPRINTF_ADD(TEXT, ...) \
 snprintf(TEXT+strlen(TEXT), sizeof(UINAME), __VA_ARGS__);
@@ -13,24 +14,6 @@ DEST[3] = SRC.max.y * 0xff;
 
 static LPCFRAMEDEF framesWritten[MAX_FRAMES_WRITE];
 LPCFRAMEDEF *frameptr = framesWritten;
-
-typedef struct sizeBuf_s *LPSIZEBUF;
-
-typedef struct sizeBuf_s {
-    LPBYTE data;
-    DWORD maxsize;
-    DWORD cursize;
-    DWORD readcount;
-} sizeBuf_t;
-
-void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
-    if (buf->cursize + size > buf->maxsize) {
-        fprintf(stderr, "Write buffer overflow\n");
-        return;
-    }
-    memcpy(buf->data + buf->cursize, value, size);
-    buf->cursize += size;
-}
 
 #define TOKEN_PASTE(x, y) x##y
 #define CAT(x,y) TOKEN_PASTE(x,y)
