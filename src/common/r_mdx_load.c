@@ -1,38 +1,24 @@
-#include "r_local.h"
-#include "r_mdx.h"
+#include "../renderer/r_local.h"
+#include "../renderer/mdx/r_mdx.h"
+#include "../renderer/mdx/r_mdx_compat.h"
 
-enum {
-    ID_MDLX = MAKEFOURCC('M','D','L','X'),
-    ID_VERS = MAKEFOURCC('V','E','R','S'),
-    ID_MODL = MAKEFOURCC('M','O','D','L'),
-    ID_SEQS = MAKEFOURCC('S','E','Q','S'),
-    ID_PIVT = MAKEFOURCC('P','I','V','T'),
-    ID_GEOS = MAKEFOURCC('G','E','O','S'),
-    ID_GEOA = MAKEFOURCC('G','E','O','A'),
-    ID_GLBS = MAKEFOURCC('G','L','B','S'),
-    ID_MTLS = MAKEFOURCC('M','T','L','S'),
-    ID_BONE = MAKEFOURCC('B','O','N','E'),
-    ID_HELP = MAKEFOURCC('H','E','L','P'),
-    ID_TEXS = MAKEFOURCC('T','E','X','S'),
-    ID_VRTX = MAKEFOURCC('V','R','T','X'),
-    ID_NRMS = MAKEFOURCC('N','R','M','S'),
-    ID_UVBS = MAKEFOURCC('U','V','B','S'),
-    ID_PTYP = MAKEFOURCC('P','T','Y','P'),
-    ID_PCNT = MAKEFOURCC('P','C','N','T'),
-    ID_PVTX = MAKEFOURCC('P','V','T','X'),
-    ID_GNDX = MAKEFOURCC('G','N','D','X'),
-    ID_MTGC = MAKEFOURCC('M','T','G','C'),
-    ID_UVAS = MAKEFOURCC('U','V','A','S'),
-    ID_MATS = MAKEFOURCC('M','A','T','S'),
-    ID_LAYS = MAKEFOURCC('L','A','Y','S'),
-    ID_KGAO = MAKEFOURCC('K','G','A','O'),
-    ID_KGTR = MAKEFOURCC('K','G','T','R'),
-    ID_KGRT = MAKEFOURCC('K','G','R','T'),
-    ID_KGSC = MAKEFOURCC('K','G','S','C'),
-    ID_EVTS = MAKEFOURCC('E','V','T','S'),
-//    ID_SNDX = MAKEFOURCC('S','N','D','X'),
-    ID_KEVT = MAKEFOURCC('K','E','V','T'),
-};
+// 这些宏已经在 r_mdx_compat.h 中定义了
+// 添加一些缺少的宏定义
+#define ID_KGTR MAKEFOURCC('K', 'G', 'T', 'R')
+#define ID_KGRT MAKEFOURCC('K', 'G', 'R', 'T')
+#define ID_KGSC MAKEFOURCC('K', 'G', 'S', 'C')
+
+// 定义 num_read 宏
+#define num_read(file, obj, field, size, alloc_func) \
+    do { \
+        int count; \
+        SFileReadFile(file, &count, sizeof(int), NULL, NULL); \
+        if (count > 0) { \
+            obj->num_##field = count; \
+            obj->field = alloc_func(count * size); \
+            SFileReadFile(file, obj->field, count * size, NULL, NULL); \
+        } \
+    } while (0)
 
 #define MODEL_READ_LIST(FILE, BLOCK, TYPE, TYPES) \
 while (!FileIsAtEndOfBlock(FILE, &BLOCK)) { \
@@ -110,22 +96,22 @@ static LPMODELGEOSET ReadGeoset(HANDLE file, struct tFileBlock const block) {
     while (!FileIsAtEndOfBlock(file, &block)) {
         int tag = FileReadInt32(file);
         switch (tag) {
-            case ID_VRTX: num_\L$1(file, geoset, vertices, sizeof(VECTOR3), ri.MemAlloc); break;
-            case ID_NRMS: num_\L$1(file, geoset, normals, sizeof(VECTOR3), ri.MemAlloc); break;
-            case ID_UVBS: num_\L$1(file, geoset, texcoord, sizeof(VECTOR2), ri.MemAlloc); break;
-            case ID_PTYP: num_\L$1(file, geoset, primitiveTypes, sizeof(int), ri.MemAlloc); break;
-            case ID_PCNT: num_\L$1(file, geoset, primitiveCounts, sizeof(int), ri.MemAlloc); break;
-            case ID_PVTX: num_\L$1(file, geoset, triangles, sizeof(short), ri.MemAlloc); break;
-            case ID_GNDX: num_\L$1(file, geoset, vertexGroups, sizeof(char), ri.MemAlloc); break;
-            case ID_MTGC: num_\L$1(file, geoset, matrixGroupSizes, sizeof(int), ri.MemAlloc); break;
+                            case ID_VRTX: num_read(file, geoset, vertices, sizeof(VECTOR3), ri.MemAlloc); break;
+            case ID_NRMS: num_read(file, geoset, normals, sizeof(VECTOR3), ri.MemAlloc); break;
+            case ID_UVBS: num_read(file, geoset, texcoord, sizeof(VECTOR2), ri.MemAlloc); break;
+            case ID_PTYP: num_read(file, geoset, primitiveTypes, sizeof(int), ri.MemAlloc); break;
+            case ID_PCNT: num_read(file, geoset, primitiveCounts, sizeof(int), ri.MemAlloc); break;
+            case ID_PVTX: num_read(file, geoset, triangles, sizeof(short), ri.MemAlloc); break;
+            case ID_GNDX: num_read(file, geoset, vertexGroups, sizeof(char), ri.MemAlloc); break;
+            case ID_MTGC: num_read(file, geoset, matrixGroupSizes, sizeof(int), ri.MemAlloc); break;
             case ID_UVAS: SFileReadFile(file, &geoset->num_texcoordChannels, sizeof(int), NULL, NULL); break;
             case ID_MATS:
-                num_\L$1(file, geoset, matrices, sizeof(int), ri.MemAlloc);
+                num_read(file, geoset, matrices, sizeof(int), ri.MemAlloc);
                 SFileReadFile(file, &geoset->materialID, sizeof(int), NULL, NULL);
                 SFileReadFile(file, &geoset->group, sizeof(int), NULL, NULL);
                 SFileReadFile(file, &geoset->selectable, sizeof(int), NULL, NULL);
                 SFileReadFile(file, &geoset->default_bounds, sizeof(struct tModelBounds), NULL, NULL);
-                num_\L$1(file, geoset, bounds, sizeof(struct tModelBounds), ri.MemAlloc);
+                num_read(file, geoset, bounds, sizeof(struct tModelBounds), ri.MemAlloc);
                 break;
             default:
 

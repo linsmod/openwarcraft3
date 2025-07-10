@@ -3,6 +3,7 @@
 
 //#define DEBUG_PATHFINDING
 
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
