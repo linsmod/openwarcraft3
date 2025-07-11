@@ -239,7 +239,7 @@ void Com_Quit(void) {
     Sys_Quit();
 }
 
-int Com_Init(LPCSTR assetsDir) {
+void Com_Init(LPCSTR assetsDir) {
     Cbuf_Init();
     // 定义 MPQ 文件列表，补丁具有更高优先级（硬编码）
     // const char* mpqFileNames[] = {
@@ -286,11 +286,8 @@ int Com_Init(LPCSTR assetsDir) {
         free(mpqFiles);
         return -1;
     }
-    if(SV_Init()!=0){
-        return -2; 
-    }
+    SV_Init();
     CL_Init();
-    return 0;
 }
 
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) {

@@ -102,7 +102,7 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 #include "cmodel.h"
 
 // common.c
-int Com_Init(LPCSTR mpqPath);
+void Com_Init(LPCSTR mpqPath);
 void Com_Error(errorCode_t code, LPCSTR fmt, ...);
 
 void LoadMap(LPCSTR pFilename);
@@ -127,7 +127,7 @@ void CL_Init(void);
 void CL_Frame(DWORD msec);
 void CL_Shutdown(void);
 
-int SV_Init(void);
+void SV_Init(void);
 void SV_Frame(DWORD msec);
 void SV_Shutdown(void);
 

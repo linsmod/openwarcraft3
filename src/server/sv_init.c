@@ -9,14 +9,14 @@ void SV_CreateBaseline(void) {
     }
 }
 
-bool SV_Map(LPCSTR mapFilename) {
+void SV_Map(LPCSTR mapFilename) {
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
     strcpy(sv.configstrings[CS_MODELS+1], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     if(!CM_LoadMap(mapFilename)){
-        return false;
+        exit(-1);
     }
     SV_ClearWorld();
     SV_CreateBaseline();
@@ -51,13 +51,11 @@ void SV_ClientConnect(void) {
     Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
 }
 
-int SV_Init(void) {
+void SV_Init(void) {
     memset(&svs, 0, sizeof(struct server_static));
     memset(&sv, 0, sizeof(struct server));
 
-    if(SV_InitGameProgs()!=0){
-        return -1;
-    }
+    SV_InitGameProgs();
     
     FOR_LOOP(index, MAX_CLIENTS) {
         LPCLIENT cl = &svs.clients[index];

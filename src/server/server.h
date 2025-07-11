@@ -100,7 +100,7 @@ extern struct server {
 
 extern struct game_export *ge;
 
-bool SV_Map(LPCSTR pFilename);
+void SV_Map(LPCSTR pFilename);
 void SV_InitGame(void);
 void SV_BuildClientFrame(LPCLIENT client);
 void SV_WriteFrameToClient(LPCLIENT client);
@@ -111,7 +111,7 @@ int SV_ImageIndex(LPCSTR name);
 int SV_FontIndex(LPCSTR name, DWORD fontSize);
 
 void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
-int SV_InitGameProgs(void);
+void SV_InitGameProgs(void);
 
 // sv_main.c
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i);

@@ -123,6 +123,7 @@ DWORD blp1_nbMipLevels(struct tInternalBLPInfos* pBLPInfos) {
 
 LPCOLOR32 blp1_convert(HANDLE buffer, DWORD filesize, struct tInternalBLPInfos* pBLPInfos, DWORD mipLevel) {
     // Check the mip level
+    BYTE* pData = buffer;
     if (mipLevel >= pBLPInfos->infos.nbMipLevels)
         mipLevel = pBLPInfos->infos.nbMipLevels - 1;
     // Declarations
@@ -132,7 +133,7 @@ LPCOLOR32 blp1_convert(HANDLE buffer, DWORD filesize, struct tInternalBLPInfos* 
     DWORD offset = pBLPInfos->header.offsets[mipLevel];
     DWORD size   = pBLPInfos->header.lengths[mipLevel];
     BYTE* pSrc = ri.MemAlloc(size);
-    memcpy(pSrc, buffer + offset, size);
+    memcpy(pSrc, pData + offset, size);
     switch (blp1_format(pBLPInfos)) {
         case BLP_FORMAT_JPEG:
             pDst = blp1_convert_jpeg(pSrc, &pBLPInfos->infos, size);
@@ -210,7 +211,7 @@ jpeg_readimage(HANDLE buf, DWORD size) {
     jpeg_create_decompress(&cinfo);
     jpeg_mem_src(&cinfo, buf, size);
     jpeg_read_header(&cinfo, true);
-    cinfo.out_color_space = JCS_YCCK;
+    // cinfo.out_color_space = JCS_YCCK;
     jpeg_start_decompress(&cinfo);
     struct jpeg_imageinfo image = (struct jpeg_imageinfo) {
         .width = cinfo.output_width,

@@ -182,7 +182,7 @@ void PF_Sleep(DWORD msec) {
     usleep(msec * 1000);
 }
 
-int SV_InitGameProgs(void) {
+void SV_InitGameProgs(void) {
     struct game_import import;
     
     import.multicast = SV_Multicast;
@@ -228,5 +228,5 @@ int SV_InitGameProgs(void) {
     import.TextRemoveBom = PF_TextRemoveBom;
 
     ge = GetGameAPI(&import);
-    return ge->Init();
+    ge->Init();
 }
