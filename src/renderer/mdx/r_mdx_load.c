@@ -236,25 +236,25 @@ blockReadCode_t MSG_ReadBlock(LPSIZEBUF buffer, blockReader_t const *readers, vo
     return BLOCKREAD_OK;
 }
 
-int MSG_Read(LPSIZEBUF buffer, void *dest, DWORD bytes) {
-    if (buffer->readcount + bytes > buffer->cursize)
-        return 0;
-    memcpy(dest, (char *)buffer->data + buffer->readcount, bytes);
-    buffer->readcount += bytes;
-    return bytes;
-}
+// int MSG_Read(LPSIZEBUF buffer, void *dest, DWORD bytes) {
+//     if (buffer->readcount + bytes > buffer->cursize)
+//         return 0;
+//     memcpy(dest, (char *)buffer->data + buffer->readcount, bytes);
+//     buffer->readcount += bytes;
+//     return bytes;
+// }
 
-int MSG_ReadLong(LPSIZEBUF buffer) {
-    DWORD value = 0;
-    MSG_Read(buffer, &value, 4);
-    return value;
-}
+// int MSG_ReadLong(LPSIZEBUF buffer) {
+//     DWORD value = 0;
+//     MSG_Read(buffer, &value, 4);
+//     return value;
+// }
 
-int MSG_ReadByte(LPSIZEBUF buffer) {
-    DWORD value = 0;
-    MSG_Read(buffer, &value, 1);
-    return value;
-}
+// int MSG_ReadByte(LPSIZEBUF buffer) {
+//     DWORD value = 0;
+//     MSG_Read(buffer, &value, 1);
+//     return value;
+// }
 
 sizeBuf_t FileReadBlock(LPSIZEBUF buffer) {
     sizeBuf_t buf;

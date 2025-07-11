@@ -25,8 +25,10 @@ void ParserError(parser_t *p) {
 
 LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
     HANDLE fp = FS_OpenFile(fileName);
-    if (!fp)
+    if (!fp){
+        fprintf(stderr, "ENO_FILE %s\n", fileName);
         return NULL;
+    }
     DWORD const fileSize = SFileGetFileSize(fp, NULL);
     LPSTR buffer = MemAlloc(fileSize + 1);
     SFileReadFile(fp, buffer, fileSize, NULL, NULL);

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <StormLib.h>
+#include <sys/stat.h>
 
 #include "../common/common.h"
 
@@ -103,6 +104,10 @@ sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
 
 sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
     HANDLE file = FS_OpenFile(fileName);
+    if(!file){
+        fprintf(stderr, "ENO_FILE %s\n", fileName);
+        return NULL;
+    }
     DWORD fileSize = SFileGetFileSize(file, NULL);
     TCHAR czBuffer[MAX_SHEET_LINE];
     TCHAR ch = 0;
@@ -157,8 +162,15 @@ LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
     return NULL;
 }
 
+static LPCSTR skipBOM(LPCSTR p) {
+    if (p != NULL && p[0] == '\xEF' && p[1] == '\xBB' && p[2] == '\xBF') {
+        return p + 3;  // 跳过 UTF-8 BOM
+    }
+    return p;  // 无 BOM，返回原指针
+}
+
 static sheetRow_t *FS_ParseINI_Buffer(LPCSTR buffer) {
-    LPCSTR p = buffer;
+    LPCSTR p = skipBOM(buffer);
     sheetRow_t *start = current_row;
     sheetRow_t *section = NULL;
     while (true) {

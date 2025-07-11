@@ -656,7 +656,7 @@ bool R_GetModelCameraMatrix(mdxModel_t const *model, LPMATRIX4 output, LPVECTOR3
     }
 }
 
-void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
+void Matrix4_fromViewAngles_2(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
@@ -664,10 +664,10 @@ void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
+void Matrix4_getLightMatrix_2(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
-    Matrix4_fromViewAngles(target, sunangles, 1000, &view);
+    Matrix4_fromViewAngles_2(target, sunangles, 1000, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
@@ -700,7 +700,7 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport) {
     
     R_GetModelCameraMatrix(mdx, &viewdef.viewProjectionMatrix, &root);
     
-    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
+    Matrix4_getLightMatrix_2(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
 
     tr.viewDef = viewdef;
 

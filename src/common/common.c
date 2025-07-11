@@ -1,4 +1,5 @@
 #include "common.h"
+#include "shared.h"
 
 #include <StormLib.h>
 
@@ -148,11 +149,17 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
     return false;
 }
 
-void FS_Init(void) {
+int FS_Init(LPCSTR* mpqPaths, int numPaths) {
 //    ExtractStarCraft2();
     
-    FS_AddArchive("/Users/igor/Documents/Warcraft3/war3.mpq");
-    FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
+    for (int i = 0; i < numPaths; i++) {
+        if (!FS_AddArchive(mpqPaths[i])) {
+            fprintf(stderr, "ENO_FILE? %s\n", mpqPaths[i]);
+            return -1;
+        }
+    }
+    return 0;
+    // FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
 
 //    FS_ExtractFile("Scripts\\common.j", "/Users/igor/Desktop/common.j");
 //    FS_ExtractFile("Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk");
@@ -232,11 +239,58 @@ void Com_Quit(void) {
     Sys_Quit();
 }
 
-void Com_Init(void) {
+int Com_Init(LPCSTR assetsDir) {
     Cbuf_Init();
-    FS_Init();
-    SV_Init();
+    // 定义 MPQ 文件列表，补丁具有更高优先级（硬编码）
+    // const char* mpqFileNames[] = {
+    //     "War3Patch.mpq", 
+    //     "War3xLocal.mpq",
+    //     "War3x.mpq",
+    //     "War3.mpq", 
+    // };
+    const char* mpqFileNames[] = {
+        "War3.mpq", 
+        "War3x.mpq",
+        "War3xLocal.mpq",
+        "War3Patch.mpq", 
+    };
+    int numFiles = sizeof(mpqFileNames) / sizeof(mpqFileNames[0]);
+
+    // 分配路径数组
+    LPCSTR* mpqFiles = malloc(numFiles * sizeof(LPCSTR));
+    if (mpqFiles == NULL) {
+        fprintf(stderr, "Memory allocation failed!\n");
+        return -1;
+    }
+
+    // 拼接路径
+    char pathBuffer[256];
+    for (int i = 0; i < numFiles; i++) {
+        snprintf(pathBuffer, sizeof(pathBuffer), "%s/%s", assetsDir, mpqFileNames[i]);
+        mpqFiles[i] = strdup(pathBuffer); // 复制到堆内存
+        if (mpqFiles[i] == NULL) {
+            fprintf(stderr, "strdup failed!\n");
+            // 释放之前分配的内存
+            for (int j = 0; j < i; j++) {
+                free(mpqFiles[j]);
+            }
+            free(mpqFiles);
+            return -1;
+        }
+    }
+    if(FS_Init(mpqFiles,numFiles)!=0){
+        // 如果失败，释放所有内存
+        for (int i = 0; i < numFiles; i++) {
+            free(mpqFiles[i]);
+        }
+        free(mpqFiles);
+        return -1;
+    }
+    if(SV_Init()!=0){
+        return -2; 
+    }
     CL_Init();
+    return 0;
 }
 
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) {

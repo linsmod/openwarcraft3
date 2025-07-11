@@ -9,13 +9,15 @@ void SV_CreateBaseline(void) {
     }
 }
 
-void SV_Map(LPCSTR mapFilename) {
+bool SV_Map(LPCSTR mapFilename) {
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
     strcpy(sv.configstrings[CS_MODELS+1], mapFilename);
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
-    CM_LoadMap(mapFilename);
+    if(!CM_LoadMap(mapFilename)){
+        return false;
+    }
     SV_ClearWorld();
     SV_CreateBaseline();
     ge->SpawnEntities(CM_GetMapInfo(), CM_GetDoodads());
@@ -49,11 +51,13 @@ void SV_ClientConnect(void) {
     Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect");
 }
 
-void SV_Init(void) {
+int SV_Init(void) {
     memset(&svs, 0, sizeof(struct server_static));
     memset(&sv, 0, sizeof(struct server));
 
-    SV_InitGameProgs();
+    if(SV_InitGameProgs()!=0){
+        return -1;
+    }
     
     FOR_LOOP(index, MAX_CLIENTS) {
         LPCLIENT cl = &svs.clients[index];

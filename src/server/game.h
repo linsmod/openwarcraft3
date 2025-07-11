@@ -65,7 +65,7 @@ struct game_import {
 struct client;
 
 struct game_export {
-    void (*Init)(void);
+    int (*Init)(void);
     void (*Shutdown)(void);
     void (*SpawnEntities)(LPCMAPINFO mapinfo, LPCDOODAD doodads);
     void (*RunFrame)(void);

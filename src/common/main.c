@@ -10,9 +10,13 @@ void Sys_Quit(void) {
 }
 
 int main(int argc, LPSTR argv[]) {
-    Com_Init();
+    if(Com_Init("/work/war3files")!=0){
+        return -1;
+    }
     
-    SV_Map("Maps\\Campaign\\Human02.w3m");
+    if(!SV_Map("Maps\\Campaign\\Human02.w3m")){
+        return -1;
+    }
     
     DWORD startTime = SDL_GetTicks();
     

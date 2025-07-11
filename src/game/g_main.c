@@ -45,7 +45,7 @@ static void InitConstants(void) {
     InitMiscValue("RootAngle", &game.constants.rootAngle);
 }
 
-static void G_InitGame(void) {
+static int G_InitGame(void) {
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
     
     globals.edicts = g_edicts;
@@ -56,6 +56,9 @@ static void G_InitGame(void) {
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
     game.config.theme = gi.ReadConfig("UI\\war3skins.txt");
+    if(!game.config.theme){
+        return -1;
+    }
     game.config.splats = gi.ReadSheet("Splats\\SplatData.slk");
     game.config.uberSplats = gi.ReadSheet("Splats\\UberSplatData.slk");
     game.config.abilities = gi.ReadSheet("Units\\AbilityData.slk");

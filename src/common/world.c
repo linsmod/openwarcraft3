@@ -1,5 +1,7 @@
 #include "common.h"
+#include "shared.h"
 #include <StormLib.h>
+#include <StormPort.h>
 
 static struct {
     LPWAR3MAP map;
@@ -387,11 +389,19 @@ void CM_ReadMapScript(HANDLE archive) {
     world.info.mapscript = FS_ReadArchiveFileIntoString(archive, "war3map.j");
 }
 
-void CM_LoadMap(LPCSTR mapFilename) {
+bool CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
     memset(&world, 0, sizeof(world));
-    FS_ExtractFile(mapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive);
+    bool e = FS_ExtractFile(mapFilename, TMP_MAP);
+    if(!e){
+        fprintf(stderr, "ENO_FILE %s\n", mapFilename);
+        return false;
+    }
+    bool o = SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive);
+    if(!o){
+        fprintf(stderr, "ENO_FILE %s from %s", TMP_MAP,mapFilename);
+        return false;
+    }
     CM_ReadPathMap(mapArchive);
     CM_ReadDoodads(mapArchive);
     CM_ReadUnitDoodads(mapArchive);
@@ -430,6 +440,7 @@ void CM_LoadMap(LPCSTR mapFilename) {
 //     }
 
     SFileCloseArchive(mapArchive);
+    return true;
 }
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
