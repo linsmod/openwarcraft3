@@ -3,3 +3,4 @@ build/
 *.user
 *.xcuserstate
 .DS_Store
+.cache
