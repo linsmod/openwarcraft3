@@ -207,33 +207,36 @@ static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
     };
     return screen;
 }
-
+    
 static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     if (!arg->font) {
         return MAKE(VECTOR2, 0, 0);
     }
+    
+    // 初始化位置与颜色
     VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
     COLOR32 color = arg->color;
     VECTOR2 cursor = pos;
     FLOAT maxwidth = 0;
     FLOAT linesize = 0.5 * arg->font->size / 1000.f;
+
+    // 遍历文本中的每个字符
     for (LPCSTR p = arg->text; *p;) {
-        if (*p == '\n') {
+        if (*p == '\n') { // 检测到换行符
             cursor.x = pos.x;
             cursor.y += linesize * arg->lineHeight * 1.1;
             p++;
             continue;
         }
-        if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
-        next_line:
-            cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight * 1.1;
-            p += 2;
-            continue;
-        }
-        if (*p == '<') {
-            DWORD icon = atoi(p+6);
-            switch (*(DWORD*)(p+1)) {
+
+        unsigned codepoint;
+        LPCSTR prev_p = p; // 记录当前指针位置以便回退
+        p = utf8_to_codepoint(p, &codepoint);
+
+        // 处理图标插入、颜色标签等特殊情况
+        if (*prev_p == '<') { // 假设图标标签以'<'开始
+            DWORD icon = atoi(prev_p + 6);
+            switch (*(DWORD*)(prev_p + 1)) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
                     if (draw && arg->icons[icon]) {
                         R_DrawImage(arg->icons[icon],
@@ -242,19 +245,17 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
                                     COLOR32_WHITE);
                     }
                     cursor.x += linesize;
-                    break;
+                    continue;
             }
-            p = strchr(p + 1, '>') + 1;
-            continue;;
-        }
-        if (!strncmp(p, "|r", 2) || !strncmp(p, "|R", 2)) {
+            p = strchr(prev_p + 1, '>') + 1;
+            continue;
+        } else if (!strncmp(prev_p, "|r", 2) || !strncmp(prev_p, "|R", 2)) { // 重置颜色
             color = COLOR32_WHITE;
             p += 2;
             continue;
-        }
-        if (!strncmp(p, "|c", 2) || !strncmp(p, "|C", 2)) {
+        } else if (!strncmp(prev_p, "|c", 2) || !strncmp(prev_p, "|C", 2)) { // 设置颜色
             COLOR32 c;
-            sscanf(p+2, "%08x", (DWORD *)&c);
+            sscanf(prev_p + 2, "%08x", (DWORD *)&c);
             color.a = c.a;
             color.b = c.r;
             color.g = c.g;
@@ -262,14 +263,21 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             p += 10;
             continue;
         }
-        if (arg->wordWrap && cursor.x > pos.x && !will_word_fit(p, arg->textWidth - (cursor.x - pos.x), arg->font)) {
-            cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight;
-        }
-        unsigned codepoint;
-        p = utf8_to_codepoint(p, &codepoint);
+
+        // 获取glyph信息
         glyphSet_t *set = R_GetGlyphSet((LPFONT)arg->font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
+        FLOAT charWidth = INV_SCALE(g->xadvance);
+
+        // 自动换行逻辑
+        if (arg->wordWrap && cursor.x > pos.x) {
+            if (cursor.x + charWidth > pos.x + arg->textWidth) { // 超过限制宽度则换行
+                cursor.x = pos.x;
+                cursor.y += linesize * arg->lineHeight * 1.1;
+            }
+        }
+
+        // 渲染字符
         if (draw) {
             FLOAT const w = set->image->width;
             FLOAT const h = set->image->height;
@@ -277,9 +285,12 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             RECT const screen = get_screenrect(&cursor, g);
             R_DrawImage(set->image, &screen, &uv_rect, color);
         }
-        cursor.x += INV_SCALE(g->xadvance);
+
+        // 更新光标位置
+        cursor.x += charWidth;
         maxwidth = MAX(maxwidth, cursor.x);
     }
+
     return MAKE(VECTOR2, maxwidth, cursor.y + R_GetFontHeight((LPFONT)arg->font));
 }
 
