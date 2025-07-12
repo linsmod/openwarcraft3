@@ -64,7 +64,6 @@ project "openwarcraft3"
 		"src/lib",
 		path.join(VENDOR_DIR, "stormlib/src"),
         path.join(VENDOR_DIR, "sdl/include"),
-        "/opt/homebrew/Cellar/jpeg/9e/include",
 	}
 	filter "system:windows"
 		links { "gdi32", "kernel32", "psapi" }
@@ -82,7 +81,6 @@ project "openwarcraft3"
 		libdirs {
 			path.join(VENDOR_DIR, "stormlib/build"),
 			path.join(VENDOR_DIR, "sdl/build"),
-			"/opt/homebrew/Cellar/jpeg/9e/lib"
 		}
 	filter "system:macosx"
 		links { "QuartzCore.framework", "Metal.framework", "Cocoa.framework", "IOKit.framework", "CoreVideo.framework" }
