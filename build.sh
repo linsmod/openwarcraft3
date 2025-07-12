@@ -41,7 +41,6 @@ if $CLANGD; then
 fi
 
 # 生成构建文件
-./tools/bin/premake5 cmake
 ./tools/bin/premake5 gmake2
 
 # 执行构建

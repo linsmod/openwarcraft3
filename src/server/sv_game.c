@@ -153,6 +153,7 @@ VECTOR2 get_flow_direction(DWORD heatmapindex, float fx, float fy);
 struct thread {
     pthread_t thread;
     BOOL used;
+    BOOL finished;
 };
 
 struct thread threads[NUM_THREADS] = { 0 };

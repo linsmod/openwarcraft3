@@ -94,6 +94,7 @@ struct jass_context {
     LPEDICT unit;
     LPPLAYER playerState;
     LPCJASSFUNC func;
+    LPCJASSFUNC func2;
 };
 
 LONG jass_checkinteger(LPJASS j, int index);

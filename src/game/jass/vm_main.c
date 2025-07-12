@@ -273,6 +273,11 @@ static HANDLE RunAction(HANDLE handle) {
     LPJASS j = handle;
     jass_pushfunction(j, j->context.func);
     jass_call(j, 0);
+
+    if(j->context.func2) {
+        jass_pushfunction(j, j->context.func2);
+        jass_call(j, 0);
+    }
     gi.MemFree(handle);
     return NULL;
 }
@@ -1121,9 +1126,22 @@ void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
         return;
     }
     if (async) {
-        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func));
+        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = NULL));
     } else {
         jass_pushfunction(j, func);
         jass_call(j, 0);
     }
+}
+void jass_callbyname_sequenced_async(LPJASS j, LPCSTR name,LPCSTR name2) {
+    LPCJASSFUNC func = find_function(j, name);
+    if (!func) {
+        fprintf(stderr, "Function not found %s\n", name);
+        return;
+    }
+    LPCJASSFUNC func2 = find_function(j, name2);
+    if (!func2) {
+        fprintf(stderr, "Function not found %s\n", name2);
+        return;
+    }
+    jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = func2));
 }

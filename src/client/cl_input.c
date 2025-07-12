@@ -1,6 +1,7 @@
 #include "client.h"
 
 #include <SDL.h>
+#include <stdio.h>
 
 //struct {
 //    LPCSTR command;
@@ -14,8 +15,11 @@
 mouseEvent_t mouse;
 
 static void pan_camera(float x, float y, float sensivity) {
-    cl.viewDef.camerastate->origin.x += x * sensivity;
-    cl.viewDef.camerastate->origin.y += y * sensivity;
+    // cl.viewDef.camerastate->origin.x += x * sensivity;
+    // cl.viewDef.camerastate->origin.y += y * sensivity;
+    fprintf(stdout, "cam_distance %2f\n", cl.viewDef.camerastate->distance);
+    fprintf(stdout, "fov %2f\n", cl.viewDef.camerastate->fov);
+    fprintf(stdout, " cam_origin %2f %2f %2f\n", cl.viewDef.camerastate->origin.x, cl.viewDef.camerastate->origin.y, cl.viewDef.camerastate->origin.z);
     MSG_WriteByte(&cls.netchan.message, clc_move);
     MSG_WriteShort(&cls.netchan.message, x * sensivity);
     MSG_WriteShort(&cls.netchan.message, y * sensivity);

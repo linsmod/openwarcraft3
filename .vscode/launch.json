@@ -8,7 +8,7 @@
             "name": "(gdb) 启动",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/gmake2/bin/x86_64/Debug/openwarcraft3",
+            "program": "${workspaceFolder}/build/openwarcraft3",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

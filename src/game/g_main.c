@@ -101,9 +101,8 @@ static void G_RunClients(void) {
 static void G_RunFrame(void) {
     if (!level.started)
         return;
-
     if (!level.scriptsStarted) {
-        jass_callbyname(level.vm, "main", true);
+        jass_callbyname_sequenced_async(level.vm, "config", "main");
         level.scriptsStarted = true;
     }
     
