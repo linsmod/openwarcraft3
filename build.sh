@@ -1,55 +1,31 @@
 #!/bin/bash
-# Build script for openwarcraft3
 
-usage() {
-    echo "Usage: $0 [--debug] [--clangd]"
-    echo "Options:"
-    echo "  --debug    Build debug version"
-    echo "  --clangd   Generate compile_commands.json for clangd"
-    exit 1
-}
+# 默认构建类型
+BUILD_TYPE=""
 
-# Parse arguments
-DEBUG=false
-CLANGD=false
-while [[ $# -gt 0 ]]; do
+# 处理命令行参数
+if [ $# -gt 0 ]; then
     case "$1" in
-        --debug)
-            DEBUG=true
-            shift
+        debug|Debug)
+            BUILD_TYPE="Debug"
+            echo "Building Debug version..."
             ;;
-        --clangd)
-            CLANGD=true
-            shift
-            ;;
-        -h|--help)
-            usage
+        release|Release)
+            BUILD_TYPE="Release"
+            echo "Building Release version..."
             ;;
         *)
-            echo "Unknown option: $1"
-            usage
+            echo "Unknown build type: $1"
+            echo "Usage: $0 [debug|release]"
+            exit 1
             ;;
     esac
-done
-
-cd ~/openwarcraft3
-
-# 生成compile_commands.json（如果需要）
-if $CLANGD; then
-    echo "Generating compile_commands.json for clangd..."
-    ./tools/bin/premake5 --scripts=. --file=compile_commands.lua compile_commands
-fi
-
-# 生成构建文件
-./tools/bin/premake5 gmake2
-
-# 执行构建
-if $DEBUG; then
-    echo "Building debug version..."
-    cd build/gmake2 && make config=debug_x86_64
+    
+    # 重新配置CMake以设置构建类型
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -B build
 else
-    echo "Building release version..."
-    cd build/gmake2 && make config=release_x86_64
+    echo "No build type specified, using default..."
 fi
 
-cd ~/openwarcraft3
+# 执行构建命令
+cmake --build build
