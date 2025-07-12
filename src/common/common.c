@@ -257,10 +257,10 @@ void Com_Init(LPCSTR assetsDir) {
     int numFiles = sizeof(mpqFileNames) / sizeof(mpqFileNames[0]);
 
     // 分配路径数组
-    LPCSTR* mpqFiles = malloc(numFiles * sizeof(LPCSTR));
+    char** mpqFiles = malloc(numFiles * sizeof(LPCSTR));
     if (mpqFiles == NULL) {
         fprintf(stderr, "Memory allocation failed!\n");
-        return -1;
+        exit(-100);
     }
 
     // 拼接路径
@@ -275,16 +275,17 @@ void Com_Init(LPCSTR assetsDir) {
                 free(mpqFiles[j]);
             }
             free(mpqFiles);
-            return -1;
+            exit(-100);
         }
     }
-    if(FS_Init(mpqFiles,numFiles)!=0){
+    LPCSTR* constmpqFiles = (LPCSTR*)mpqFiles;
+    if(FS_Init(constmpqFiles,numFiles)!=0){
         // 如果失败，释放所有内存
         for (int i = 0; i < numFiles; i++) {
             free(mpqFiles[i]);
         }
         free(mpqFiles);
-        return -1;
+        exit(-1);
     }
     SV_Init();
     CL_Init();

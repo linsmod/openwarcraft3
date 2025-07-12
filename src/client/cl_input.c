@@ -92,7 +92,7 @@ void CL_Input(void) {
                         break;
                     case 3:
                         moved = true;
-                        pan_camera(-event.motion.xrel, event.motion.yrel, 5);
+                        pan_camera(-event.motion.xrel, event.motion.yrel, 1);
                         break;
                 }
                 break;
@@ -106,7 +106,7 @@ void CL_Input(void) {
                 break;
         }
     }
-//    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
+//    cl.viewDef.camerastate->origin.z = CM_GetHeightAtPoint(cl.viewDef.camerastate->origin.x, cl.viewDef.camerastate->origin.y);
 }
 
 void IN_SelectDown(void) {

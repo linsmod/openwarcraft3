@@ -204,20 +204,52 @@ void UI_AddCommandButton(LPCSTR code) {
     DWORD limber_cost = UNIT_LUMBER_COST(class_id);
     DWORD food_cost = UNIT_FOOD_USED(class_id);
     if (gold_cost > 0 || limber_cost > 0 || food_cost > 0) {
-        sprintf(tooltip+strlen(tooltip), "%s|n", tip);
-//        UI_CHILD_VALUE(ToolTipText, ToolTip, Text, "Peasant\n|cffffcc00<Icon,%d> 256   <Icon,%d> 128|\nGathers resources", ToolTipGoldIcon, ToolTipSupplyIcon);
-        if (gold_cost > 0) {
-            sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
+        // Calculate required space for the tooltip
+        size_t tip_len = tip ? strlen(tip) : 0;
+        size_t ubertip_len = ubertip ? strlen(remove_quotes(ubertip)) : 0;
+        size_t remaining = sizeof(tooltip) - 1; // Reserve 1 byte for null terminator
+        
+        // Add tip with newline if there's enough space
+        if (tip_len + 2 <= remaining) { // +2 for "|n"
+            int written = snprintf(tooltip, remaining, "%s|n", tip);
+            if (written > 0) remaining -= written;
         }
-        if (limber_cost > 0) {
-            sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipLumberIcon, limber_cost);
+        
+        // Add resource icons
+        if (gold_cost > 0 && remaining > 20) { // Approximate space needed
+            int written = snprintf(tooltip+strlen(tooltip), remaining, "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
+            if (written > 0) remaining -= written;
         }
-        if (food_cost > 0) {
-            sprintf(tooltip+strlen(tooltip), "<Icon,%d> %d   ", ToolTipSupplyIcon, food_cost);
+        if (limber_cost > 0 && remaining > 20) {
+            int written = snprintf(tooltip+strlen(tooltip), remaining, "<Icon,%d> %d   ", ToolTipLumberIcon, limber_cost);
+            if (written > 0) remaining -= written;
         }
-        sprintf(tooltip+strlen(tooltip), "|n%s", remove_quotes(ubertip));
-    } else {
-        sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
+        if (food_cost > 0 && remaining > 20) {
+            int written = snprintf(tooltip+strlen(tooltip), remaining, "<Icon,%d> %d   ", ToolTipSupplyIcon, food_cost);
+            if (written > 0) remaining -= written;
+        }
+        
+        // Add ubertip if there's enough space
+        if (ubertip_len + 2 <= remaining) { // +2 for "|n"
+            snprintf(tooltip+strlen(tooltip), remaining, "|n%s", remove_quotes(ubertip));
+        }
+    } else if (tip || ubertip) {
+        // Calculate required space
+        size_t tip_len = tip ? strlen(tip) : 0;
+        size_t ubertip_len = ubertip ? strlen(remove_quotes(ubertip)) : 0;
+        
+        // Check if we have enough space for both
+        if (tip_len + ubertip_len + 2 <= sizeof(tooltip) - 1) { // +2 for "|n"
+            snprintf(tooltip, sizeof(tooltip)-1, "%s|n%s", 
+                    tip ? tip : "", 
+                    ubertip ? remove_quotes(ubertip) : "");
+        } else if (tip_len <= sizeof(tooltip) - 1) {
+            // Just include tip if there's not enough space for both
+            snprintf(tooltip, sizeof(tooltip)-1, "%s", tip);
+        } else {
+            // Truncate tip if it's too long
+            snprintf(tooltip, sizeof(tooltip)-1, "%.1019s...", tip);
+        }
     }
     sscanf(buttonpos, "%d,%d", &x, &y);
     VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON_POSITION(x, y));
@@ -265,7 +297,23 @@ void ui_unit_inventory(LPGAMECLIENT client) {
         LPCSTR tip = FindConfigValue(code, STR_TIP);
         LPCSTR ubertip = FindConfigValue(code, STR_UBERTIP);
         FRAMEDEF button;
-        sprintf(tooltip, "%s|n%s", tip, remove_quotes(ubertip));
+        
+        // Calculate required space
+        size_t tip_len = tip ? strlen(tip) : 0;
+        size_t ubertip_len = ubertip ? strlen(remove_quotes(ubertip)) : 0;
+        
+        // Check if we have enough space for both
+        if (tip_len + ubertip_len + 2 <= sizeof(tooltip) - 1) { // +2 for "|n"
+            snprintf(tooltip, sizeof(tooltip)-1, "%s|n%s", 
+                    tip ? tip : "", 
+                    ubertip ? remove_quotes(ubertip) : "");
+        } else if (tip_len <= sizeof(tooltip) - 1) {
+            // Just include tip if there's not enough space for both
+            snprintf(tooltip, sizeof(tooltip)-1, "%s", tip);
+        } else {
+            // Truncate tip if it's too long
+            snprintf(tooltip, sizeof(tooltip)-1, "%.1019s...", tip);
+        }
         VECTOR2 bpos = MAKE(VECTOR2, INVENTORY_BUTTON_POSITION(x, y));
         UI_InitFrame(&button, FT_COMMANDBUTTON);
         UI_SetTexture(&button, art, false);
