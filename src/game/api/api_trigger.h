@@ -1,3 +1,4 @@
+#include "jass/vm_public.h"
 DWORD CreateTrigger(LPJASS j) {
     API_ALLOC(TRIGGER, trigger);
     return 1;

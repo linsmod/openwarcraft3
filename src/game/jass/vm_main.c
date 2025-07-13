@@ -1,16 +1,18 @@
 #include "common/shared.h"
+#include "g_local.h"
 #include "vm_public.h"
 #include "jass_parser.h"
 #include "../parser.h"
 #include <string.h>
-
-// #define DEBUG_JASS
+#include <sys/prctl.h>
+#define DEBUG_JASS
 
 #define F_END { NULL }
 #define MAX_JASS_STACK 256
 #define JASS_DELIM ",;()[]+-/*="
 #define JASS_CONSTANT "constant"
 #define JASS_ARRAY "array"
+#define JASS_TIMER "timer"
 #define JASS_NULL "null"
 #define JASS_FALSE "false"
 #define JASS_TRUE "true"
@@ -140,6 +142,8 @@ struct jass_s {
     DWORD num_stack;
     LPJASSVAR stack_pointer;
     JASSCONTEXT context;
+    int thread_id;
+    LPCSTR thread_name;
 };
 
 JASSTYPE jass_types[] = {
@@ -289,6 +293,8 @@ BOOL is_comma(LPCSTR str) {
 
 static HANDLE RunAction(HANDLE handle) {
     LPJASS j = handle;
+    prctl(PR_SET_NAME, j->thread_name);
+
     jass_pushfunction(j, j->context.func);
     jass_call(j, 0);
 
@@ -305,13 +311,18 @@ LPCJASSCONTEXT jass_getcontext(LPJASS j) {
 }
 
 void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
+    static int thread_id = 0;
     LPJASS thread = jass_newstate();
     memcpy(thread, j, sizeof(JASS));
     memset(thread->stack, 0, sizeof(thread->stack));
     thread->stack_pointer = thread->stack;
     thread->num_stack = 0;
     thread->context = *context;
-    gi.CreateThread(RunAction, thread);
+    thread->thread_id = thread_id++;
+    char text[1024] = { 0 };
+    sprintf(text,"%s at JT%d",context->func->name,thread->thread_id);
+    thread->thread_name = strdup(text);
+    DWORD id = gi.CreateThread(RunAction, thread);
 }
 
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
@@ -322,6 +333,7 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
         memcpy(&tmp_state, j, sizeof(struct jass_s));
         memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
         tmp_state.num_stack = 0;
+        tmp_state.thread_id = j->thread_id;
         tmp_state.context.trigger = trigger;
         tmp_state.context.unit = unit;
         jass_pushfunction(&tmp_state, cond->expr);
@@ -339,6 +351,28 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
                               ));
     }
     return true;
+}
+
+void jass_updatetimer(LPJASS j, FLOAT frame_time) {
+    for (DWORD i = 0; i < num_timers; i++) {
+        if(timers[i]->destroyed)
+            continue;
+        if (!timers[i]->destroyed && timers[i]->active && !timers[i]->paused) {
+            timers[i]->elapsed += frame_time;
+            timers[i]->remaining -= frame_time;
+            if (timers[i]->remaining <= 0.0f) {
+                if (timers[i]->handlerFunc != NULL) {
+                    jass_pushfunction(j, timers[i]->handlerFunc);
+                    jass_call(j, 0);
+                }
+                if (timers[i]->periodic) {
+                    timers[i]->remaining += timers[i]->timeout;
+                } else {
+                    timers[i]->active = false;
+                }
+            }
+        }
+    }
 }
 
 static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
@@ -439,6 +473,11 @@ static void jass_deletedict(LPJASSDICT dict) {
     gi.MemFree(dict);
 }
 void jass_setnull(LPJASSVAR var) {
+    // if(var->type->name && !strcmp(var->type->name, JASS_TIMER)) {
+    //     if(var->value){}
+    //     ((LPTIMER)var->value)->destroyed = true;
+    //     return;
+    // }
     SAFE_DELETE(var->env.locals, jass_deletedict);
     switch (jass_getvarbasetype(var)) {
         case jasstype_handle:
@@ -447,9 +486,14 @@ void jass_setnull(LPJASSVAR var) {
                 var->value = NULL;
                 var->location = NULL;
                 var->refcount = NULL;
-            } else {
+            } else if(var->type->name && !strcmp(var->type->name, JASS_TIMER)) {
+                // skip
+            }
+            else{
+                if(var->value){
+                    SAFE_DELETE(var->value, gi.MemFree);
+                }
                 SAFE_DELETE(var->location, gi.MemFree);
-                SAFE_DELETE(var->value, gi.MemFree);
                 SAFE_DELETE(var->refcount, gi.MemFree);
             }
             break;

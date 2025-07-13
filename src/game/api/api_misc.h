@@ -1,3 +1,8 @@
+#ifndef API_MISC_H
+#define API_MISC_H
+#include "common/shared.h"
+#include "g_local.h"
+#include "jass/vm_public.h"
 extern LPPLAYER currentplayer;
 
 DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
@@ -237,43 +242,126 @@ DWORD GetStartLocationLoc(LPJASS j) {
     return jass_pushnullhandle(j, "location");
 }
 
+// implemented in api_timer.c
+
+
+// 创建定时器
 DWORD CreateTimer(LPJASS j) {
-    return jass_pushnullhandle(j, "timer");
+    if (num_timers >= MAX_TIMERS) {
+        jass_pushnullhandle(j, "timer");
+        return 0;
+    }
+    API_ALLOC(TIMER,timer);
+    timers[num_timers] = timer;
+    num_timers++;
+    timer->timeout = 0.0f;
+    timer->elapsed = 0.0f;
+    timer->remaining = 0.0f;
+    timer->periodic = false;
+    timer->paused = false;
+    timer->active = false;
+    timer->handlerFunc = NULL;
+    timer->destroyed = false;
+    return 1;
 }
+
+// 销毁定时器
 DWORD DestroyTimer(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return 0;
+    HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
+    if (whichTimer == 0) {
+        return 0;
+    }
+
+    for (DWORD i = 0; i < num_timers; i++) {
+        if ((HANDLE)&timers[i] == whichTimer) {
+            jass_pushnull(j);
+            return 1;
+        }
+    }
+    jass_pushnull(j);
+    return 1;
 }
+
+// 启动定时器
 DWORD TimerStart(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    //FLOAT timeout = jass_checknumber(j, 2);
-    //BOOL periodic = jass_checkboolean(j, 3);
-    //LPCJASSFUNC handlerFunc = jass_checkcode(j, 4);
-    return 0;
+    LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    FLOAT timeout = jass_checknumber(j, 2);
+    BOOL periodic = jass_checkboolean(j, 3);
+    LPCJASSFUNC handlerFunc = jass_checkcode(j, 4);
+
+    if (whichTimer) {
+            whichTimer->timeout = timeout;
+            whichTimer->elapsed = 0.0f;
+            whichTimer->remaining = timeout;
+            whichTimer->periodic = periodic;
+            whichTimer->paused = false;
+            whichTimer->active = true;
+            whichTimer->handlerFunc = handlerFunc;
+            jass_pushhandle(j, (HANDLE)whichTimer, "timer");
+            return 1;
+    }
+    jass_pushnullhandle(j, "timer");
+    return 1;
 }
+
+// 查询已过去时间
 DWORD TimerGetElapsed(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, 0);
+    LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    if (whichTimer == 0) {
+        return jass_pushnumber(j, 0);
+    }
+
+    jass_pushnumber(j, whichTimer->elapsed);
+    return 1;
 }
+
+// 查询剩余时间
 DWORD TimerGetRemaining(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, 0);
+    LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    if (whichTimer == 0) {
+        return jass_pushnumber(j, 0);
+    }
+
+    jass_pushnumber(j, whichTimer->remaining);
+    return 1;
 }
+
+// 查询超时时间
 DWORD TimerGetTimeout(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, 0);
+    LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    if (whichTimer == 0) {
+        return jass_pushnumber(j, 0);
+    }
+
+    jass_pushnumber(j, whichTimer->timeout);
+    return 1;
 }
+
+// 暂停定时器
 DWORD PauseTimer(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return 0;
+    LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    if (whichTimer) {
+        whichTimer->paused= true;
+    }
+
+    jass_pushnull(j);
+    return 1;
 }
+
+// 恢复定时器
 DWORD ResumeTimer(LPJASS j) {
-    //HANDLE whichTimer = jass_checkhandle(j, 1, "timer");
-    return 0;
+    LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    if (whichTimer) {
+        whichTimer->paused= false;
+    }
+    jass_pushnull(j);
+    return 1;
 }
 DWORD GetExpiredTimer(LPJASS j) {
-    return jass_pushnullhandle(j, "timer");
+    LPTIMER timer =  jass_getcontext(j)->timer;
+    return timer ? jass_pushhandle(j, timer, "timer") : jass_pushnullhandle(j, "timer");
 }
+
 DWORD CreateForce(LPJASS j) {
     API_ALLOC(DWORD, force);
     return 1;
@@ -1116,3 +1204,4 @@ DWORD Preloader(LPJASS j) {
     //LPCSTR filename = jass_checkstring(j, 1);
     return 0;
 }
+#endif

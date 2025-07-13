@@ -78,6 +78,7 @@ KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 KNOWN_AS(gregion_s, REGION);
 KNOWN_AS(gevent_s, EVENT);
 KNOWN_AS(gtrigger_s, TRIGGER);
+KNOWN_AS(Timer_t, TIMER);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
 
@@ -878,6 +879,7 @@ void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientPanCamera(LPEDICT, LPVECTOR2);
+void G_ClientSetCameraDistance(LPEDICT ent, float distance);
 
 //  s_skills.c
 FLOAT AB_Number(LPCSTR, LPCSTR);
@@ -914,6 +916,7 @@ BOOL jass_dobuffer(LPJASS, LPSTR, LPSTR);
 // g_events.c
 void G_RunEntities(void);
 void G_RunEvents(void);
+void G_UpdateTimers(DWORD frame_time);
 
 // g_items.c
 void SP_SpawnItem(LPEDICT);

@@ -35,6 +35,30 @@ typedef enum {
 
 typedef DWORD (*LPJASSCFUNCTION)(LPJASS);
 
+
+// 定时器结构体
+typedef struct Timer_t{
+    FLOAT timeout;          // 超时时间（秒）
+    FLOAT elapsed;          // 已过去的时间
+    FLOAT remaining;        // 剩余时间
+    BOOL periodic;          // 是否周期性定时器
+    BOOL paused;            // 是否暂停
+    BOOL active;            // 是否激活
+    LPCJASSFUNC handlerFunc;// 定时器到期时的回调函数
+    BOOL destroyed;         // 是否已被销毁
+} Timer_t;
+
+// 全局定时器列表
+#define MAX_TIMERS 1024
+static Timer_t* timers[MAX_TIMERS];
+static DWORD num_timers = 0;
+
+// 生成唯一句柄
+static inline HANDLE GenerateTimerHandle() {
+    static HANDLE next_handle = (HANDLE)1;  // 从1开始，0表示无效句柄
+    return next_handle++;
+}
+
 typedef enum {
     jasstype_integer,
     jasstype_real,
@@ -91,6 +115,7 @@ struct vm_program {
 };
 
 struct jass_context {
+    LPTIMER timer; // 定时器
     LPTRIGGER trigger;
     LPEDICT unit;
     LPPLAYER playerState;

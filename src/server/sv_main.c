@@ -296,6 +296,7 @@ int SV_FontIndex(LPCSTR name, DWORD fontSize) {
 void SV_RunGameFrame(void) {
     sv.framenum++;
     sv.time += FRAMETIME;
+    ge->UpdateTimers(sv.time);
     ge->RunFrame();
 }
 

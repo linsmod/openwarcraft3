@@ -159,3 +159,25 @@ void G_ClientPanCamera(LPEDICT ent, LPVECTOR2 offset) {
     ent->client->camera.state.position.x += offset->x;
     ent->client->camera.state.position.y += offset->y;
 }
+
+void G_ClientSetCameraDistance(LPEDICT ent, float distance) {
+    if (ent->client->no_control)
+        return;
+    // 限制最小/最大相机距离（防止缩放过度）
+    const float min_distance = 1.0f;
+    const float max_distance = 1000.0f;
+    if (distance < min_distance) distance = min_distance;
+    if (distance > max_distance) distance = max_distance;
+    ent->client->camera.state.target_distance = distance;
+    // 可以在这里添加平滑过渡逻辑（如插值）
+}
+void G_ClientMoveUnits(LPEDICT ent, float x, float y) {
+    if (ent->client->no_control)
+        return;
+    // TODO:找到选中的单位并移动它们
+}
+void G_ClientAttackUnit(LPEDICT ent, DWORD target_unit) {
+    if (ent->client->no_control)
+        return;
+    // TODO:找到选中的单位并攻击目标
+}

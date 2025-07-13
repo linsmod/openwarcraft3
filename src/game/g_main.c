@@ -103,7 +103,8 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
     if (!level.scriptsStarted) {
-        jass_callbyname(level.vm, "main",true);
+        jass_callbyname(level.vm, "config",false);
+        jass_callbyname(level.vm, "main",false);
         // jass_callbyname_sequenced_async(level.vm, "config", "main");
         level.scriptsStarted = true;
     }
@@ -192,9 +193,11 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.Init = G_InitGame;
     globals.Shutdown = G_ShutdownGame;
     globals.SpawnEntities = G_SpawnEntities;
+    globals.UpdateTimers = G_UpdateTimers;
     globals.RunFrame = G_RunFrame;
     globals.ClientCommand = G_ClientCommand;
     globals.ClientPanCamera = G_ClientPanCamera;
+    globals.ClientSetCameraDistance = G_ClientSetCameraDistance;
     globals.ClientBegin = G_ClientBegin;
     globals.GetThemeValue = G_GetThemeValue;
     globals.edict_size = sizeof(struct edict_s);

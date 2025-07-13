@@ -69,9 +69,11 @@ struct game_export {
     void (*Shutdown)(void);
     void (*SpawnEntities)(LPCMAPINFO mapinfo, LPCDOODAD doodads);
     void (*RunFrame)(void);
+    void (*UpdateTimers)(DWORD frame_time);
     LPCSTR (*GetThemeValue)(LPCSTR filename);
     void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
     void (*ClientPanCamera)(LPEDICT ent, LPVECTOR2 offset);
+    void (*ClientSetCameraDistance)(LPEDICT ent, float distance);
     void (*ClientBegin)(LPEDICT ent);
     edict_t *edicts;
     int num_edicts;

@@ -1,7 +1,7 @@
 #include "g_local.h"
 
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
-
+void jass_updatetimer(LPJASS j, FLOAT frame_time);
 static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
     FOR_EACH_LIST(EVENT, e, level.events.handlers) {
@@ -102,4 +102,8 @@ void G_RunEvents(void) {
         GAMEEVENT *evt = &e->queue[e->read % MAX_EVENT_QUEUE];
         G_ExecuteEvent(evt);
     }
+}
+
+void G_UpdateTimers(DWORD frame_time) {
+    jass_updatetimer(level.vm, frame_time);
 }
