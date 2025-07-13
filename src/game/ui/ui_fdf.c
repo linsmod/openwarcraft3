@@ -1,5 +1,6 @@
 #include "../g_local.h"
 #include "../parser.h"
+#include "common/shared.h"
 
 #define UINAME_FMT "\"%79[^\"]\""
 #define PATHSTR_FMT "\"%255[^\"]\""
@@ -683,10 +684,15 @@ void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
     LPSTR buffer = buffer2;
     gi.TextRemoveComments(buffer);
     gi.TextRemoveBom(buffer);
+    LPSRCLOC location = gi.MemAlloc(sizeof(SRCLOC));
+    location->file = fileName;
+    location->line = 1;
+    location->column = 1;
     PARSER parser = {
         .buffer = buffer,
         .delimiters = ",;{}",
         .eat_quotes = true,
+        .location = location
     };
     FDF_ParseScene(&parser);
     if (parser.error) {

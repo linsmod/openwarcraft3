@@ -212,6 +212,7 @@ KNOWN_AS(entityState_s, ENTITYSTATE);
 KNOWN_AS(mapInfo_s, MAPINFO);
 KNOWN_AS(mapPlayer_s, MAPPLAYER);
 KNOWN_AS(playerState_s, PLAYER);
+KNOWN_AS(src_location, SRCLOC);
 
 typedef enum {
     NO_BOM,
@@ -230,6 +231,11 @@ typedef enum {
     MULTICAST_PVS_R
 } multicast_t;
 
+struct src_location{
+    LPCSTR file;
+    int line;
+    int column;
+} ;
 struct playerState_s {
     DWORD number;
     QUATERNION viewquat;

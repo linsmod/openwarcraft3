@@ -387,6 +387,7 @@ void CM_ReadStrings(HANDLE archive) {
 
 void CM_ReadMapScript(HANDLE archive) {
     world.info.mapscript = FS_ReadArchiveFileIntoString(archive, "war3map.j");
+    world.info.mapscriptName = "war3map.j";
 }
 
 bool CM_LoadMap(LPCSTR mapFilename) {

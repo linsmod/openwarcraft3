@@ -1,6 +1,7 @@
 #ifndef vm_public_h
 #define vm_public_h
 
+#include "common/shared.h"
 #include "g_local.h"
 #include "api_macros.h"
 
@@ -117,6 +118,8 @@ DWORD jass_pushstring(LPJASS j, LPCSTR value);
 DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
 DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func);
 DWORD jass_pushnullhandle(LPJASS j, LPCSTR type);
+DWORD jass_setruntimepos(LPJASS j, LPSRCLOC location);
+LPSRCLOC jass_getruntimepos(LPJASS j);
 HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);

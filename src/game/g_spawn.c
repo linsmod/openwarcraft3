@@ -195,7 +195,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
     jass_dofile(level.vm, "Scripts\\common.j");
     jass_dofile(level.vm, "Scripts\\Blizzard.j");
 //    jass_dofilenative(level.vm, "/Users/igor/Desktop/war3map.j");
-    jass_dobuffer(level.vm, level.mapinfo->mapscript);
+    jass_dobuffer(level.vm, level.mapinfo->mapscript,mapinfo->mapscriptName);
 
     UI_Init();
 }

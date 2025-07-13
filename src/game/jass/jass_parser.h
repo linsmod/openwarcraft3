@@ -4,7 +4,6 @@
 #include "../g_local.h"
 
 KNOWN_AS(token, TOKEN);
-
 typedef enum {
     TT_UNKNOWN,
     TT_VALUE,
@@ -47,6 +46,7 @@ struct token {
     LPTOKEN condition;
     LPTOKEN elseblock;
     LPTOKEN index;
+    LPSRCLOC location;
 };
 
 LPTOKEN JASS_ParseTokens(LPPARSER p);

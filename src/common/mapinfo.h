@@ -212,6 +212,7 @@ struct mapInfo_s {
     unitData_t *originalUnits;
     unitData_t *userCreatedUnits;
     LPSTR mapscript;
+    LPSTR mapscriptName; // (e.g. "war3map.j")
 };
 
 #endif

@@ -1,10 +1,11 @@
 #ifndef parser_h
 #define parser_h
-
+#include "common/shared.h"
 KNOWN_AS(word_extractor, PARSER);
 
 struct word_extractor {
     LPCSTR buffer;
+    LPSRCLOC location;
     const char* delimiters;
     BOOL error;
     BOOL eat_quotes;

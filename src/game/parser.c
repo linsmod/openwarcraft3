@@ -1,5 +1,4 @@
 #include "g_local.h"
-
 #define MAX_SEGMENT_SIZE 1024
 
 BOOL eat_token(LPPARSER p, LPCSTR value) {
@@ -14,7 +13,19 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
 
 LPCSTR parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
-    while (isspace(*p->buffer)) ++p->buffer;
+    // while (isspace(*p->buffer)) ++p->buffer;
+    // 跳过空格并更新行列号
+    while (*p->buffer) {
+        if (*p->buffer == '\n') {
+            p->location->line++;
+            p->location->column = 1;
+        } else {
+            p->location->column++;
+        }
+
+        if (!isspace(*p->buffer)) break;
+        ++p->buffer;
+    }
     if (*p->buffer == '\"') {
         LPCSTR closingQuote = strchr(p->buffer+1, '"');
         size_t stringLength = closingQuote-p->buffer+1;
