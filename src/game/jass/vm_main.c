@@ -496,10 +496,12 @@ void jass_setnull(LPJASSVAR var) {
                 var->value = NULL;
                 var->location = NULL;
                 var->refcount = NULL;
-                #ifdef DEBUG_JASS
+                if(var->value) {
+                    #ifdef DEBUG_JASS
                 INDENT(depth);
                 fprintf(stdout, "DecRefCount of handle(%p) to %d\n", var->value, var->refcount ? *var->refcount : 0);
-                #endif
+                    #endif
+                }
             } else if(var->type->name && !strcmp(var->type->name, JASS_TIMER)) {
                 // skip
             }
@@ -1261,7 +1263,7 @@ DWORD jass_call(LPJASS j, DWORD args) {
 #ifdef DEBUG_JASS
         for (DWORD i = 0; jass_funcs[i].name; i++) {
             if (jass_funcs[i].func == func) {
-                printf("%s (native)", jass_funcs[i].name);
+                printf("%s (native) %d.args", jass_funcs[i].name,args);
                 break;
             }
         }
