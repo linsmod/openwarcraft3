@@ -356,6 +356,16 @@ LPSTR FS_ReadArchiveFileIntoString(HANDLE archive, LPCSTR filename) {
     SFileReadFile(file, buffer, fileSize, NULL, NULL);
     FS_CloseFile(file);
     buffer[fileSize] = '\0';
+
+    // Save to .temp/{filename}
+    char tempPath[512];
+    snprintf(tempPath, sizeof(tempPath), "%s", filename);
+    FILE *fp = fopen(tempPath, "wb");
+    if (fp) {
+        fwrite(buffer, 1, fileSize, fp);
+        fclose(fp);
+    }
+
     return buffer;
 }
 

@@ -42,6 +42,10 @@ typedef struct STRUCT const *LPC##TYPE;
 #define FOR_LOOP(property, max) \
 for (DWORD property = 0, end = max; property < end; ++property)
 
+#define INDENT(depth) \
+FOR_LOOP(i, depth) fprintf(stdout," ");
+
+
 #define PrintTag(tag) \
 do { \
 LPSTR ch = (char*)&tag; \

@@ -3,9 +3,15 @@
 #include "vm_public.h"
 #include "jass_parser.h"
 #include "../parser.h"
+#include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
 #define DEBUG_JASS
+
+
+#ifdef DEBUG_JASS
+static int depth = 0, callnum = 0;
+#endif
 
 #define F_END { NULL }
 #define MAX_JASS_STACK 256
@@ -426,6 +432,10 @@ LPCJASSTYPE get_base_type(LPCJASSTYPE type) {
 void jass_setreturn(LPJASS j) {
     jass_stackvalue(j, 0)->env.done = true;
     jass_stackvalue(j, 0)->env.returnstack = j->num_stack;
+    #ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "return\n");
+    #endif
 }
 
 BOOL jass_mustreturn(LPJASS j) {
@@ -486,11 +496,20 @@ void jass_setnull(LPJASSVAR var) {
                 var->value = NULL;
                 var->location = NULL;
                 var->refcount = NULL;
+                #ifdef DEBUG_JASS
+                INDENT(depth);
+                fprintf(stdout, "DecRefCount of handle(%p) to %d\n", var->value, var->refcount ? *var->refcount : 0);
+                #endif
             } else if(var->type->name && !strcmp(var->type->name, JASS_TIMER)) {
                 // skip
             }
             else{
+                
                 if(var->value){
+                    #ifdef DEBUG_JASS
+                INDENT(depth);
+                fprintf(stdout, "Destroy handle(%p) due to %d refcount!\n", var->value, var->refcount ? *var->refcount : 0);
+                #endif
                     SAFE_DELETE(var->value, gi.MemFree);
                 }
                 SAFE_DELETE(var->location, gi.MemFree);
@@ -566,6 +585,10 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
             var->refcount = other->refcount;
             if (var->refcount) {
                 (*var->refcount)++;
+                #ifdef DEBUG_JASS
+                INDENT(depth);
+                fprintf(stdout, "AddRefCount of handle(%p) to %d\n", var->value, var->refcount ? *var->refcount : 0);
+                #endif
             }
             break;
         case jasstype_real:
@@ -691,6 +714,38 @@ DWORD jass_pushvalue(LPJASS j, LPCJASSVAR other) {
     jass_copy(j, var, other);
     return 1;
 }
+LPCSTR jass_dumpvar(LPCJASSVAR var) {
+    static char buffer[1024];
+    if (var->value == NULL) {
+        return "null";
+    }
+    switch (jass_getvarbasetype(var)) {
+        case jasstype_integer:
+            sprintf(buffer, "%d", *(LONG *)var->value);
+            break;
+        case jasstype_real:
+            sprintf(buffer, "%f", *(FLOAT *)var->value);
+            break;
+        case jasstype_string:
+            sprintf(buffer, "\"%s\"", (char *)var->value);
+            break;
+        case jasstype_boolean:
+            sprintf(buffer, "%s", *(BOOL *)var->value ? "true" : "false");
+            break;
+        case jasstype_code:
+            sprintf(buffer, "code(%p)", var->value);
+            break;
+        case jasstype_handle:
+            sprintf(buffer, "handle(%p) ref:%d", var->value, var->refcount ? *var->refcount : 0);
+            break;
+            case jasstype_cfunction:
+            sprintf(buffer, "cfunction(%p)", *(LPJASSCFUNCTION *)var->value);
+            break;
+        default:
+            sprintf(buffer, "unknown_jass_value(%p)", var->value);
+    }
+    return buffer;
+}
 
 LONG jass_checkinteger(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
@@ -768,18 +823,34 @@ DWORD jass_popinteger(LPJASS j) {
 }
 
 DWORD VM_EvalInteger(LPJASS j, LPCTOKEN token) {
+        #ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "push %d\n", atoi(token->primary));
+#endif
     return jass_pushinteger(j, atoi(token->primary));
 }
 
 DWORD VM_EvalReal(LPJASS j, LPCTOKEN token) {
+        #ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "push %f\n", atof(token->primary));
+#endif
     return jass_pushnumber(j, atof(token->primary));
 }
 
-DWORD VM_EvalString(LPJASS j, LPCTOKEN token) {
+DWORD VM_EvalString(LPJASS j, LPCTOKEN token) {   
+     #ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "push %s\n", token->primary);
+#endif
     return jass_pushstring(j, token->primary);
 }
 
 DWORD VM_EvalBoolean(LPJASS j, LPCTOKEN token) {
+        #ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "push %s\n",atob(token->primary) ? "true" : "false");
+#endif
     return jass_pushboolean(j, atob(token->primary));
 }
 
@@ -797,12 +868,21 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
             return jass_pushnull(j);
         }
     } else if ((v = find_dict(j->globals, token->primary))) {
+#ifdef DEBUG_JASS
+ INDENT(depth);
+            fprintf(stdout, "push %s: %s\n",token->primary, jass_dumpvar(v));
+#endif
         return jass_pushvalue(j, v);
     } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary))) {
+#ifdef DEBUG_JASS
+ INDENT(depth);
+            fprintf(stdout, "push %s: %s\n",token->primary, jass_dumpvar(v));
+#endif
         return jass_pushvalue(j, v);
     } else {
 #ifdef DEBUG_JASS
-            fprintf(stderr, "WARN: (null) pushed: %s\n", token->primary);
+ INDENT(depth);
+            fprintf(stdout, "identifier only: %s\n", token->primary);
 #endif
         return jass_pushnull(j);
     }
@@ -811,17 +891,30 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
 DWORD VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
     assert(jass_dotoken(j, token->index) == 1);
     DWORD index_val = jass_popinteger(j);
+   
     VM_EvalIdentifier(j, token);
     LPJASSVAR var = jass_stackvalue(j, -1);
+#ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "ArrayAccess: [%d]\n", index_val);
+#endif
     LPJASSVAR item = ensure_array_value(j, var, index_val, token->location);
     jass_pop(j, 1);
     JASSVAR tmp;
     memcpy(&tmp, item, sizeof(JASSVAR));
+#ifdef DEBUG_JASS
+    INDENT(depth);
+            fprintf(stdout, "push %s: %s\n",token->primary, jass_dumpvar(&tmp));
+#endif
     jass_pushvalue(j, &tmp);
     return 1;
 }
 
 DWORD VM_EvalFourCC(LPJASS j, LPCTOKEN token) {
+    #ifdef DEBUG_JASS
+     INDENT(depth);
+    fprintf(stdout, "push %d\n", atoi(token->primary));
+#endif
     return jass_pushinteger(j, *(DWORD *)token->primary);
 }
 
@@ -851,7 +944,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         jass_call(j, args);
         return j->num_stack - stacksize;
     } else {
-        fprintf(stderr, "Can't find function %s\n", token->primary);
+        fprintf(stdout, "Can't find function %s\n", token->primary);
         assert(false);
         return 0;
     }
@@ -907,6 +1000,10 @@ LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token) {
     item->value.type = find_type(j, token->primary);
     item->key = token->secondary;
     item->value.location = token->location;
+#ifdef DEBUG_JASS
+INDENT(depth);
+        fprintf(stdout, "decl: %s %s\n", token->primary, item->key);
+#endif
     if (token->init) {
         jass_set_value(j, &item->value, token->init);
     }
@@ -924,6 +1021,10 @@ TOKENFUNC(TYPEDEF) {
     type->name = token->primary;
     type->inherit = find_type(j, token->secondary);
     ADD_TO_LIST(type, j->types);
+    #ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "typedef %s inherits %s\n", type->name, type->inherit ? type->inherit->name : "null");
+    #endif
 }
 
 BOOL uses_localplayer(LPCTOKEN token) {
@@ -978,7 +1079,7 @@ TOKENFUNC(SET) {
             return jass_set_value(j, v, token->init);
         }
     } else {
-        fprintf(stderr, "Can't find variable %s\n", token->primary);
+        fprintf(stdout, "Can't find variable %s\n", token->primary);
     }
 }
 
@@ -1061,7 +1162,7 @@ TOKENFUNC(SINGLETOKEN) {
             return;
         }
     }
-    fprintf(stderr, "Can't evaluate token of type %d\n", token->type);
+    fprintf(stdout, "Can't evaluate token of type %d\n", token->type);
     assert(false);
 }
 
@@ -1144,10 +1245,6 @@ BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
 //    return success;
 //}
 
-#ifdef DEBUG_JASS
-static int depth = 0, callnum = 0;
-#endif
-
 DWORD jass_call(LPJASS j, DWORD args) {
     LPJASSVAR root = &j->stack[j->num_stack - args - 1];
     LPJASSVAR old_stack_pointer = j->stack_pointer;
@@ -1156,7 +1253,8 @@ DWORD jass_call(LPJASS j, DWORD args) {
 #ifdef DEBUG_JASS
     callnum++;
     depth++;
-    FOR_LOOP(i, depth) printf(" ");
+    INDENT(depth);
+    printf("call ");
 #endif
     if (jass_getvarbasetype(root) == jasstype_cfunction) {
         LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)root->value;
@@ -1180,9 +1278,7 @@ DWORD jass_call(LPJASS j, DWORD args) {
         LPCJASSFUNC func = root->value;
         LPJASSDICT locals = NULL;
         DWORD argnum = 1;
-#ifdef DEBUG_JASS
-        printf("%s\n", func->name);
-#endif
+
         FOR_EACH_LIST(JASSARG, arg, func->args) {
             LPJASSDICT local = JASSALLOC(JASSDICT);
             local->key = arg->name;
@@ -1191,7 +1287,9 @@ DWORD jass_call(LPJASS j, DWORD args) {
             PUSH_BACK(JASSDICT, local, locals);
             argnum++;
         }
-//        printf("%s\n", func->name);
+#ifdef DEBUG_JASS
+        printf("%s %d.args \n ", func->name,argnum);
+#endif
         root->env.done = false;
         root->env.returnstack = -1;
         root->env.locals = locals;
