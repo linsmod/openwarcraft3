@@ -66,12 +66,21 @@ for (type *property = array; property - array < num; property++)
 
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
 
+
+#ifdef DEBUG_JASS
 #define SAFE_DELETE(x, func) \
 if (x) { \
     fprintf(stdout, "SafeDelete %s:%p\n", #x, x); \
     func(x); \
     (x) = NULL; \
 }
+#else
+#define SAFE_DELETE(x, func) \
+if (x) { \
+    func(x); \
+    (x) = NULL; \
+}
+#endif
 
 #define DEG2RAD(ANGLE) ((ANGLE) / 180.0 * M_PI)
 #define RAD2DEG(ANGLE) ((ANGLE) / M_PI * 180.0)
