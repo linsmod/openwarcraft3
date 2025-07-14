@@ -1,3 +1,4 @@
+#include "jass/vm_public.h"
 #define IS_UNIT(ent) (ent->svflags & SVF_MONSTER)
 
 void group_add_entity(ggroup_t *group, LPEDICT ent) {
@@ -202,9 +203,13 @@ DWORD ForGroup(LPJASS j) {
     extern LPEDICT currentunit;
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPCJASSFUNC callback = jass_checkcode(j, 2);
+    LPSRCLOC loc = gi.MemAlloc(sizeof(SRCLOC));
+    loc->file = __FILE__;
+    loc->line = __LINE__;
+    loc->column = 0;
     FOR_LOOP(i, whichGroup->num_units) {
         currentunit = whichGroup->units[i];
-        jass_pushfunction(j, callback);
+        jass_pushfunction(j, callback,loc);
         jass_call(j, 0);
     }
     return 0;

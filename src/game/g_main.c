@@ -103,9 +103,9 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
     if (!level.scriptsStarted) {
-        jass_callbyname(level.vm, "config",false);
-        jass_callbyname(level.vm, "main",false);
-        // jass_callbyname_sequenced_async(level.vm, "config", "main");
+        // jass_callbyname(level.vm, "config",false);
+        // jass_callbyname(level.vm, "main",false);
+        jass_callbyname_sequenced_async(level.vm, "config", "main");
         level.scriptsStarted = true;
     }
     

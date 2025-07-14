@@ -9,6 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/openwarcraft3",
+            "preLaunchTask": "build-debug",
             "args": [">","output.log"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/",

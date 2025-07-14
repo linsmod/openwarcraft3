@@ -189,7 +189,7 @@ int ParseEnumString(LPCSTR token, LPCSTR const *values) {
 }
 
 int ParseEnum(LPPARSER p, LPCSTR const *values) {
-    LPCSTR token = parse_token(p);
+    LPCSTR token = parse_token(p,true);
     int value = ParseEnumString(token, values);
     if (value == -1) {
         parser_error(p);
@@ -404,14 +404,14 @@ MAKE_PARSERCALL(String) {
 }
 
 MAKE_PARSERCALL(Frame) {
-    LPCSTR stype = parse_token(parser);
+    LPCSTR stype = parse_token(parser,true);
     FRAMETYPE type = ParseEnumString(stype, FrameType);
     LPFRAMEDEF current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
 }
 
 MAKE_PARSERCALL(IncludeFile) {
-    LPCSTR filename = parse_token(parser);
+    LPCSTR filename = parse_token(parser,true);
     UI_ParseFDF(filename);
 }
 
@@ -559,7 +559,7 @@ void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
 
 void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     LPCSTR token = NULL;
-    while ((token = parse_token(parser)) && (*token != '}')) {
+    while ((token = parse_token(parser,true)) && (*token != '}')) {
         if (frame->Type == FT_STRINGLIST) {
             static parseItem_t stringitem = { "", { F(Name, StringListItem), F_END } };
             stringListItem_t *str = gi.MemAlloc(sizeof(stringListItem_t));
@@ -617,13 +617,13 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
 void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
     DWORD state = 0;
     LPCSTR tok;
-    while ((tok = parse_token(p)) && (*tok != '{')) {
+    while ((tok = parse_token(p,true)) && (*tok != '{')) {
         if (!strcmp(tok, "INHERITS")) {
-            LPCSTR inheritName = parse_token(p);
+            LPCSTR inheritName = parse_token(p,true);
             BOOL withChildren = false;
             if (!strcmp(inheritName, "WITHCHILDREN")) {
                 withChildren = true;
-                inheritName = parse_token(p);
+                inheritName = parse_token(p,true);
             }
             UI_InheritFrom(frame, inheritName);
             state++;
@@ -663,7 +663,7 @@ LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
 void FDF_ParseScene(LPPARSER parser) {
     LPCSTR token = NULL;
     LPFRAMEDEF frame = NULL;
-    while (*(token = parse_token(parser))) {
+    while (*(token = parse_token(parser,true))) {
         for (parseClass_t *it = classes; it->name; it++) {
             if (!strcmp(it->name, token)) {
                 it->func(parser, frame);

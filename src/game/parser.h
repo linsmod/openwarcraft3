@@ -11,7 +11,7 @@ struct word_extractor {
     BOOL eat_quotes;
 };
 
-LPCSTR parse_token(LPPARSER p);
+LPCSTR parse_token(LPPARSER p,BOOL calc_line);
 LPCSTR parse_segment(LPPARSER p);
 LPCSTR peek_token(LPPARSER p);
 BOOL eat_token(LPPARSER p, LPCSTR value);

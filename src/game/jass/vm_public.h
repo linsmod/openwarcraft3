@@ -72,6 +72,8 @@ typedef enum {
 struct jass_module {
     LPCSTR name;
     LPJASSCFUNCTION func;
+    LPCSTR _FILE_;
+    int _LINE_;
 };
 
 typedef struct gtriggeraction_s {
@@ -141,7 +143,7 @@ DWORD jass_pushnumber(LPJASS j, FLOAT value);
 DWORD jass_pushboolean(LPJASS j, BOOL value);
 DWORD jass_pushstring(LPJASS j, LPCSTR value);
 DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
-DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func);
+DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func, LPSRCLOC location);
 DWORD jass_pushnullhandle(LPJASS j, LPCSTR type);
 DWORD jass_setruntimepos(LPJASS j, LPSRCLOC location);
 LPSRCLOC jass_getruntimepos(LPJASS j);

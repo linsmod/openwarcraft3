@@ -247,9 +247,13 @@ DWORD TriggerWaitForSound(LPJASS j) {
     return 0;
 }
 DWORD TriggerEvaluate(LPJASS j) {
+    LPSRCLOC loc = gi.MemAlloc(sizeof(SRCLOC));
+    loc->file = __FILE__;
+    loc->line = __LINE__;
+    loc->column = 0;
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     FOR_EACH_LIST(TRIGGERCONDITION, cond, whichTrigger->conditions) {
-        jass_pushfunction(j, cond->expr);
+        jass_pushfunction(j, cond->expr,loc);
         if (jass_call(j, 0) != 1 || !jass_popboolean(j)) {
             return jass_pushboolean(j, false);
         }
@@ -259,7 +263,7 @@ DWORD TriggerEvaluate(LPJASS j) {
 DWORD TriggerExecute(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     FOR_EACH_LIST(TRIGGERACTION, action, whichTrigger->actions) {
-        jass_pushfunction(j, action->func);
+        jass_pushfunction(j, action->func,NULL);
         jass_call(j, 0);
     }
     return 0;

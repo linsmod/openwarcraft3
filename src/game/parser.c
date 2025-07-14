@@ -4,25 +4,26 @@
 BOOL eat_token(LPPARSER p, LPCSTR value) {
     LPCSTR tok = peek_token(p);
     if (!strcmp(tok, value)) {
-        parse_token(p);
+        parse_token(p,true);
         return true;
     } else {
         return false;
     }
 }
 
-LPCSTR parse_token(LPPARSER p) {
+LPCSTR parse_token(LPPARSER p,BOOL calc_line) {
     static char word[MAX_SEGMENT_SIZE];
     // while (isspace(*p->buffer)) ++p->buffer;
     // 跳过空格并更新行列号
     while (*p->buffer) {
-        if (*p->buffer == '\n') {
-            p->location->line++;
-            p->location->column = 1;
-        } else {
-            p->location->column++;
+        if(calc_line){
+            if (*p->buffer == '\n') {
+                p->location->line++;
+                p->location->column = 1;
+            } else {
+                p->location->column++;
+            }
         }
-
         if (!isspace(*p->buffer)) break;
         ++p->buffer;
     }
@@ -56,7 +57,7 @@ LPCSTR parse_token(LPPARSER p) {
 
 LPCSTR peek_token(LPPARSER p) {
     PARSER tmp = *p;
-    LPCSTR token = parse_token(p);
+    LPCSTR token = parse_token(p,false);
     *p = tmp;
     return token;
 }
@@ -95,8 +96,9 @@ LPCSTR parse_segment2(LPPARSER p) {
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
         return NULL;
-    while (isspace(*p->buffer))
+    while (isspace(*p->buffer)){
         ++p->buffer;
+    }
     DWORD num_quotes = 0;
     for (LPSTR out = segment; *p->buffer; ++p->buffer, ++out) {
         if (*p->buffer == ',' && (num_quotes & 1) == 0) {
