@@ -285,22 +285,21 @@ DWORD DestroyTimer(LPJASS j) {
 // 启动定时器
 DWORD TimerStart(LPJASS j) {
     LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
+    if(!whichTimer)  {
+        return jass_pushnullhandle(j, "timer");
+        return 0;
+    }
     FLOAT timeout = jass_checknumber(j, 2);
     BOOL periodic = jass_checkboolean(j, 3);
     LPCJASSFUNC handlerFunc = jass_checkcode(j, 4);
-
-    if (whichTimer) {
-            whichTimer->timeout = timeout;
-            whichTimer->elapsed = 0.0f;
-            whichTimer->remaining = timeout;
-            whichTimer->periodic = periodic;
-            whichTimer->paused = false;
-            whichTimer->active = true;
-            whichTimer->handlerFunc = handlerFunc;
-            jass_pushhandle(j, (HANDLE)whichTimer, "timer");
-            return 1;
-    }
-    jass_pushnullhandle(j, "timer");
+    whichTimer->timeout = timeout;
+    whichTimer->elapsed = 0.0f;
+    whichTimer->remaining = timeout;
+    whichTimer->periodic = periodic;
+    whichTimer->paused = false;
+    whichTimer->active = true;
+    whichTimer->handlerFunc = handlerFunc;
+    jass_pushhandle(j, (HANDLE)whichTimer, "timer");
     return 1;
 }
 
