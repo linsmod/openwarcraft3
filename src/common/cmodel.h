@@ -4,6 +4,7 @@
 #include "common.h"
 #include <StormPort.h>
 
+#pragma pack(push, 1)
 struct War3MapVertex {
     USHORT accurate_height;
     USHORT waterlevel:14;
@@ -18,6 +19,7 @@ struct War3MapVertex {
     BYTE level:4;
     BYTE cliff:4;
 };
+#pragma pack(pop)
 
 struct war3map {
     DWORD header;

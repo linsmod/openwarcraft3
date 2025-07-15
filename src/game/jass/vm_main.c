@@ -1039,7 +1039,7 @@ LPJASSDICT parse_dict(LPJASS j, LPCTOKEN token) {
     item->value.array = token->flags & TF_ARRAY;
     item->value.type = find_type(j, token->primary);
     item->key = token->secondary;
-    item->value.location = token->location;
+    JASS_CP_SRCLOC(item->value.location, token->location);
 #ifdef DEBUG_JASS
 INDENT(depth);
         fprintf(stdout, "decl: %s %s\n", token->primary, item->key);

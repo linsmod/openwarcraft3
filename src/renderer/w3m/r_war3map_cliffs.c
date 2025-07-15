@@ -59,7 +59,8 @@ float GetAccurateHeightAtPoint(float sx, float sy) {
     float fy = floorf(y);
     float a = GetWar3MapVertex(tr.world, fx, fy)->accurate_height;
     float b = GetWar3MapVertex(tr.world, fx + 1, fy)->accurate_height;
-    float c = GetWar3MapVertex(tr.world, fx, fy + 1)->accurate_height;
+    LPCWAR3MAPVERTEX lc = GetWar3MapVertex(tr.world, fx, fy + 1);
+    float c = lc->accurate_height;
     float d = GetWar3MapVertex(tr.world, fx + 1, fy + 1)->accurate_height;
     float ab = LerpNumber(a, b, x - fx);
     float cd = LerpNumber(c, d, x - fx);
