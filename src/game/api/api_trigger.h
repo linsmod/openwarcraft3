@@ -344,9 +344,10 @@ DWORD TriggerExecute(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     FOR_EACH_LIST(TRIGGERACTION, action, whichTrigger->actions) {
         jass_pushfunction(j, action->func,NULL);
+        LPTRIGGER old_trigger = jass_getcontext(j)->trigger;
         jass_settriggeringtrigger(j, whichTrigger);
         jass_call(j, 0);
-        jass_settriggeringtrigger(j, NULL);
+        jass_settriggeringtrigger(j, old_trigger);
     }
     return 0;
 }

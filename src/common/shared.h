@@ -67,6 +67,8 @@ for (type *property = array; property - array < num; property++)
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
 
 
+#define DEBUG_JASS
+
 #ifdef DEBUG_JASS
 #define SAFE_DELETE(x, func) \
 if (x) { \

@@ -157,6 +157,8 @@ void R_RenderModel(renderEntity_t const *entity) {
         case ID_43DM:
             M3_RenderModel(entity, entity->model->m3, &transform);
             break;
+        default:
+            break;
     }
     
     if (is_rendering_lights)

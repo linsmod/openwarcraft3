@@ -7,8 +7,6 @@
 #include <string.h>
 #include <sys/prctl.h>
 
-#define DEBUG_JASS
-
 
 #ifdef DEBUG_JASS
 static __thread int depth = 0, callnum = 0;
@@ -325,7 +323,7 @@ void jass_settriggeringtrigger(LPJASS j, LPTRIGGER trigger) {
     j->context.trigger = trigger;
 }
 
-void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
+void jass_startthread(LPJASS j, LPCJASSCONTEXT context,LPCSTR thName) {
     static int thread_id = 0;
     LPJASS thread = jass_newstate();
     memcpy(thread, j, sizeof(JASS));
@@ -335,7 +333,7 @@ void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
     thread->context = *context;
     thread->thread_id = thread_id++;
     char text[1024] = { 0 };
-    sprintf(text,"%s at JT%d",context->func->name,thread->thread_id);
+    sprintf(text,"%s at JT%d",thName,thread->thread_id);
     thread->thread_name = strdup(text);
     DWORD id = gi.CreateThread(RunAction, thread);
 }
@@ -362,7 +360,7 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
                                   .func = action->func,
                                   .unit = unit,
                                   .playerState = player,
-                              ));
+                              ),"jass_calltrigger");
     }
     return true;
 }
@@ -489,12 +487,17 @@ void jass_pop(LPJASS j, DWORD count) {
 
 static void jass_setnull(LPJASSVAR var);
 
+static int dict_depth = 0;
+
 static void jass_deletedict(LPJASSDICT dict) {
+    dict_depth++;
+    fprintf(stdout, "jass_deletedict: %s\n", dict->key);
     SAFE_DELETE(dict->next, jass_deletedict);
     jass_setnull(&dict->value);
     gi.MemFree(dict);
 }
 void jass_setnull(LPJASSVAR var) {
+    dict_depth =0;
     SAFE_DELETE(var->env.locals, jass_deletedict);
     switch (jass_getvarbasetype(var)) {
         case jasstype_handle:
@@ -1373,7 +1376,7 @@ void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
         return;
     }
     if (async) {
-        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = NULL,.trigger = NULL));
+        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = NULL,.trigger = NULL),"jass_callbyname");
     } else {
         jass_pushfunction(j, func,loc);
         jass_call(j, 0);
@@ -1390,5 +1393,5 @@ void jass_callbyname_sequenced_async(LPJASS j, LPCSTR name,LPCSTR name2) {
         fprintf(stderr, "Function not found %s\n", name2);
         return;
     }
-    jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = func2,.trigger = NULL));
+    jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = func2,.trigger = NULL),"jass_callbyname2");
 }

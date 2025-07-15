@@ -9,10 +9,12 @@ if [ $# -gt 0 ]; then
         debug|Debug)
             BUILD_TYPE="Debug"
             echo "Building Debug version..."
+            cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=ON -B build
             ;;
         release|Release)
             BUILD_TYPE="Release"
             echo "Building Release version..."
+            cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -B build
             ;;
         *)
             echo "Unknown build type: $1"
@@ -22,7 +24,7 @@ if [ $# -gt 0 ]; then
     esac
     
     # 重新配置CMake以设置构建类型
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -B build
+    
 else
     echo "No build type specified, using default..."
 fi

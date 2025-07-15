@@ -10,6 +10,14 @@ project(openwarcraft3 C)
 # 设置C标准
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+option(ENABLE_ASAN "Enable AddressSanitizer for memory error detection" OFF)
+if(ENABLE_ASAN)
+    # 添加编译器标志
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -fno-omit-frame-pointer")
+    
+    # 添加链接器标志
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")
+endif()
 
 # 定义变量
 set(VENDOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/vendor)
