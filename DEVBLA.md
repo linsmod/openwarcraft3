@@ -1,0 +1,1 @@
+jassfunction调用返回的是push参数的数量

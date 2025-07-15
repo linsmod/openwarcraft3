@@ -287,7 +287,6 @@ DWORD TimerStart(LPJASS j) {
     LPTIMER whichTimer = jass_checkhandle(j, 1, "timer");
     if(!whichTimer)  {
         return jass_pushnullhandle(j, "timer");
-        return 0;
     }
     FLOAT timeout = jass_checknumber(j, 2);
     BOOL periodic = jass_checkboolean(j, 3);
