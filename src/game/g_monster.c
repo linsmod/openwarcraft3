@@ -42,11 +42,23 @@ DWORD FindEnumValue(LPCSTR value, LPCSTR values[]) {
 
 static FLOAT get_unit_collision(pathTex_t const *pathtex) {
     int size = 0;
-    for (int x = 0; x < pathtex->width; x++) {
-        if (pathtex->map[(pathtex->width + 1) * x].b)
-            size++;
+    int width = pathtex->width;
+    int height = pathtex->height;
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            COLOR32 pixel = pathtex->map[y * width + x];
+            if (pixel.b != 0) { // .b 代表是否可碰撞？
+                size++;
+            }
+        }
     }
-    return size * 16 * 1.3;
+
+    // 计算平均覆盖面积的平方根，作为近似“半径”
+    FLOAT radius = sqrtf((FLOAT)size / (FLOAT)(width * height)) * fmaxf(width, height);
+
+    // 最终乘以一个缩放因子，得到游戏世界中的碰撞半径
+    return radius * 16.0f * 1.3f;
 }
 
 LPEDICT Waypoint_add(LPCVECTOR2 spot) {
