@@ -1,3 +1,6 @@
+#include "game.h"
+#include "g_local.h"
+#include "jass/vm_public.h"
 #define API_PLAYERSTATE(NAME) \
 LPPLAYER NAME = G_GetPlayerByNumber(jass_getcontext(j)->unit->s.player);
 
@@ -35,6 +38,15 @@ DWORD SetCameraBounds(LPJASS j) {
     FLOAT y3 = jass_checknumber(j, 6);
     FLOAT x4 = jass_checknumber(j, 7);
     FLOAT y4 = jass_checknumber(j, 8);
+    LPGAMECLIENT gc = G_GetPlayerClientByNumber(0);
+    gc->camera.bounds[0]=x1;
+    gc->camera.bounds[1]=y1;
+    gc->camera.bounds[2]=x2;
+    gc->camera.bounds[3]=y2;
+    gc->camera.bounds[4]=x3;
+    gc->camera.bounds[5]=y3;
+    gc->camera.bounds[6]=x4;
+    gc->camera.bounds[7]=y4;
     return 0;
 }
 DWORD StopCamera(LPJASS j) {
@@ -55,7 +67,7 @@ DWORD PanCameraTo(LPJASS j) {
     LPGAMECLIENT gc = G_GetPlayerClientByNumber(PLAYER_NUM(currentplayer));
     gc->camera.state.position.x = jass_checknumber(j, 1);
     gc->camera.state.position.y = jass_checknumber(j, 2);
-    gc->camera.end_time = gc->camera.start_time;
+    gc->camera.end_time = gc->camera.start_time + 100;
     return 0;
 }
 DWORD PanCameraToTimed(LPJASS j) {

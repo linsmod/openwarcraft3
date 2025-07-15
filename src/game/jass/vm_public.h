@@ -124,7 +124,7 @@ struct jass_context {
     LPCJASSFUNC func;
     LPCJASSFUNC func2;
 };
-
+extern LPCJASSFUNC find_function(LPCJASS j, LPCSTR name);
 LONG jass_checkinteger(LPJASS j, int index);
 FLOAT jass_checknumber(LPJASS j, int index);
 BOOL jass_checkboolean(LPJASS j, int index);
@@ -146,6 +146,7 @@ DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
 DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func, LPSRCLOC location);
 DWORD jass_pushnullhandle(LPJASS j, LPCSTR type);
 void jass_setlasterror(LPCSTR error);
+void jass_settriggeringtrigger(LPJASS j, LPTRIGGER trigger);
 LPCSTR jass_getlasterror(LPJASS j);
 HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);

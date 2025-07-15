@@ -105,14 +105,20 @@ DWORD R2SW(LPJASS j) {
     return jass_pushstring(j, buffer);
 }
 DWORD SubString(LPJASS j) {
-    //LPCSTR source = jass_checkstring(j, 1);
-    //LONG start = jass_checkinteger(j, 2);
-    //LONG end = jass_checkinteger(j, 3);
-    return jass_pushstring(j, 0);
+    LPCSTR source = jass_checkstring(j, 1);
+    LONG start = jass_checkinteger(j, 2);
+    LONG end = jass_checkinteger(j, 3);
+    if (start < 0 || end < start || end > strlen(source)) {
+        return jass_pushstring(j, "");
+    }
+    char buffer[1024] = { 0 };
+    strncpy(buffer, source + start, end - start);
+    buffer[end - start] = '\0';
+    return jass_pushstring(j, buffer);
 }
 DWORD GetLocalizedString(LPJASS j) {
-    //LPCSTR source = jass_checkstring(j, 1);
-    return jass_pushstring(j, 0);
+    LPCSTR source = jass_checkstring(j, 1);
+    return jass_pushstring(j, "LOCALIZED_NOTIMPLEMENTED");
 }
 DWORD GetLocalizedHotkey(LPJASS j) {
     //LPCSTR source = jass_checkstring(j, 1);
@@ -470,7 +476,8 @@ DWORD Condition(LPJASS j) {
     return jass_pushlighthandle(j, (HANDLE)func, "conditionfunc");
 }
 DWORD DestroyCondition(LPJASS j) {
-    //HANDLE c = jass_checkhandle(j, 1, "conditionfunc");
+    HANDLE c = jass_checkhandle(j, 1, "conditionfunc");
+    SAFE_DELETE(c, gi.MemFree);
     return 0;
 }
 DWORD Filter(LPJASS j) {
@@ -478,11 +485,13 @@ DWORD Filter(LPJASS j) {
     return jass_pushnullhandle(j, "filterfunc");
 }
 DWORD DestroyFilter(LPJASS j) {
-    //HANDLE f = jass_checkhandle(j, 1, "filterfunc");
+    HANDLE f = jass_checkhandle(j, 1, "filterfunc");
+    SAFE_DELETE(f, gi.MemFree);
     return 0;
 }
 DWORD DestroyBoolExpr(LPJASS j) {
-    //HANDLE e = jass_checkhandle(j, 1, "boolexpr");
+    HANDLE e = jass_checkhandle(j, 1, "boolexpr");
+    SAFE_DELETE(e, gi.MemFree);
     return 0;
 }
 DWORD GetEventGameState(LPJASS j) {
@@ -624,7 +633,7 @@ DWORD GetEventTargetUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetWidgetLife(LPJASS j) {
-    //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
+    LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
     return jass_pushnumber(j, 0);
 }
 DWORD SetWidgetLife(LPJASS j) {

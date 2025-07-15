@@ -7,7 +7,7 @@
 #include <string.h>
 #include <sys/prctl.h>
 
-// #define DEBUG_JASS
+#define DEBUG_JASS
 
 
 #ifdef DEBUG_JASS
@@ -321,6 +321,9 @@ static HANDLE RunAction(HANDLE handle) {
 LPCJASSCONTEXT jass_getcontext(LPJASS j) {
     return &j->context;
 }
+void jass_settriggeringtrigger(LPJASS j, LPTRIGGER trigger) {
+    j->context.trigger = trigger;
+}
 
 void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
     static int thread_id = 0;
@@ -336,7 +339,6 @@ void jass_startthread(LPJASS j, LPCJASSCONTEXT context) {
     thread->thread_name = strdup(text);
     DWORD id = gi.CreateThread(RunAction, thread);
 }
-
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     if (trigger->disabled)
         return false;
@@ -400,7 +402,7 @@ static LPCJASSMODULE find_cfunction(LPCJASS j, LPCSTR name) {
     return NULL;
 }
 
-static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name) {
+LPCJASSFUNC find_function(LPCJASS j, LPCSTR name) {
     FOR_EACH_LIST(JASSFUNC, func, j->functions) {
         if (!strcmp(func->name, name)) {
             return func;
@@ -442,10 +444,7 @@ LPCJASSTYPE get_base_type(LPCJASSTYPE type) {
 void jass_setreturn(LPJASS j) {
     jass_stackvalue(j, 0)->env.done = true;
     jass_stackvalue(j, 0)->env.returnstack = j->num_stack;
-    #ifdef DEBUG_JASS
-    INDENT(depth);
-    fprintf(stdout, "return\n");
-    #endif
+    
 }
 
 BOOL jass_mustreturn(LPJASS j) {
@@ -835,7 +834,8 @@ LPCJASSFUNC jass_checkcode(LPJASS j, int index) {
 
 HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
     LPCJASSVAR var = jass_stackvalue(j, index);
-    assert(is_handle_convertible(var->type, find_type(j, type)));
+    if(!var->isnull)
+        assert(is_handle_convertible(var->type, find_type(j, type)));
     return var->value;
 }
 
@@ -1160,8 +1160,16 @@ TOKENFUNC(LOOP) {
             if (jass_mustreturn(j)) {
                 return;
             } else if (token->type == TT_RETURN) {
+#ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "prepare return value:\n");
+#endif
                 jass_setreturn(j);
                 jass_dotoken(j, token->body);
+#ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "return.\n");
+#endif
                 return;
             } else if (tok->type == TT_EXITWHEN) {
                 jass_dotoken(j, tok->condition);
@@ -1207,8 +1215,16 @@ TOKENFUNC(TOKENS) {
         if (jass_mustreturn(j)) {
             return;
         } else if (tok->type == TT_RETURN) {
-            jass_setreturn(j);
-            jass_dotoken(j, tok->body);
+#ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "prepare return value:\n");
+#endif
+                jass_setreturn(j);
+                jass_dotoken(j, tok->body);
+#ifdef DEBUG_JASS
+    INDENT(depth);
+    fprintf(stdout, "return.\n");
+#endif
         } else {
             eval_SINGLETOKEN(j, tok);
         }
@@ -1357,7 +1373,7 @@ void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
         return;
     }
     if (async) {
-        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = NULL));
+        jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = NULL,.trigger = NULL));
     } else {
         jass_pushfunction(j, func,loc);
         jass_call(j, 0);
@@ -1374,5 +1390,5 @@ void jass_callbyname_sequenced_async(LPJASS j, LPCSTR name,LPCSTR name2) {
         fprintf(stderr, "Function not found %s\n", name2);
         return;
     }
-    jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = func2));
+    jass_startthread(j, &MAKE(JASSCONTEXT, .func = func,.func2 = func2,.trigger = NULL));
 }
