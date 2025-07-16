@@ -96,7 +96,7 @@ void CL_Input(void) {
                             }
                         }
                         break;
-                    case 2: // Right button - Warcraft 3 style attack/move
+                    case 3: // Right button - Warcraft 3 style attack/move
                         mouse.event = UI_RIGHT_MOUSE_UP;
                         {
                             DWORD entnum;
@@ -107,10 +107,14 @@ void CL_Input(void) {
                                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                                 SZ_Printf(&cls.netchan.message, "attack %d", entnum);
                             }
-                            // Check if right-clicking on ground (move) - use same logic as move button
+                            // Check if right-clicking on ground (move) - use proper ability system
                             else if (re.TraceLocation(&cl.viewDef, event.button.x, event.button.y, &point)) {
+                                // Directly use move ability like UI console
+                                VECTOR2 location = { (float)point.x, (float)point.y };
+                                
+                                // The move ability will handle the confirmation effect
                                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-                                SZ_Printf(&cls.netchan.message, "button move %d %d", (int)point.x, (int)point.y);
+                                SZ_Printf(&cls.netchan.message, "move %f %f", location.x, location.y);
                             }
                         }
                         break;

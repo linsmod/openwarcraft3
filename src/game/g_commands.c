@@ -175,6 +175,30 @@ CLIENTCOMMAND(Quest) {
     }
 }
 
+CLIENTCOMMAND(Move) {
+    if (argc < 3)
+        return;
+    
+    LPGAMECLIENT client = clent->client;
+    VECTOR2 destination = { atof(argv[1]), atof(argv[2]) };
+    
+    // Create waypoint and move all selected units
+    LPEDICT waypoint = Waypoint_add(&destination);
+    
+    // Send move confirmation effect
+    gi.WriteByte(svc_temp_entity);
+    gi.WriteByte(TE_MOVE_CONFIRMATION);
+    gi.WritePosition(&waypoint->s.origin);
+    gi.unicast(clent);
+    
+    // Move all selected units
+    FOR_SELECTED_UNITS(client, unit) {
+        if (unit->s.player == client->ps.number && !M_IsDead(unit)) {
+            order_move(unit, waypoint);
+        }
+    }
+}
+
 typedef struct {
     LPCSTR name;
     void (*func)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
@@ -191,6 +215,7 @@ clientCommand_t clientCommands[] = {
     { "quest", CMD_Quest },
     { "zoom", CMD_Zoom },
     { "attack", CMD_Attack },
+    { "move", CMD_Move },
     { NULL }
 };
 
