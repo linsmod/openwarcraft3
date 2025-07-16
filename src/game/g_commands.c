@@ -139,6 +139,30 @@ CLIENTCOMMAND(Zoom) {
     G_ClientSetCameraDistance(ent, new_distance);
 }
 
+CLIENTCOMMAND(Attack) {
+    if (argc < 2)
+        return;
+    
+    LPGAMECLIENT client = clent->client;
+    DWORD target_id = atoi(argv[1]);
+    
+    if (target_id >= globals.num_edicts)
+        return;
+    
+    LPEDICT target = &globals.edicts[target_id];
+    
+    // Check if target is valid for attack
+    if (!target || !target->inuse || M_IsDead(target))
+        return;
+    
+    // Attack with all selected units
+    FOR_SELECTED_UNITS(client, attacker) {
+        if (attacker->s.player == client->ps.number && !M_IsDead(attacker)) {
+            unit_issueorder(attacker, "attack", &target->s.origin);
+        }
+    }
+}
+
 CLIENTCOMMAND(Quest) {
     DWORD index = atoi(argv[1]);
     FOR_EACH_LIST(QUEST, q, level.quests) {
@@ -166,6 +190,7 @@ clientCommand_t clientCommands[] = {
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
     { "zoom", CMD_Zoom },
+    { "attack", CMD_Attack },
     { NULL }
 };
 

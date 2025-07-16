@@ -45,19 +45,93 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 Key_Event(mousevt, true, event.button.timestamp);
+                mouse.button = event.button.button;
+                switch (event.button.button) {
+                    case 1:
+                        mouse.event = UI_LEFT_MOUSE_DOWN;
+                        cl.selection.in_progress = true;
+                        cl.selection.rect.x = mouse.origin.x;
+                        cl.selection.rect.y = mouse.origin.y;
+                        cl.selection.rect.w = 0;
+                        cl.selection.rect.h = 0;
+                        break;
+                    case 2:
+                        mouse.event = UI_RIGHT_MOUSE_DOWN;
+                        break;
+                }
                 break;
             case SDL_MOUSEBUTTONUP:
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
-                Key_Event(mousevt, false, event.button.timestamp);
+                mouse.button = 0;
+                switch (event.button.button) {
+                    case 1:
+                        mouse.event = UI_LEFT_MOUSE_UP;
+                        {
+                            RECT const r = cl.selection.rect;
+                            cl.selection.in_progress = false;
+                            DWORD entnum;
+                            VECTOR3 point;
+                            if (fabs(r.w)+fabs(r.h) < 10) {
+                                if (re.TraceEntity(&cl.viewDef, r.x, r.y, &entnum)) {
+                                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                                    SZ_Printf(&cls.netchan.message, "select %d", entnum);
+                                }
+                                if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
+                                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                                    SZ_Printf(&cls.netchan.message, "point %d %d", (int)point.x, (int)point.y);
+                                }
+                            } else {
+                                DWORD selected[MAX_SELECTED_ENTITIES] = { 0 };
+                                DWORD num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, MAX_SELECTED_ENTITIES, selected);
+                                char buffer[1024] = { 0 };
+                                if (num == 0)
+                                    break;
+                                strcpy(buffer, "select");
+                                FOR_LOOP(i, num) {
+                                    sprintf(buffer+strlen(buffer), " %d", selected[i]);
+                                }
+                                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                                SZ_Printf(&cls.netchan.message, buffer);
+                            }
+                        }
+                        break;
+                    case 2: // Right button - Warcraft 3 style attack/move
+                        mouse.event = UI_RIGHT_MOUSE_UP;
+                        {
+                            DWORD entnum;
+                            VECTOR3 point;
+                            
+                            // Check if right-clicking on an entity (attack)
+                            if (re.TraceEntity(&cl.viewDef, event.button.x, event.button.y, &entnum)) {
+                                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                                SZ_Printf(&cls.netchan.message, "attack %d", entnum);
+                            }
+                            // Check if right-clicking on ground (move) - use same logic as move button
+                            else if (re.TraceLocation(&cl.viewDef, event.button.x, event.button.y, &point)) {
+                                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                                SZ_Printf(&cls.netchan.message, "button move %d %d", (int)point.x, (int)point.y);
+                            }
+                        }
+                        break;
+                }
                 break;
+
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
+                switch (mouse.button) {
+                    case 1:
+                        cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
+                        cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
+                        moved = true;
+                        break;
+                    case 3:
+                        moved = true;
+                        pan_camera(-event.motion.xrel, event.motion.yrel, 1);
+                        break;
+                }
                 break;
-        }
-        
-        switch(event.type) {
             case SDL_KEYDOWN:
                 // Warcraft 3 style Page Up/Down for zoom
                 if (event.key.keysym.sym == SDLK_PAGEUP) {
@@ -84,48 +158,6 @@ void CL_Input(void) {
 //                if(event.key.keysym.sym == SDLK_ESCAPE) {
 //                    return Com_Quit();
 //                }
-                break;
-            case SDL_MOUSEBUTTONDOWN:
-                moved = false;
-                mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
-                mouse.button = event.button.button;
-                switch (event.button.button) {
-                    case 1:
-                        mouse.event = UI_LEFT_MOUSE_DOWN;
-                        break;
-                    case 2:
-                        mouse.event = UI_RIGHT_MOUSE_DOWN;
-                        break;
-                }
-                break;
-            case SDL_MOUSEBUTTONUP:
-                mouse.origin.x = event.button.x;
-                mouse.origin.y = event.button.y;
-                mouse.button = 0;
-                switch (event.button.button) {
-                    case 1:
-                        mouse.event = UI_LEFT_MOUSE_UP;
-                        break;
-                    case 2:
-                        mouse.event = UI_RIGHT_MOUSE_UP;
-                        break;
-                }
-                break;
-            case SDL_MOUSEMOTION:
-                mouse.origin.x = event.motion.x;
-                mouse.origin.y = event.motion.y;
-                switch (mouse.button) {
-                    case 1:
-                        cl.selection.rect.w = event.motion.x - cl.selection.rect.x;
-                        cl.selection.rect.h = event.motion.y - cl.selection.rect.y;
-                        moved = true;
-                        break;
-                    case 3:
-                        moved = true;
-                        pan_camera(-event.motion.xrel, event.motion.yrel, 1);
-                        break;
-                }
                 break;
             case SDL_MOUSEWHEEL:
                 // Warcraft 3 style zoom: forward = zoom in (closer), backward = zoom out (farther)
