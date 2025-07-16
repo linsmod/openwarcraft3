@@ -174,7 +174,29 @@ CLIENTCOMMAND(Quest) {
         }
     }
 }
-
+// 客户端发送指令来获取服务端推送的HUD刷新.
+// 现在主要用于更新选择状态.
+CLIENTCOMMAND(HudSync) {
+    LPGAMECLIENT client = clent->client;
+    
+    if (argc < 2) {
+        return;
+    }
+    
+    BOOL visible = atoi(argv[1]); // hud visible check
+    int hudUnit = atoi(argv[2]);
+    
+    if (!visible) {
+        return;
+    }
+    
+    LPEDICT ent = G_GetMainSelectedUnit(client);
+    if (ent && ent->s.number == hudUnit) {
+        // Refresh HUD by sending updated portrait and commands
+        Get_Portrait_f(clent);
+        Get_Commands_f(clent);
+    }
+}
 CLIENTCOMMAND(Move) {
     if (argc < 3)
         return;
@@ -216,9 +238,11 @@ clientCommand_t clientCommands[] = {
     { "zoom", CMD_Zoom },
     { "attack", CMD_Attack },
     { "move", CMD_Move },
+    { "hudsync", CMD_HudSync },
     { NULL }
 };
 
+// process client commands
 void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     for (clientCommand_t const *cmd = clientCommands; cmd->name; cmd++) {
         if (!strcmp(cmd->name, argv[0])) {

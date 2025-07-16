@@ -96,7 +96,7 @@ LPCSTR fs =
 "}\n";
 
 static MATRIX4 local_matrices[MDX_MAX_NODES];
-static MATRIX4 global_matrices[MDX_MATRIX_PALETTE];
+static MATRIX4 global_matrices[MDX_MAX_NODES];
 
 DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
 DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
