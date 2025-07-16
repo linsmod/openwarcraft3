@@ -332,6 +332,7 @@ void ui_portrait(LPGAMECLIENT client) {
     UI_WriteFrame(&portrait);
 }
 
+/// 更新头像
 void Get_Portrait_f(LPEDICT edict) {
     UI_WRITE_LAYER(edict, ui_portrait, LAYER_PORTRAIT);
 }
@@ -492,7 +493,7 @@ void ui_unit_info(LPGAMECLIENT client) {
 void ui_cancel_only(LPGAMECLIENT client) {
     UI_AddCommandButton(STR_CmdCancel);
 }
-
+///更新命令面板
 void Get_Commands_f(LPEDICT edict) {
     UI_WRITE_LAYER(edict, ui_unit_commands, LAYER_COMMANDBAR);
     UI_WRITE_LAYER(edict, ui_unit_info, LAYER_INFOPANEL);

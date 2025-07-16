@@ -203,7 +203,7 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         case jasstype_boolean: return !memcmp(a->value, b->value, sizeof(BOOL));
         case jasstype_code: return !memcmp(a->value, b->value, sizeof(HANDLE));
         case jasstype_cfunction: return !memcmp(a->value, b->value, sizeof(HANDLE));
-        case jasstype_handle: return !memcmp(a->value, b->value, sizeof(HANDLE));
+        case jasstype_handle: return a->value==b->value;// return !memcmp(a->value, b->value, sizeof(HANDLE));
     }
     return false;
 }

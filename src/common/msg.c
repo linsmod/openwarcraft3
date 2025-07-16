@@ -38,6 +38,7 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, radius), NFT_ROUND },
     { NETF(entityState_t, splat), NFT_LONG },
     { NETF(entityState_t, stats), NFT_LONG },
+    { NETF(entityState_t, renderfx), NFT_BYTE }, // 选中状态
     { NULL }
 };
 
