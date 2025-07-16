@@ -59,6 +59,24 @@ void CL_Input(void) {
         
         switch(event.type) {
             case SDL_KEYDOWN:
+                // Warcraft 3 style Page Up/Down for zoom
+                if (event.key.keysym.sym == SDLK_PAGEUP) {
+                    float current_distance = cl.viewDef.camerastate[0].distance;
+                    float new_distance = current_distance / 1.2f; // Zoom in faster
+                    const float min_distance = 100.0f;
+                    if (new_distance < min_distance) new_distance = min_distance;
+                    cl.viewDef.camerastate[0].distance = new_distance;
+                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                    SZ_Printf(&cls.netchan.message, "zoom %f", new_distance);
+                } else if (event.key.keysym.sym == SDLK_PAGEDOWN) {
+                    float current_distance = cl.viewDef.camerastate[0].distance;
+                    float new_distance = current_distance * 1.2f; // Zoom out faster
+                    const float max_distance = 3000.0f;
+                    if (new_distance > max_distance) new_distance = max_distance;
+                    cl.viewDef.camerastate[0].distance = new_distance;
+                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                    SZ_Printf(&cls.netchan.message, "zoom %f", new_distance);
+                }
                 Key_Event(event.key.keysym.sym, true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
@@ -107,6 +125,36 @@ void CL_Input(void) {
                         moved = true;
                         pan_camera(-event.motion.xrel, event.motion.yrel, 1);
                         break;
+                }
+                break;
+            case SDL_MOUSEWHEEL:
+                // Warcraft 3 style zoom: forward = zoom in (closer), backward = zoom out (farther)
+                if (event.wheel.y != 0) {
+                    float zoom_factor = 1.1f; // 10% zoom per wheel tick
+                    float current_distance = cl.viewDef.camerastate[0].distance;
+                    float new_distance;
+                    
+                    if (event.wheel.y > 0) {
+                        // Wheel forward - zoom in (closer to ground)
+                        new_distance = current_distance / zoom_factor;
+                    } else {
+                        // Wheel backward - zoom out (bird eye view)
+                        new_distance = current_distance * zoom_factor;
+                    }
+                    
+                    // Warcraft 3 style distance range
+                    const float min_distance = 100.0f;  // Closest zoom
+                    const float max_distance = 3000.0f; // Farthest zoom
+                    
+                    if (new_distance < min_distance) new_distance = min_distance;
+                    if (new_distance > max_distance) new_distance = max_distance;
+                    
+                    // Update local camera immediately
+                    cl.viewDef.camerastate[0].distance = new_distance;
+                    
+                    // Send to server for sync
+                    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                    SZ_Printf(&cls.netchan.message, "zoom %f", new_distance);
                 }
                 break;
             case SDL_WINDOWEVENT:

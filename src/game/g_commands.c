@@ -131,6 +131,14 @@ CLIENTCOMMAND(HideQuests) {
     UI_HideQuests(clent);
 }
 
+CLIENTCOMMAND(Zoom) {
+    if (argc < 2)
+        return;
+    float new_distance = atof(argv[1]);
+    LPEDICT ent = clent;
+    G_ClientSetCameraDistance(ent, new_distance);
+}
+
 CLIENTCOMMAND(Quest) {
     DWORD index = atoi(argv[1]);
     FOR_EACH_LIST(QUEST, q, level.quests) {
@@ -157,6 +165,7 @@ clientCommand_t clientCommands[] = {
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
+    { "zoom", CMD_Zoom },
     { NULL }
 };
 
@@ -180,8 +189,8 @@ void G_ClientSetCameraDistance(LPEDICT ent, float distance) {
     if (ent->client->no_control)
         return;
     // 限制最小/最大相机距离（防止缩放过度）
-    const float min_distance = 1.0f;
-    const float max_distance = 1000.0f;
+    const float min_distance = 100.0f;  // Warcraft 3 closest zoom
+    const float max_distance = 3000.0f; // Warcraft 3 farthest zoom
     if (distance < min_distance) distance = min_distance;
     if (distance > max_distance) distance = max_distance;
     ent->client->camera.state.target_distance = distance;
