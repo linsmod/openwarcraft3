@@ -9,7 +9,7 @@ if [ $# -gt 0 ]; then
         debug|Debug)
             BUILD_TYPE="Debug"
             echo "Building Debug version..."
-            cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=OFF -B build
+            cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=ON -B build
             ;;
         release|Release)
             BUILD_TYPE="Release"

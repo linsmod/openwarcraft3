@@ -1,6 +1,7 @@
 #include "common/shared.h"
 #include "g_local.h"
 #include "g_unitdata.h"
+#include <stdlib.h>
 
 struct game_export globals;
 struct game_import gi;
@@ -163,6 +164,8 @@ LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number) {
 }
 
 LPPLAYER G_GetPlayerByNumber(DWORD number) {
+    if(number==NONE_PLAYER)
+        return NULL;
     FOR_LOOP(i, game.max_clients) {
         if (game.clients[i].ps.number == number) {
             return &game.clients[i].ps;

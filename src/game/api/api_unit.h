@@ -1,3 +1,5 @@
+#include "common/shared.h"
+#include "g_local.h"
 #define UNIT_TYPED_ACCESS(NAME, FIELD, TYPE) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
@@ -411,8 +413,9 @@ DWORD GetOwningPlayer(LPJASS j) {
     return jass_pushlighthandle(j, player, "player");
 }
 DWORD GetUnitTypeId(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    
+    return jass_pushinteger(j, whichUnit->targtype);
 }
 DWORD GetUnitRace(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
