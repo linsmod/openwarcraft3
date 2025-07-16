@@ -2,6 +2,7 @@
 #define renderer_h
 
 #include "../common/common.h"
+#include "common/shared.h"
 
 KNOWN_AS(drawText_s, DRAWTEXT);
 KNOWN_AS(drawImage_s, DRAWIMAGE);
@@ -92,7 +93,7 @@ struct drawText_s {
 struct drawImage_s {
     LPCTEXTURE texture;
     SHADERTYPE shader;
-    ALPHAMODE alphamode;
+    BLEND_MODE alphamode;
     RECT screen;
     RECT uv;
     COLOR32 color;

@@ -18,7 +18,7 @@ void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
                 SV_ExecuteUserCommand(msg, client);
                 break;
             default:
-                fprintf(stderr, "Unknown message %d\n", pack_id);
+                fprintf(stderr, "SV_ParseClientMessage: Unknown message %d\n", pack_id);
                 return;
         }
     }

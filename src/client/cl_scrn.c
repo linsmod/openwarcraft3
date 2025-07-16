@@ -1,6 +1,8 @@
+#include <assert.h>
 #include <stdlib.h>
 
 #include "client.h"
+#include "g_local.h"
 
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
@@ -526,6 +528,7 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     while (true) {
         DWORD bits = 0;
         DWORD nument = MSG_ReadEntityBits(&msg, &bits);
+        assert(nument<=MAX_ENTITIES);
         if (nument == 0 && bits == 0)
             break;
         LPUIFRAME ent = &frames[nument];
@@ -624,6 +627,13 @@ void SCR_DrawOverlay(HANDLE _frames) {
 
 void SCR_DrawOverlays(void) {
     active_tooltip = NULL;
+
+    if (cl.playerstate.cinefade > 0) {
+        COLOR32 color = COLOR32_BLACK;
+        color.a = 255 * cl.playerstate.cinefade;
+        re.DrawImage(cl.pics[0], &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
+    }
+
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;

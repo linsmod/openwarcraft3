@@ -54,10 +54,10 @@ LPCSTR HighlightType[] = {
     NULL
 };
 LPCSTR AlphaMode[] = {
-    "BLEND",
+      "NONE",
     "ALPHAKEY",
+    "BLEND",
     "ADD",
-    "ADDALPHA",
     "MODULATE",
     "MODULATE2X",
     NULL

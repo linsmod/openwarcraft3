@@ -343,6 +343,27 @@ void jass_startthread(LPJASS j, LPCJASSCONTEXT context,LPCSTR thName) {
 BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     if (trigger->disabled)
         return false;
+    if (jass_evaluatetrigger(j, trigger, unit)) {
+        jass_executetrigger(j, trigger, unit);
+        return true;
+    } else {
+        return false;
+    }
+}
+void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+        LPPLAYER player = unit ? G_GetPlayerByNumber(unit->s.player) : NULL;
+        jass_startthread(j, &MAKE(JASSCONTEXT,
+                                  .trigger = trigger,
+                                  .func = action->func,
+                                  .unit = unit,
+                                  .playerState = player,
+                              ),"jass_executetrigger");
+    }
+}
+BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+    if (trigger->disabled)
+        return false;
     JASS tmp_state;
     FOR_EACH_LIST(TRIGGERCONDITION, cond, trigger->conditions) {
         memcpy(&tmp_state, j, sizeof(struct jass_s));
@@ -356,15 +377,6 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
         if (jass_call(&tmp_state, 0) != 1 || !jass_popboolean(&tmp_state)) {
             return false;
         }
-    }
-    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
-        LPPLAYER player = unit ? G_GetPlayerByNumber(unit->s.player) : NULL;
-        jass_startthread(j, &MAKE(JASSCONTEXT,
-                                  .trigger = trigger,
-                                  .func = action->func,
-                                  .unit = unit,
-                                  .playerState = player,
-                              ),"jass_calltrigger");
     }
     return true;
 }

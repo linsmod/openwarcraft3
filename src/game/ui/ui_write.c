@@ -54,6 +54,9 @@ void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
         dest->points.y[i].relativeTo = FindFrameNumber(src->Points.y[i].relativeTo, UI_PARENT);
         dest->points.y[i].offset = src->Points.y[i].offset * UI_FRAMEPOINT_SCALE;
     }
+    static char tooltip[1024];
+    memset(tooltip, 0, sizeof(tooltip));
+    sprintf(tooltip, "%s\n%s", src->Tip, src->Ubertip);
     CONVERT_UV(dest->tex.coord, src->Texture.TexCoord);
     dest->number = FindFrameNumber(src, 0);
     dest->parent = FindFrameNumber(src->Parent, 0);
@@ -67,7 +70,7 @@ void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
     dest->textLength = src->TextLength;
     dest->stat = src->Stat;
     dest->text = src->Text;
-    dest->tooltip = src->Tooltip;
+    dest->tooltip = tooltip;
     dest->onclick = src->OnClick;
 }
 

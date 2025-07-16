@@ -136,7 +136,7 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 CL_ParseTEnt(msg);
                 break;
             default:
-                fprintf(stderr, "Unknown message %d\n", pack_id);
+                fprintf(stderr, "CL_ParseServerMessage: Unknown message %d\n", pack_id);
                 return;
         }
     }
