@@ -1,3 +1,4 @@
+#include "common/shared.h"
 #include "g_local.h"
 
 #define MAX_SPAWN_ITERATIONS 10
@@ -68,6 +69,7 @@ static void G_InitEdict(LPEDICT e) {
     e->inuse = true;
     e->s.scale = 1;
     e->s.number = (int)(e - g_edicts);
+    e->s.player = NONE_PLAYER;
 }
 
 LPEDICT G_Spawn(void) {
@@ -183,7 +185,7 @@ void G_SpawnEntities(LPCMAPINFO mapinfo, LPCDOODAD entities) {
         ent->class_id = doodad->doodID;
         ent->variation = doodad->variation;
         ent->hero = doodad->hero;
-        ent->s.player = doodad->player & 7;
+        ent->s.player = NONE_PLAYER;
         ent->s.origin = doodad->position;
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;

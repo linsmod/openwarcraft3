@@ -1,3 +1,4 @@
+#include "common/shared.h"
 #include "g_local.h"
 
 #define NAVI_THRESHOLD 50
@@ -78,6 +79,9 @@ static BOOL filter_sight(LPCEDICT ent) {
 void ai_stand(LPEDICT self) {
     if (!(self->svflags & SVF_MONSTER))
         return;
+    if(self->s.player==NONE_PLAYER){
+        return;
+    }
     if (level.mapinfo->players[self->s.player].playerType != kPlayerTypeComputer)
         return;
     current_entity = self;

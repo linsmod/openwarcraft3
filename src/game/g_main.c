@@ -53,6 +53,10 @@ static void G_InitGame(void) {
     globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
     globals.max_clients = 16;
+    FOR_LOOP(i, MAX_ENTITIES) {
+        edict_t *ent = globals.edicts+i;
+        ent->s.player = NONE_PLAYER;
+    }
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));

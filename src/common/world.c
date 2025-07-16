@@ -41,6 +41,10 @@ static void CM_ReadInfo(HANDLE archive) {
     HANDLE file;
     SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &info->fileFormat, 4, NULL, NULL);
+    // maybe fileFormat==18 or >=27
+    // TODO: https://github.com/Retera/WarsmashModEngine/blob/02f5e75639c11e0333388419a936fe3c2debc80f/core/src/com/etheller/warsmash/parsers/w3x/w3i/War3MapW3i.java#L493
+    // read gameversion for
+    // used in [static void CM_ReadDoodads(HANDLE archive);
     SFileReadFile(file, &info->numberOfSaves, sizeof(DWORD), NULL, NULL);
     SFileReadFile(file, &info->editorVersion, sizeof(DWORD), NULL, NULL);
     SFileReadString(file, &info->mapName);
@@ -181,7 +185,7 @@ static void CM_ReadDoodads(HANDLE archive) {
         SFileReadFile(file, &doodad->flags, sizeof(BYTE), NULL, NULL);
         SFileReadFile(file, &doodad->treeLife, sizeof(BYTE), NULL, NULL);
         SFileReadFile(file, &doodad->unitID, sizeof(DWORD), NULL, NULL);
-        
+        doodad->player = -1;
         ADD_TO_LIST(doodad, world.doodads);
     }
 

@@ -1,3 +1,4 @@
+#include "common/shared.h"
 #include "server.h"
 
 void SV_CreateBaseline(void) {
@@ -35,6 +36,7 @@ void SV_InitGame(void) {
     FOR_LOOP(i, ge->max_clients) {
         edict_t *ent = EDICT_NUM(i);
         ent->s.number = i;
+        ent->s.player = NONE_PLAYER;
 //        svs.clients[i].edict = ent;
     }
 }

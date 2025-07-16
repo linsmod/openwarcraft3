@@ -47,7 +47,7 @@ DWORD GroupEnumUnitsOfPlayer(LPJASS j) {
     //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (ent->s.player!=0 && ent->s.player == PLAYER_NUM(whichPlayer)) {
+        if (ent->s.player == PLAYER_NUM(whichPlayer)) {
             group_add_entity(whichGroup, ent);
         }
     }

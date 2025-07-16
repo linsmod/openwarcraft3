@@ -234,6 +234,8 @@ KNOWN_AS(mapPlayer_s, MAPPLAYER);
 KNOWN_AS(playerState_s, PLAYER);
 KNOWN_AS(src_location, SRCLOC);
 
+static const DWORD NONE_PLAYER=-1;
+
 typedef enum {
     NO_BOM,
     UTF8_BOM_FOUND,
@@ -287,7 +289,7 @@ typedef struct entityState_s {
     FLOAT scale;
     FLOAT radius;
     BYTE stats[ENT_STAT_COUNT];
-    DWORD player;
+    DWORD player; // if you see value == 4294967295, its -1 of DWORD
     DWORD model;
     DWORD model2;
     DWORD image;
