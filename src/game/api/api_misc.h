@@ -3,6 +3,7 @@
 #include "common/shared.h"
 #include "g_local.h"
 #include "jass/vm_public.h"
+#include <stdio.h>
 extern LPPLAYER currentplayer;
 
 DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
@@ -742,12 +743,13 @@ DWORD DialogSetAsync(LPJASS j) {
     return 0;
 }
 DWORD DialogClear(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
+    HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
     return 0;
 }
 DWORD DialogSetMessage(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
-    //LPCSTR messageText = jass_checkstring(j, 2);
+    HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
+    LPCSTR messageText = jass_checkstring(j, 2);
+    fprintf(stdout, "> %s", messageText);
     return 0;
 }
 DWORD DialogAddButton(LPJASS j) {
@@ -757,9 +759,9 @@ DWORD DialogAddButton(LPJASS j) {
     return jass_pushnullhandle(j, "button");
 }
 DWORD DialogDisplay(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichDialog = jass_checkhandle(j, 2, "dialog");
-    //BOOL flag = jass_checkboolean(j, 3);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    HANDLE whichDialog = jass_checkhandle(j, 2, "dialog");
+    BOOL flag = jass_checkboolean(j, 3);
     return 0;
 }
 DWORD InitGameCache(LPJASS j) {

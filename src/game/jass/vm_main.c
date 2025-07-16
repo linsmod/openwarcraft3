@@ -3,6 +3,7 @@
 #include "vm_public.h"
 #include "jass_parser.h"
 #include "../parser.h"
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/prctl.h>
@@ -13,7 +14,7 @@ static __thread int depth = 0, callnum = 0;
 #endif
 
 #define F_END { NULL }
-#define MAX_JASS_STACK 256
+#define MAX_JASS_STACK 512
 #define JASS_DELIM ",;()[]+-/*="
 #define JASS_CONSTANT "constant"
 #define JASS_ARRAY "array"
@@ -145,6 +146,7 @@ struct jass_s {
     LPJASSFUNC functions;
     JASSVAR stack[MAX_JASS_STACK];
     DWORD num_stack;
+    DWORD num_stack_valid;
     LPJASSVAR stack_pointer;
     JASSCONTEXT context;
     int thread_id;
@@ -330,6 +332,7 @@ void jass_startthread(LPJASS j, LPCJASSCONTEXT context,LPCSTR thName) {
     memset(thread->stack, 0, sizeof(thread->stack));
     thread->stack_pointer = thread->stack;
     thread->num_stack = 0;
+    thread->num_stack_valid=0;
     thread->context = *context;
     thread->thread_id = thread_id++;
     char text[1024] = { 0 };
@@ -345,6 +348,7 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
         memcpy(&tmp_state, j, sizeof(struct jass_s));
         memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
         tmp_state.num_stack = 0;
+        tmp_state.num_stack_valid = 0;
         tmp_state.thread_id = j->thread_id;
         tmp_state.context.trigger = trigger;
         tmp_state.context.unit = unit;
@@ -450,6 +454,7 @@ BOOL jass_mustreturn(LPJASS j) {
 }
 
 DWORD jass_top(LPJASS j) {
+    assert(j->num_stack <= MAX_JASS_STACK && j->num_stack !=0);
     return j->num_stack-1;
 }
 
@@ -482,6 +487,7 @@ BOOL jass_checktype2(LPCJASSVAR var, LPCSTR type) {
 }
 
 void jass_pop(LPJASS j, DWORD count) {
+    assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=count);
     j->num_stack -= count;
 }
 
@@ -973,6 +979,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
             args++;
         }
         jass_call(j, args);
+        assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=stacksize);
         return j->num_stack - stacksize;
     } else if ((model = find_cfunction(j, token->primary))) {
         DWORD args = 0;
@@ -982,6 +989,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
             args++;
         }
         jass_call(j, args);
+        assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=stacksize);
         return j->num_stack - stacksize;
     } else {
         fprintf(stdout, "Can't find function %s\n", token->primary);
@@ -1301,10 +1309,14 @@ BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
 //}
 
 DWORD jass_call(LPJASS j, DWORD args) {
+    assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=args+1);
     LPJASSVAR root = &j->stack[j->num_stack - args - 1];
     LPJASSVAR old_stack_pointer = j->stack_pointer;
     DWORD ret = 0;
+    assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=args+1);
     j->stack_pointer = &j->stack[j->num_stack - args - 1];
+    assert(j->num_stack <= MAX_JASS_STACK);
+    j->num_stack_valid = j->num_stack;
 #ifdef DEBUG_JASS
     callnum++;
     depth++;
@@ -1328,7 +1340,15 @@ DWORD jass_call(LPJASS j, DWORD args) {
         }
         printf("%d.args at %s\n",args,jass_dumploc(root->location));
 #endif
-        ret = func(j);
+        assert(j->num_stack <= MAX_JASS_STACK);
+        DWORD valid = j->num_stack;
+        if(j->num_stack_valid==21845){
+            ret = func(j);
+        }
+        else{
+            ret = func(j);
+        }
+        assert(j->num_stack <= MAX_JASS_STACK);
     } else {
         LPCJASSFUNC func = root->value;
         LPJASSDICT locals = NULL;
@@ -1338,25 +1358,32 @@ DWORD jass_call(LPJASS j, DWORD args) {
             LPJASSDICT local = JASSALLOC(JASSDICT);
             local->key = arg->name;
             local->value.type = arg->type;
+            assert(j->num_stack <= MAX_JASS_STACK);
             jass_copy(j, &local->value, &j->stack_pointer[argnum]);
+            assert(j->num_stack <= MAX_JASS_STACK);
             PUSH_BACK(JASSDICT, local, locals);
             argnum++;
         }
 #ifdef DEBUG_JASS
-        printf("%s %d.args at %s\n ", func->name,argnum,jass_dumploc(root->location));
+        printf("%s %d.args at %s\n ", func->name,argnum-1,jass_dumploc(root->location));
 #endif
         root->env.done = false;
         root->env.returnstack = -1;
         root->env.locals = locals;
         eval_TOKENS(j, func->code);
         if (root->env.returnstack != -1) {
+            assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=root->env.returnstack);
             ret = j->num_stack - root->env.returnstack;
+            assert(j->num_stack <= MAX_JASS_STACK);
         }
     }
+    assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=ret);
     LPJASSVAR last = &j->stack[j->num_stack - ret];
     for (LPJASSVAR it = root; it < last; it++) jass_setnull(it);
     for (LPJASSVAR it = root; it < last; it++) it->isnull = true;
     memmove(root, last, ret * sizeof(JASSVAR));
+    int delta = last - root;
+    assert(j->num_stack <= MAX_JASS_STACK && j->num_stack >=0 && j->num_stack>=delta);
     j->num_stack -= last - root;
     j->stack_pointer = old_stack_pointer;
 #ifdef DEBUG_JASS
