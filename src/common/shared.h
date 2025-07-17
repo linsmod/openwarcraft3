@@ -28,6 +28,7 @@
 
 #define COLOR32_WHITE MAKE(COLOR32,255,255,255,255)
 #define COLOR32_BLACK MAKE(COLOR32,0,0,0,255)
+#define COLOR32_GREEN MAKE(COLOR32,0,255,0,255)
 
 #ifndef __cplusplus
   #define bool char
@@ -296,6 +297,7 @@ enum {
     ENT_STAT_COUNT,
 };
 
+#define MAX_INDI_COLOR 4
 typedef struct entityState_s {
     DWORD number; // edict index
     union {
@@ -305,6 +307,8 @@ typedef struct entityState_s {
     FLOAT angle;
     FLOAT scale;
     FLOAT radius;
+    COLOR32 indicatorColors[MAX_INDI_COLOR];
+    DWORD color_nums;
     BYTE stats[ENT_STAT_COUNT];
     DWORD player; // if you see value == 4294967295, its -1 of DWORD
     DWORD model;

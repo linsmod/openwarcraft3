@@ -158,7 +158,8 @@ CLIENTCOMMAND(Attack) {
     // Attack with all selected units
     FOR_SELECTED_UNITS(client, attacker) {
         if (attacker->s.player == client->ps.number && !M_IsDead(attacker)) {
-            unit_issueorder(attacker, "attack", &target->s.origin);
+            VECTOR2 target_pos = { target->s.origin.x, target->s.origin.y };
+            unit_issueorder(attacker, "attack", &target_pos);
         }
     }
 }

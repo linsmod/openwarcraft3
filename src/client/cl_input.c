@@ -42,6 +42,7 @@ void CL_Input(void) {
         DWORD mousevt = K_MOUSE1 + event.button.button - 1;
         switch(event.type) {
             case SDL_MOUSEBUTTONDOWN:
+                moved = false;
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 Key_Event(mousevt, true, event.button.timestamp);
@@ -97,7 +98,9 @@ void CL_Input(void) {
                         }
                         break;
                     case 3: // Right button - Warcraft 3 style attack/move
+                    
                         mouse.event = UI_RIGHT_MOUSE_UP;
+                        if(moved)
                         {
                             DWORD entnum;
                             VECTOR3 point;

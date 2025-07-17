@@ -981,7 +981,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
     DWORD stacksize = j->num_stack;
     LPSRCLOC location = token->location;
     if (!strcmp(token->primary, "CommentString") && token->args) {
-        fprintf(stdout, "%s\n", token->args->primary);
+        fprintf(stdout, "CommentString: %s\n", token->args->primary);
         return 0;
     } else if ((f = find_function(j, token->primary))) {
         DWORD args = 0;

@@ -1,3 +1,4 @@
+#include "common/shared.h"
 #include "r_local.h"
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
@@ -126,7 +127,10 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->flags & RF_SELECTED) {
-        COLOR32 color = { 0, 255, 0, 255 };
+        COLOR32 color = entity->indicatorColors[0];
+        if ((color.r | color.g | color.b | color.a) == 0) {
+            color = COLOR32_GREEN;
+        }
         float radius = entity->radius;
         FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
             if ((radius * 2) > selCircles[i])

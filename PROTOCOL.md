@@ -2,248 +2,268 @@
 
 ## Overview
 
-The OpenWarcraft3 client-server protocol is a custom binary protocol designed for real-time strategy game communication. It uses a delta compression system to minimize bandwidth usage and supports both reliable and unreliable message delivery.
+This document describes the message protocol used for communication between the OpenWarcraft3 client and server. The protocol uses a delta compression system to efficiently synchronize game state between clients and server.
 
 ## Protocol Architecture
 
-### Network Layer
-- **Transport**: UDP-based with custom reliability layer
-- **Max Message Size**: 256KB (`MAX_MSGLEN`)
-- **Addressing**: IPv4/IPv6 support with port-based communication
-- **Connection Types**: Loopback, Broadcast, and Direct IP
+### Message Types
+- **Entity State Updates**: Synchronize entity properties (units, buildings, etc.)
+- **UI Frame Updates**: Synchronize UI element states
+- **Player State Updates**: Synchronize player-specific data
+- **Command Messages**: Client-to-server commands (movement, actions, etc.)
 
-### Message Structure
-All messages follow a packet-based structure with:
-- **Message Type**: Single byte identifying the message type
-- **Payload**: Variable-length binary data
-- **Delta Compression**: Only changed fields are transmitted
+### Field System
 
-## Message Types
+The protocol uses a flexible field-based system where each data structure is described by a set of fields that define:
+- Field name and offset
+- Data type
+- Array length (for fixed-size arrays)
 
-### Server-to-Client Messages (SVC)
+#### Field Types
 
-| Message ID | Name | Description |
-|------------|------|-------------|
-| `svc_bad` | Invalid | Reserved for error handling |
-| `svc_temp_entity` | Temporary Entity | Short-lived visual effects |
-| `svc_layout` | UI Layout | User interface updates |
-| `svc_playerinfo` | Player Information | Player state updates |
-| `svc_cursor` | Cursor Update | Mouse cursor state |
-| `svc_configstring` | Config String | Static game configuration |
-| `svc_spawnbaseline` | Spawn Baseline | Entity baseline data |
-| `svc_packetentities` | Packet Entities | Entity state updates |
-| `svc_frame` | Frame Update | Complete frame information |
-| `svc_mirror` | Mirror Message | Echo client messages back |
+| Type | Description | Size | Usage |
+|------|-------------|------|-------|
+| `NFT_BYTE` | 8-bit unsigned integer | 1 byte | Small values, flags |
+| `NFT_SHORT` | 16-bit signed integer | 2 bytes | IDs, indices |
+| `NFT_LONG` | 32-bit signed integer | 4 bytes | Large values, bitmasks |
+| `NFT_FLOAT` | 32-bit floating point | 4 bytes | Precise values |
+| `NFT_ROUND` | Float rounded to short | 2 bytes | Position coordinates |
+| `NFT_PACKED_FLOAT` | Float scaled to short | 2 bytes | Scale values |
+| `NFT_QUATERNION` | 4D rotation | 8 bytes | Rotations |
+| `NFT_VECTOR2` | 2D vector | 8 bytes | 2D positions |
+| `NFT_VECTOR3` | 3D vector | 6 bytes | 3D positions |
+| `NFT_ANGLE` | Angle in radians | 2 bytes | Rotation angles |
+| `NFT_TEXT` | Null-terminated string | Variable | Static strings |
+| `NFT_DUPTEXT` | Null-terminated string | Variable | Dynamic strings |
+| `NFT_COLOR` | Color array | Variable | Indicator colors |
 
-### Client-to-Server Messages (CLC)
+#### Field Definitions
 
-| Message ID | Name | Description |
-|------------|------|-------------|
-| `clc_bad` | Invalid | Reserved for error handling |
-| `clc_move` | Move Command | Camera movement |
-| `clc_stringcmd` | String Command | Console commands and actions |
-
-## Data Serialization
-
-### Basic Types
-The protocol supports these fundamental data types:
-
-- **Byte**: 8-bit unsigned integer
-- **Short**: 16-bit signed integer
-- **Long**: 32-bit signed integer
-- **Float**: 32-bit IEEE floating point
-- **String**: Null-terminated UTF-8 strings
-- **Vector2**: Two floats (x, y)
-- **Vector3**: Three shorts (x, y, z) with fixed-point precision
-- **Quaternion**: Four shorts with normalized values
-
-### Delta Compression System
-
-#### Entity State Delta
-Entity states use a bitfield-based delta compression:
+Fields are defined using macros:
 
 ```c
-// Entity state fields tracked for delta compression
-netField_t entityStateFields[] = {
-    { "origin", NFT_VECTOR3 },      // Position
-    { "angle", NFT_ANGLE },         // Rotation
-    { "scale", NFT_PACKED_FLOAT },  // Scale factor
-    { "frame", NFT_LONG },          // Animation frame
-    { "model", NFT_SHORT },         // Model index
-    { "player", NFT_BYTE },         // Owning player
-    { "flags", NFT_LONG },          // Entity flags
-    { "radius", NFT_ROUND },        // Collision radius
-    { "stats", NFT_LONG },          // Game-specific stats
-};
+// Single field
+#define NETF(type, x) #x,((uint8_t *)&((type*)0)->x - (uint8_t *)NULL), 1
+
+// Array field
+#define NETF_ARRAY(type, x, len) #x,((uint8_t *)&((type*)0)->x - (uint8_t *)NULL), len
 ```
 
-#### UI Frame Delta
-UI elements use similar delta compression:
+## Entity State Protocol
+
+### Entity State Structure
 
 ```c
-netField_t uiFrameFields[] = {
-    { "parent", NFT_SHORT },        // Parent frame
-    { "points", NFT_LONG },         // Position data
-    { "size", NFT_VECTOR2 },        // Width/height
-    { "tex.index", NFT_LONG },      // Texture reference
-    { "color", NFT_LONG },          // RGBA color
-    { "text", NFT_TEXT },           // Display text
-};
+typedef struct entityState_s {
+    VECTOR3 origin;           // Position in 3D space
+    VECTOR3 angle;            // Rotation angles
+    float scale;              // Scale factor
+    int frame;                // Animation frame
+    short model;              // Model index
+    short model2;             // Secondary model index
+    short image;              // Image/texture index
+    byte player;              // Owning player ID
+    int flags;                // Entity flags
+    int radius;               // Collision radius
+    int splat;                // Splat/decal info
+    int stats;                // Entity statistics
+    byte renderfx;            // Rendering effects (selection state)
+    byte color_nums;          // Number of active indicator colors
+    COLOR32 indicatorColors[10]; // Array of indicator colors
+} entityState_t;
 ```
 
-#### Player State Delta
-Player-specific state:
+### Entity State Fields
+
+| Field | Type | Array Length | Description |
+|-------|------|--------------|-------------|
+| `origin` | NFT_VECTOR3 | 1 | 3D position (x,y,z) |
+| `angle` | NFT_ANGLE | 1 | Rotation angles |
+| `scale` | NFT_PACKED_FLOAT | 1 | Scale factor (compressed) |
+| `frame` | NFT_LONG | 1 | Animation frame index |
+| `model` | NFT_SHORT | 1 | Primary model ID |
+| `model2` | NFT_SHORT | 1 | Secondary model ID |
+| `image` | NFT_SHORT | 1 | Texture/image ID |
+| `player` | NFT_BYTE | 1 | Owning player ID |
+| `flags` | NFT_LONG | 1 | Entity state flags |
+| `radius` | NFT_ROUND | 1 | Collision radius |
+| `splat` | NFT_LONG | 1 | Decal/splat information |
+| `stats` | NFT_LONG | 1 | Entity statistics |
+| `renderfx` | NFT_BYTE | 1 | Rendering effects (selection state) |
+| `color_nums` | NFT_BYTE | 1 | Number of active indicator colors |
+| `indicatorColors` | NFT_COLOR | 10 | Array of indicator colors |
+
+## Delta Compression
+
+### How Delta Compression Works
+
+1. **State Comparison**: The server compares the current state with the last known state for each client
+2. **Bit Mask Generation**: A bit mask indicates which fields have changed
+3. **Selective Transmission**: Only changed fields are transmitted
+4. **Client Reconstruction**: Clients apply the delta to reconstruct the current state
+
+### Bit Mask Format
+
+Each field corresponds to a bit in a 32-bit mask:
+- Bit 0: First field
+- Bit 1: Second field
+- ...
+- Bit 31: 32nd field (maximum)
+
+### Example Delta Update
 
 ```c
-netField_t playerStateFields[] = {
-    { "viewquat", NFT_QUATERNION }, // Camera rotation
-    { "origin", NFT_VECTOR2 },      // Camera position
-    { "fov", NFT_BYTE },            // Field of view
-    { "distance", NFT_ROUND },      // Camera distance
-    { "stats", NFT_LONG },          // Player statistics
-    { "texts", NFT_DUPTEXT },       // UI text strings
-};
+// Server determines what changed
+DWORD bits = MSG_GetBits(oldState, newState, entityStateFields);
+
+// Only send changed fields
+if (bits != 0) {
+    MSG_WriteEntityBits(msg, bits, entityNumber);
+    MSG_WriteFields(msg, newState, entityStateFields, bits);
+}
 ```
 
 ## Message Flow
 
-### Connection Establishment
-1. Client initiates connection to server
-2. Server sends initial game state via `svc_configstring` messages
-3. Server sends entity baselines via `svc_spawnbaseline`
-4. Normal update cycle begins
+### Server to Client
 
-### Update Cycle
-1. **Client Input**: Client sends `clc_move` and `clc_stringcmd` messages
-2. **Server Processing**: Server processes inputs and updates game state
-3. **State Broadcast**: Server sends `svc_frame` followed by delta updates
-4. **Client Rendering**: Client interpolates between received states
+1. **Entity State Updates**: Periodic updates for all visible entities
+2. **UI Frame Updates**: UI element state changes
+3. **Player State Updates**: Player-specific data (camera, stats, etc.)
 
-### Reliable vs Unreliable Messages
-- **Reliable**: Config strings, baselines, critical game events
-- **Unreliable**: Entity updates, temporary effects, cursor positions
+### Client to Server
 
-## Entity Management
+1. **Command Messages**: Player actions (movement, abilities, etc.)
+2. **UI Interactions**: Button clicks, menu selections
+3. **State Requests**: Explicit state synchronization requests
 
-### Entity Identification
-- **Entity Number**: 16-bit unique identifier per entity
-- **Baseline System**: Initial full state, subsequent delta updates
-- **Removal**: Special bit (`U_REMOVE`) marks entities for removal
+## Data Serialization
 
-### Update Process
+### Numeric Values
+
+- **Floats**: Direct 32-bit IEEE 754 or compressed formats
+- **Angles**: Compressed to 16-bit (0-65535 maps to 0-360 degrees)
+- **Vectors**: Component-wise compression based on precision needs
+
+### Strings
+
+- **Static Strings**: Null-terminated, included directly
+- **Dynamic Strings**: Copied and managed by the receiver
+
+### Arrays
+
+- **Fixed Arrays**: Length specified in field definition
+- **Color Arrays**: Each color is 32-bit RGBA
+
+## Usage Examples
+
+### Defining New Entity Types
+
 ```c
-// Server-side update
-MSG_WriteDeltaEntity(from_state, to_state, force_update);
+// Define a new entity type
+typedef struct myEntity_s {
+    entityState_t base;  // Inherit standard fields
+    float customValue;   // Custom field
+    int customArray[5];  // Custom array
+} myEntity_t;
 
-// Client-side reconstruction
-MSG_ReadDeltaEntity(current_state, entity_number, changed_bits);
+// Define fields for the new type
+netField_t myEntityFields[] = {
+    { NETF(myEntity_t, base), NFT_VECTOR3 },  // Standard fields
+    { NETF(myEntity_t, customValue), NFT_FLOAT },
+    { NETF_ARRAY(myEntity_t, customArray, 5), NFT_LONG },
+    { NULL }
+};
 ```
 
-## UI System Protocol
+### Sending Entity Updates
 
-### Layout Updates
-UI layouts are transmitted as compressed frame hierarchies:
-1. **Layer Identification**: Byte indicating UI layer
-2. **Frame Delta**: Compressed frame state changes
-3. **Buffer Data**: Additional binary data (textures, scripts)
-
-### Frame Structure
 ```c
-typedef struct {
-    DWORD parent;           // Parent frame reference
-    DWORD flags;            // Visibility/enable flags
-    VECTOR2 position;       // Screen position
-    VECTOR2 size;          // Width and height
-    DWORD texture;         // Texture reference
-    COLOR32 color;         // Tint color
-    LPCSTR text;           // Display text
-    LPCSTR tooltip;        // Hover text
-    LPCSTR onclick;        // Click handler
-} uiFrame_t;
+// Server side
+void SendEntityUpdate(entity_t *ent, client_t *client) {
+    entityState_t state;
+    // Fill state structure
+    
+    MSG_WriteDeltaEntity(&client->msg, 
+                        &client->lastKnownState[ent->number], 
+                        &state, 
+                        false);
+}
 ```
 
-## Game-Specific Messages
+### Receiving Entity Updates
 
-### Camera Control
-- **Movement**: `clc_move` with x,y coordinates
-- **Zoom**: Player state updates with distance field
-- **Rotation**: Quaternion updates in player state
-
-### Unit Commands
-Commands are sent as string commands:
+```c
+// Client side
+void ReceiveEntityUpdate(msg_t *msg) {
+    int bits, number;
+    number = MSG_ReadEntityBits(msg, &bits);
+    
+    entityState_t state;
+    MSG_ReadDeltaEntity(msg, &state, number, bits);
+    
+    // Apply state to local entity
+    entities[number].currentState = state;
+}
 ```
-"select <unit_id>"
-"move <x> <y>"
-"attack <target_id>"
-"build <building_type> <x> <y>"
-```
 
-### Game Events
-Special temporary entity messages for:
-- Combat effects (damage, healing)
-- Building construction
-- Unit spawning/despawning
-- Resource collection
+## Performance Considerations
 
-## Performance Optimizations
+### Bandwidth Optimization
 
-### Bit Packing
-- **Angle Quantization**: 8-bit angles (256 steps = 1.4° precision)
-- **Position Compression**: 16-bit fixed-point coordinates
-- **Scale Quantization**: 16-bit fixed-point scale values
+- **Delta compression** reduces bandwidth by 60-80%
+- **Field-level granularity** minimizes update sizes
+- **Type-specific compression** balances precision vs. size
 
-### Update Prioritization
-- **Distance-based**: Far entities update less frequently
-- **Visibility**: Off-screen entities use reduced update rate
-- **Importance**: Player units prioritized over decorative objects
+### Memory Usage
 
-### Caching
-- **Config Strings**: Static data cached on client
-- **Model Indices**: Persistent across map lifetime
-- **Texture References**: Cached by index lookup
+- **Fixed-size arrays** avoid dynamic allocation
+- **Shared string pool** for common strings
+- **State caching** reduces comparison overhead
 
 ## Error Handling
 
-### Protocol Errors
-- **Unknown Message Type**: Logged and skipped
-- **Buffer Overflow**: Graceful handling with size checks
-- **Invalid Entity**: Skipped with error logging
+### Protocol Robustness
 
-### Recovery Mechanisms
-- **Baseline Resync**: Full state refresh on major errors
-- **Delta Reset**: Force next update to be full state
-- **Connection Reset**: Re-establish connection on critical failures
+- **Bounds checking** on all reads
+- **Graceful degradation** for unknown fields
+- **Version compatibility** through field evolution
 
-## Security Considerations
+### Debugging
 
-### Message Validation
-- **Bounds Checking**: All array indices validated
-- **String Length**: Maximum string lengths enforced
-- **Type Safety**: Strict type checking for all fields
+- **Field name tracking** for debugging
+- **Bit mask inspection** for update analysis
+- **State validation** on both client and server
 
-### Rate Limiting
-- **Command Throttling**: Prevent spam attacks
-- **Update Coalescing**: Combine multiple small updates
-- **Bandwidth Management**: Dynamic update frequency based on connection quality
+## Future Extensions
+
+### Planned Features
+
+- **Variable-length arrays** for dynamic collections
+- **Custom compression** for specific data types
+- **Delta prediction** for smoother interpolation
+- **Partial state updates** for large entities
+
+### Backward Compatibility
+
+- **Field versioning** through type evolution
+- **Optional fields** for new features
+- **Graceful fallback** for older clients
 
 ## Implementation Notes
 
-### Endianness
-- **Network Byte Order**: All multi-byte values in little-endian
-- **Platform Compatibility**: Handles both little and big-endian systems
+### Key Files
 
-### Thread Safety
-- **Single-threaded Processing**: All message processing on main thread
-- **Buffer Management**: Lock-free circular buffers for entity updates
+- `src/common/msg.c`: Core protocol implementation
+- `src/common/shared.h`: Shared data structures
+- `src/server/sv_parse.c`: Server-side parsing
+- `src/client/cl_parse.c`: Client-side parsing
 
-### Debugging
-- **Verbose Logging**: Optional detailed message logging
-- **Replay System**: Message recording for debugging
-- **Statistics**: Bandwidth usage and update frequency tracking
+### Integration Points
 
-## File References
-- `src/common/msg.c`: Core serialization/deserialization
-- `src/common/net.h`: Network interface definitions
-- `src/client/cl_parse.c`: Client message parsing
-- `src/server/sv_parse.c`: Server message parsing
-- `src/server/sv_game.c`: Game-specific message handling
+- **Game logic** uses the protocol for state synchronization
+- **Rendering system** consumes entity state updates
+- **UI system** processes frame updates
+- **Network layer** handles message transmission
+
+This protocol provides a robust foundation for real-time multiplayer synchronization while maintaining flexibility for future game features and optimizations.

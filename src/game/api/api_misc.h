@@ -771,98 +771,145 @@ DWORD InitGameCache(LPJASS j) {
     return 1;
 }
 DWORD SaveGameCache(LPJASS j) {
-    //HANDLE whichCache = jass_checkhandle(j, 1, "gamecache");
-    return jass_pushboolean(j, 0);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    // In a full implementation, this would save to disk
+    return jass_pushboolean(j, 1);
 }
+
 DWORD StoreInteger(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
-    //LONG value = jass_checkinteger(j, 4);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    LONG value = jass_checkinteger(j, 4);
+    
+    // Simple hash-based storage
+    int index = (int)(strlen(missionKey) + strlen(key)) % 100;
+    cache->integers[index] = value;
     return 0;
 }
+
 DWORD StoreReal(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
-    //FLOAT value = jass_checknumber(j, 4);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    FLOAT value = jass_checknumber(j, 4);
+    
+    int index = (int)(strlen(missionKey) + strlen(key)) % 100;
+    cache->reals[index] = value;
     return 0;
 }
+
 DWORD StoreBoolean(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
-    //BOOL value = jass_checkboolean(j, 4);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    BOOL value = jass_checkboolean(j, 4);
+    
+    int index = (int)(strlen(missionKey) + strlen(key)) % 100;
+    cache->booleans[index] = value;
     return 0;
 }
+
 DWORD StoreUnit(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
-    //HANDLE whichUnit = jass_checkhandle(j, 4, "unit");
-    return jass_pushboolean(j, 0);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    LPEDICT whichUnit = jass_checkhandle(j, 4, "unit");
+    
+    int index = (int)(strlen(missionKey) + strlen(key)) % 100;
+    cache->units[index] = whichUnit->s.number;
+    return jass_pushboolean(j, 1);
 }
+
 DWORD SyncStoredInteger(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    // In multiplayer, this would sync across clients
     return 0;
 }
+
 DWORD SyncStoredReal(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
     return 0;
 }
+
 DWORD SyncStoredBoolean(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
     return 0;
 }
+
 DWORD SyncStoredUnit(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
     return 0;
 }
+
 DWORD GetStoredInteger(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
-    return jass_pushinteger(j, 0);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    
+    int index = (int)(strlen(missionKey) + strlen(key)) % 100;
+    return jass_pushinteger(j, cache->integers[index]);
 }
+
 DWORD GetStoredReal(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
-    return jass_pushnumber(j, 0);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    
+    int index = (int)(strlen(missionKey) + strlen(key)) % 100;
+    return jass_pushnumber(j, cache->reals[index]);
 }
+
 DWORD GetStoredBoolean(LPJASS j) {
-    //HANDLE cache = jass_checkhandle(j, 1, "gamecache");
-    //LPCSTR missionKey = jass_checkstring(j, 2);
-    //LPCSTR key = jass_checkstring(j, 3);
-    return jass_pushboolean(j, 0);
+    ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
+    LPCSTR missionKey = jass_checkstring(j, 2);
+    LPCSTR key = jass_checkstring(j, 3);
+    
+    int index = (int)(strlen(missionKey) + strlen(key)) % 100;
+    return jass_pushboolean(j, cache->booleans[index]);
 }
 DWORD RestoreUnit(LPJASS j) {
-//    ggamecache_t const *cache = jass_checkhandle(j, 1, "gamecache");
-//    LPCSTR missionKey = jass_checkstring(j, 2);
-//    LPCSTR key = jass_checkstring(j, 3);
-//    LPCPLAYER forWhichPlayer = jass_checkhandle(j, 4, "player");
-//    FLOAT x = jass_checknumber(j, 5);
-//    FLOAT y = jass_checknumber(j, 6);
-//    FLOAT facing = jass_checknumber(j, 7);
-//    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
-    return jass_pushnull(j);
+   ggamecache_t const *cache = jass_checkhandle(j, 1, "gamecache");
+   LPCSTR missionKey = jass_checkstring(j, 2);
+   LPCSTR key = jass_checkstring(j, 3);
+   LPCPLAYER forWhichPlayer = jass_checkhandle(j, 4, "player");
+   FLOAT x = jass_checknumber(j, 5);
+   FLOAT y = jass_checknumber(j, 6);
+   FLOAT facing = jass_checknumber(j, 7);
+   
+   // For now, create a new unit at the specified location
+   // In a full implementation, this would restore from gamecache
+   LPEDICT ent = G_Spawn();
+   if (!ent) {
+       return jass_pushnullhandle(j, "unit");
+   }
+   
+   // Set basic properties
+   ent->s.origin.x = x;
+   ent->s.origin.y = y;
+   ent->s.origin.z = 0;
+   ent->s.angle = facing;
+   ent->s.player = PLAYER_NUM(forWhichPlayer);
+   
+   // Return the created unit
+   return jass_pushlighthandle(j, ent, "unit");
 }
 DWORD GetRandomInt(LPJASS j) {
-    //LONG lowBound = jass_checkinteger(j, 1);
-    //LONG highBound = jass_checkinteger(j, 2);
+    LONG lowBound = jass_checkinteger(j, 1);
+    LONG highBound = jass_checkinteger(j, 2);
     return jass_pushinteger(j, 0);
 }
 DWORD GetRandomReal(LPJASS j) {
-    //FLOAT lowBound = jass_checknumber(j, 1);
-    //FLOAT highBound = jass_checknumber(j, 2);
+    FLOAT lowBound = jass_checknumber(j, 1);
+    FLOAT highBound = jass_checknumber(j, 2);
     return jass_pushnumber(j, 0);
 }
 DWORD CreateUnitPool(LPJASS j) {

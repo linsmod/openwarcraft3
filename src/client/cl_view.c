@@ -88,6 +88,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.team = ent->current.player;
     re.flags = ent->current.renderfx;
     re.radius = ent->current.radius;
+    *re.indicatorColors = *ent->current.indicatorColors;
+    // memcpy(re.indicatorColors, ent->current.indicatorColors, sizeof(COLOR32) * ent->current.color_nums);
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;

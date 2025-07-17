@@ -2,7 +2,7 @@
 #define renderer_h
 
 #include "../common/common.h"
-#include "common/shared.h"
+#include "../common/shared.h"
 
 KNOWN_AS(drawText_s, DRAWTEXT);
 KNOWN_AS(drawImage_s, DRAWIMAGE);
@@ -42,6 +42,7 @@ typedef struct {
     float zfar;
 } viewCamera_t;
 
+
 typedef struct {
     VECTOR3 origin;
     LPCMODEL model;
@@ -59,6 +60,7 @@ typedef struct {
     float radius;
     float splatsize;
     float health;
+    COLOR32 indicatorColors[MAX_INDI_COLOR];
 } renderEntity_t;
 
 typedef struct {

@@ -1,7 +1,6 @@
 #include <stdarg.h>
 
 #include "client.h"
-
 typedef struct  {
     char msg[MAX_CONSOLE_MESSAGE_LEN];
     DWORD time;

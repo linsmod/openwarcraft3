@@ -88,6 +88,10 @@ typedef struct gtriggercondition_s {
 
 typedef struct {
     UINAME campaign;
+    int integers[100];
+    float reals[100];
+    bool booleans[100];
+    int units[100];
 } ggamecache_t;
 
 struct gtrigger_s {

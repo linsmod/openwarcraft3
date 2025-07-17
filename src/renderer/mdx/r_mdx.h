@@ -7,7 +7,7 @@ typedef struct mdxModel_s mdxModel_t;
 typedef mdxModel_t* LPMDXMODEL;  // Changed from LPMODEL to avoid conflict with shared.h
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
-#define MDX_MAX_NODES 256
+#define MDX_MAX_NODES 256 // Must sync with vs in src/renderer/mdx/r_mdx_render.c
 #define MDX_MATRIX_PALETTE 128
 
 typedef char mdxObjectName_t[80];

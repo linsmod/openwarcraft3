@@ -9,7 +9,6 @@
 for (type *property = list, *next = list ? (list)->next : NULL; \
 property; \
 property = next, next = next ? next->next : NULL)
-#define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
 #define SFileReadArray2(buffer, object, variable, elemsize) \
 MSG_Read(buffer, &object->num_##variable, 4); \
 if (object->num_##variable > 0) {object->variable = ri.MemAlloc(object->num_##variable * elemsize); \

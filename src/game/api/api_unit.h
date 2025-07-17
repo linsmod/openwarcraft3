@@ -14,7 +14,8 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 #define UNIT_ACCESS(NAME, FIELD) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    whichUnit->FIELD = jass_checknumber(j, 2); \
+    if(whichUnit) \
+        whichUnit->FIELD = jass_checknumber(j, 2); \
     return 0; \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \
@@ -609,6 +610,8 @@ DWORD IssueImmediateOrderById(LPJASS j) {
 }
 DWORD IssuePointOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    if(!whichUnit)
+        return jass_pushboolean(j, false);
     LPCSTR order = jass_checkstring(j, 2);
     FLOAT x = jass_checknumber(j, 3);
     FLOAT y = jass_checknumber(j, 4);
@@ -617,6 +620,8 @@ DWORD IssuePointOrder(LPJASS j) {
 }
 DWORD IssuePointOrderLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    if(!whichUnit)
+        return jass_pushboolean(j, false);
     LPCSTR order = jass_checkstring(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
     BOOL ret = unit_issueorder(whichUnit, order, whichLocation);
@@ -713,11 +718,21 @@ DWORD WaygateIsActive(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD UnitAddIndicator(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG red = jass_checkinteger(j, 2);
-    //LONG green = jass_checkinteger(j, 3);
-    //LONG blue = jass_checkinteger(j, 4);
-    //LONG alpha = jass_checkinteger(j, 5);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG red = jass_checkinteger(j, 2);
+    LONG green = jass_checkinteger(j, 3);
+    LONG blue = jass_checkinteger(j, 4);
+    LONG alpha = jass_checkinteger(j, 5);
+    
+    // whichUnit->s.indicatorColor =gi.MemAlloc(sizeof(COLOR32));
+    COLOR32 color = {
+    red,
+    green,
+    blue,
+    alpha};
+    DWORD n = whichUnit->s.color_nums;
+    whichUnit->s.indicatorColors[n]=color;
+    whichUnit->s.color_nums+=1;
     return 0;
 }
 DWORD RemoveGuardPosition(LPJASS j) {

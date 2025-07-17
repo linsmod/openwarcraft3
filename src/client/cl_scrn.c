@@ -633,16 +633,6 @@ void SCR_DrawOverlays(void) {
         color.a = 255 * cl.playerstate.cinefade;
         re.DrawImage(cl.pics[0], &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
     }
-
-    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        if ((1 << layer) & cl.playerstate.uiflags)
-            continue;
-        HANDLE *layout = cl.layout[layer];
-        if (layout) {
-            SCR_Clear(layout);
-            SCR_UpdateTooltip(layout);
-        }
-    }
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         if ((1 << layer) & cl.playerstate.uiflags)
             continue;

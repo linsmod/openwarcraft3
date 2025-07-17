@@ -76,7 +76,8 @@ target_link_libraries(${PROJECT_NAME}
     X11
     m
     jpeg
-    
+    # SDL2
+    # storm
     ${VENDOR_DIR}/sdl/build/libSDL2.a
     ${VENDOR_DIR}/stormlib/build/libstorm.so
 )
