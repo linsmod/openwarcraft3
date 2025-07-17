@@ -1,0 +1,36 @@
+__中立生物 (Creeps):__
+
+- __GnollWarden__ - 豺狼人守望者
+- __Murloc__ - 鱼人
+- __MurlocNightcrawler__ - 鱼人夜行者
+- __Ogre__ - 食人魔
+- __GnollArcher__ - 豺狼人弓箭手
+- __Gnoll__ - 豺狼人
+- __RedDragonWelp__ - 红龙雏龙
+- __BlackDragon__ - 黑龙
+- __OgreMagi__ - 食人魔法师
+- __MurlocWarrior__ - 鱼人战士
+
+__兽族 (Orc):__
+
+- __HeadHunter__ - 猎头者
+- __Grunt__ - 兽人步兵
+- __HeroBladeMaster__ - 剑圣英雄
+- __WolfRider__ - 狼骑兵
+
+__人族 (Human):__
+
+- __Footman__ - 步兵
+- __Peasant__ - 农民
+- __MortarTeam__ - 迫击炮小队
+- __Uther__ - 乌瑟尔（圣骑士英雄）
+- __Rifleman__ - 火枪手
+- __KnightNoRider__ - 无骑士的战马
+- __Knight__ - 骑士
+
+__小动物 (Critters):__
+
+- __Sheep__ - 绵羊
+- __Pig__ - 猪
+- __VillagerMan__ - 男性村民
+- __VillagerWoman__ - 女性村民

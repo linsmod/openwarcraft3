@@ -14,7 +14,7 @@ replaced with lines
 Current user is asking you chat in chinese alwasy.
 
 ## Code search
-- 如果代码的相关定义不在对应的文件, 使用终端命令搜索,它比挨个阅读文件更快
+- 如果代码的相关定义不在对应的文件, 使用终端命令在文件夹甚至workspace级别搜索,它比挨个阅读文件更快
 
 ## Terminal Use
 - Dont enter interact mode and Must disable pager mode when use git commands
