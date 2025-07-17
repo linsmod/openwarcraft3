@@ -20,5 +20,5 @@ Current user is asking you chat in chinese alwasy.
 - Dont enter interact mode and Must disable pager mode when use git commands
 
 ## Advance Code Fix
-- Collect 架构级别的 information from documents and related code files to apply proper fix When user ask locating an components level or project level problem. instead of just use an simple null check to hidden real problem.
+- When user ask locating an components level or project level problem, collect 架构级别的 information from documents and related code files to ensure applying proper fix instead of just use inplace fix like null check to hidden real problem.
 - 
