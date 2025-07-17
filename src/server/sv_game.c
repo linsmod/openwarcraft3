@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdarg.h>
 #include <pthread.h>
 
@@ -158,7 +159,7 @@ void ConvertMDLXAnimationName(LPANIMATION seq) {
     memset(buffer, 0, sizeof(buffer));
     strcpy(buffer, seq->name);
     for (char *ch = buffer; *ch; ch++) {
-        if (isnumber(*ch) || *ch == '-') {
+        if (isdigit(*ch) || *ch == '-') {
             while (*(++last_char)) {
                 *last_char = '\0';
             }

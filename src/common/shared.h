@@ -9,7 +9,7 @@
 #include <stdarg.h>
 
 #include "../cmath3/cmath3.h"
-
+#include <stdint.h>
 #define TMP_MAP "/tmp/map.w3m"
 #define MAX_PATHLEN 256
 #define MAX_SELECTED_ENTITIES 64
@@ -418,7 +418,7 @@ typedef struct uiFrame_s {
     union {
         struct {
             FRAMETYPE type: 8;
-            BLEND_MODE alphaMode: 2;
+            BLEND_MODE alphaMode;
         } flags;
         DWORD flagsvalue;
     };

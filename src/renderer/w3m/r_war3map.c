@@ -1,5 +1,4 @@
 #include "r_war3map.h"
-
 LPMAPSEGMENT g_mapSegments = NULL;
 
 #ifdef DEBUG_PATHFINDING

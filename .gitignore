@@ -1,4 +1,5 @@
-build/
+**/build/
+.cache
 *xcuserdata*
 *.user
 *.xcuserstate

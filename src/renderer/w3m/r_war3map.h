@@ -2,6 +2,7 @@
 #define __r_war3map_h__
 
 #include "r_local.h"
+#include <float.h>
 
 KNOWN_AS(MapLayer, MAPLAYER);
 KNOWN_AS(MapSegment, MAPSEGMENT);
