@@ -113,10 +113,15 @@ target_link_directories(${PROJECT_NAME} PRIVATE
 )
 
 find_package(SDL2 REQUIRED)
+find_package(OpenGL REQUIRED)
+find_library(JPEG_LIBRARY NAMES jpeg)
 # 链接库
 target_link_libraries(${PROJECT_NAME}
     SDL2::SDL2
     cmath3
+    ${OPENGL_gl_LIBRARY}
+    ${OPENGL_glu_LIBRARY}
+    ${JPEG_LIBRARY}
 )
 
 # 设置库输出名称和版本
