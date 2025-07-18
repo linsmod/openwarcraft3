@@ -103,12 +103,18 @@ sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
 
 sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
     HANDLE file = FS_OpenFile(fileName);
+    if(!file){
+        fprintf(stderr, "ENO_FILE %s\n", fileName);
+        return NULL;
+    }
     DWORD fileSize = SFileGetFileSize(file, NULL);
     TCHAR czBuffer[MAX_SHEET_LINE];
     TCHAR ch = 0;
     DWORD X = 1, Y = 1;
     LPSHEET start = current_cell;
+    fprintf(stdout, "LOAD: %s\n", fileName);
     for (DWORD read = 0, cur = 0; read < fileSize; read++) {
+        fprintf(stdout, "- read=%d cur=%d\n", read,cur);
         SFileReadFile(file, &ch, 1, NULL, NULL);
         if (ch == '\n') {
             DWORD const numTokens = SheetParseTokens(czBuffer);

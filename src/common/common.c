@@ -151,8 +151,11 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 void FS_Init(void) {
 //    ExtractStarCraft2();
     
-    FS_AddArchive("/Users/igor/Documents/Warcraft3/war3.mpq");
-    FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
+    FS_AddArchive("/work/war3files/War3.mpq");
+    // FS_AddArchive("//work/war3files/war3.mpq");
+    // FS_AddArchive("//work/war3files/war3.mpq");
+    // FS_AddArchive("//work/war3files/war3.mpq");
+    // FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
 
 //    FS_ExtractFile("Scripts\\common.j", "/Users/igor/Desktop/common.j");
 //    FS_ExtractFile("Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk");
