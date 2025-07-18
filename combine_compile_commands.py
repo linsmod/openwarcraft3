@@ -28,7 +28,12 @@ def merge_json_files(file_paths):
     return merged
 
 def write_output(data, output_path):
-    """写入合并后的结果"""
+    """写入合并后的结果，并自动创建目录"""
+    output_dir = os.path.dirname(output_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+        print(f"📁 Created directory: {output_dir}")
+
     print(f"Writing merged compile_commands to {output_path}...")
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
@@ -37,7 +42,7 @@ def write_output(data, output_path):
 def main():
     parser = argparse.ArgumentParser(description="Merge all compile_commands.json files in subdirectories.")
     parser.add_argument("--root", default=".", help="Root directory to start searching (default: .)")
-    parser.add_argument("--output", default="compile_commands.json", help="Output file path (default: ./compile_commands.json)")
+    parser.add_argument("--output", default="build/compile_commands.json", help="Output file path (default: build/compile_commands.json)")
     args = parser.parse_args()
 
     print(f"🔍 Searching for compile_commands.json under '{args.root}'...")

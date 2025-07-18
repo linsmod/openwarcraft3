@@ -32,6 +32,15 @@ LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
     SFileReadFile(fp, buffer, fileSize, NULL, NULL);
     FS_CloseFile(fp);
     buffer[fileSize] = '\0';
+
+    char savePath[512];
+    snprintf(savePath, sizeof(savePath), "%s", fileName);
+    FILE *fp2 = fopen(savePath, "wb");
+    if (fp2) {
+        fwrite(buffer, 1, fileSize, fp2);
+        fclose(fp2);
+    }
+
     return buffer;
 }
 

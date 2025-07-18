@@ -14,7 +14,15 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
 
 LPCSTR parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
-    while (isspace(*p->buffer)) ++p->buffer;
+    while (isspace(*p->buffer)){ 
+        if('\n' == *p->buffer) {
+            p->line++;
+            p->column = 0;
+        } else {
+            p->column++;
+        }
+        ++p->buffer;
+    }
     if (*p->buffer == '\"') {
         LPCSTR closingQuote = strchr(p->buffer+1, '"');
         size_t stringLength = closingQuote-p->buffer+1;
@@ -45,8 +53,7 @@ LPCSTR parse_token(LPPARSER p) {
 
 LPCSTR peek_token(LPPARSER p) {
     PARSER tmp = *p;
-    LPCSTR token = parse_token(p);
-    *p = tmp;
+    LPCSTR token = parse_token(&tmp);
     return token;
 }
 

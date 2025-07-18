@@ -34,7 +34,12 @@ enum {
     TF_ARRAY = 4,
     TF_FUNCTION = 8,
 };
-
+struct sourceLocation {
+    LPCSTR file;
+    DWORD line;
+    DWORD column;
+};
+KNOWN_AS(sourceLocation, SOURCEREF);
 struct token {
     LPSTR primary;
     LPSTR secondary;
@@ -47,6 +52,7 @@ struct token {
     LPTOKEN condition;
     LPTOKEN elseblock;
     LPTOKEN index;
+    LPSOURCEREF location;
 };
 
 LPTOKEN JASS_ParseTokens(LPPARSER p);

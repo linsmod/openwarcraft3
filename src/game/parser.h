@@ -8,6 +8,9 @@ struct word_extractor {
     const char* delimiters;
     BOOL error;
     BOOL eat_quotes;
+    LPCSTR file;
+    DWORD line;
+    DWORD column;
 };
 
 LPCSTR parse_token(LPPARSER p);

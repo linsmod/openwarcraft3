@@ -946,7 +946,7 @@ void jass_close(LPJASS);
 BOOL jass_dofile(LPJASS, LPCSTR);
 BOOL jass_dofilenative(LPJASS, LPCSTR);
 void jass_callbyname(LPJASS, LPCSTR, BOOL);
-BOOL jass_dobuffer(LPJASS, LPSTR);
+BOOL jass_dobuffer(LPJASS, LPSTR, LPCSTR);
 
 // g_events.c
 void G_RunEntities(void);

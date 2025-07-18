@@ -6,6 +6,12 @@
 
 #define MAX_GROUP_SIZE 256
 
+#define DEBUG_JASS
+#define INDENT(depth) \
+FOR_LOOP(i, depth) fprintf(stdout," ");
+
+static __thread int depth = 0;
+
 #define API_ALLOC(TYPE, NAME) TYPE *NAME = jass_newhandle(j, sizeof(TYPE), #NAME);
 
 KNOWN_AS(jass_function, JASSFUNC);

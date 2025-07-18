@@ -1,6 +1,7 @@
 #ifndef __mapinfo_h__
 #define __mapinfo_h__
 
+#include "shared.h"
 #define TILE_SIZE 128
 #define SEGMENT_SIZE 8
 //#define AREA_SIZE (TILE_SIZE * SEGMENT_SIZE)
@@ -212,6 +213,7 @@ struct mapInfo_s {
     unitData_t *originalUnits;
     unitData_t *userCreatedUnits;
     LPSTR mapscript;
+    LPSTR scriptFileName;
 };
 
 #endif

@@ -687,6 +687,9 @@ void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
         .buffer = buffer,
         .delimiters = ",;{}",
         .eat_quotes = true,
+        .file = fileName,
+        .line = 1,
+        .column = 1,
     };
     FDF_ParseScene(&parser);
     if (parser.error) {
