@@ -313,7 +313,7 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
 #ifdef DEBUG_JASS
     fprintf(stdout,"<vm> jass_evaluatetrigger at %s:%d", __FILE__,__LINE__);
     INDENT(depth);
-    fprintf(stdout, "jass_call: %s at %s\n", j->context.func->name, dump_location(j->current_token->location));
+    fprintf(stdout, "jass_call: %s at %s\n", cond->expr->name, dump_location(j->current_token->location));
 #endif
         if (jass_call(&tmp_state, 0) != 1 || !jass_popboolean(&tmp_state)) {
             return false;
