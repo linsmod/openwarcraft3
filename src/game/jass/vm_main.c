@@ -1067,10 +1067,18 @@ void jass_close(LPJASS j) {
     gi.MemFree(j);
 }
 
+#define EXTRACT_DIR "build"
+
 BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
     LPSTR buffer = gi.ReadFileIntoString(fileName);
     if (buffer) {
+#ifdef DEBUG_JASS
+        char filePath[256];
+        snprintf(filePath, sizeof(filePath), "%s/%s", EXTRACT_DIR,fileName);
+        BOOL success = jass_dobuffer(j, buffer,strdup(filePath));
+#else
         BOOL success = jass_dobuffer(j, buffer,fileName);
+#endif
         gi.MemFree(buffer);
         return success;
     } else {
