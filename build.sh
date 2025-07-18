@@ -1,8 +1,10 @@
 #!/bin/bash
 
+
 # 默认构建类型
 export BUILD_TYPE="${BUILD_TYPE:-Debug}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "$SCRIPT_DIR/build"
 m()
 {
     local p="${1:-src}"
@@ -10,13 +12,13 @@ m()
     cd "$p"
     # rm -rf build
     cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=ON -B "build" &&
-    cmake --build build &&
-    python $SCRIPT_DIR/combine_compile_commands.py
-
+    cmake --build build
     if [ $? -ne 0 ]; then
         echo "Build failed."
         exit 1
     fi
+    
+    python $SCRIPT_DIR/combine_compile_commands.py
     cp $SCRIPT_DIR/src/build/openwarcraft3 $SCRIPT_DIR/build/openwarcraft3
     cd $SCRIPT_DIR
 }

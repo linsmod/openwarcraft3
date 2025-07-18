@@ -385,15 +385,19 @@ void CM_ReadStrings(HANDLE archive) {
 
 void CM_ReadMapScript(HANDLE archive) {
     world.info.mapscript = FS_ReadArchiveFileIntoString(archive, "war3map.j");
+#ifdef DEBUG_JASS
+    world.info.scriptFileName = "build/war3map.j";
+    SFileExtractFile(archive, "war3map.j", "war3map.j", 0);
+#else
     world.info.scriptFileName = "war3map.j";
-    SFileExtractFile(archive, "war3map.j", "/Users/igor/Desktop/Human01.j", 0);
+#endif
 }
 
 void CM_LoadMap(LPCSTR mapFilename) {
     HANDLE mapArchive;
     memset(&world, 0, sizeof(world));
-    FS_ExtractFile(mapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &mapArchive);
+    FS_ExtractFile(mapFilename, mapFilename);
+    SFileOpenArchive(mapFilename, 0, 0, &mapArchive);
     CM_ReadPathMap(mapArchive);
     CM_ReadDoodads(mapArchive);
     CM_ReadUnitDoodads(mapArchive);

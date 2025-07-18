@@ -777,7 +777,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
             j->current_token = token;
 #ifdef DEBUG_JASS
             INDENT(depth);
-            fprintf(stdout, "ARG: %s %s\n", arg->primary, arg->secondary ? arg->secondary : "");
+            fprintf(stdout, "push arg%d: %s %s\n", args, arg->primary, arg->secondary ? arg->secondary : "");
 #endif
             jass_dotoken(j, arg);
             args++;
@@ -785,7 +785,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         j->current_token = token;
 #ifdef DEBUG_JASS
             INDENT(depth);
-            fprintf(stdout, "jass_call: %s at %s\n", token->primary, dump_location(token->location));
+            fprintf(stdout, "call: %s at %s\n", token->primary, dump_location(token->location));
 #endif
         jass_call(j, args);
         return j->num_stack - stacksize;
@@ -796,7 +796,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
             j->current_token = token;
 #ifdef DEBUG_JASS
             INDENT(depth);
-            fprintf(stdout, "ARG: %s %s\n", arg->primary, arg->secondary ? arg->secondary : "");
+            fprintf(stdout, "push arg%d: %s %s\n", args, arg->primary, arg->secondary ? arg->secondary : "");
 #endif
             jass_dotoken(j, arg);
             args++;
@@ -804,7 +804,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         j->current_token = token;
 #ifdef DEBUG_JASS
             INDENT(depth);
-            fprintf(stdout, "jass_call: %s at %s\n", token->primary, dump_location(token->location));
+            fprintf(stdout, "call %s at %s\n", token->primary, dump_location(token->location));
 #endif
         jass_call(j, args);
         return j->num_stack - stacksize;
@@ -1113,7 +1113,6 @@ DWORD jass_call(LPJASS j, DWORD args) {
     j->stack_pointer = &j->stack[j->num_stack - args - 1];
 #ifdef DEBUG_JASS
     depth++;
-    FOR_LOOP(i, depth) printf(" ");
 #endif
     if (jass_getvarbasetype(root) == jasstype_cfunction) {
         LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)root->value;

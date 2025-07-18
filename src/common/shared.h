@@ -10,7 +10,6 @@
 
 #include "../cmath3/cmath3.h"
 #include <stdint.h>
-#define TMP_MAP "/tmp/map.w3m"
 #define MAX_PATHLEN 256
 #define MAX_SELECTED_ENTITIES 64
 #define TOKEN_LEN 1024

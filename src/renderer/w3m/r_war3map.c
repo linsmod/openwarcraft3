@@ -136,8 +136,8 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
 void R_RegisterMap(char const *mapFilename) {
     HANDLE hMpq;
     LPWAR3MAP map;
-    ri.FileExtract(mapFilename, TMP_MAP);
-    SFileOpenArchive(TMP_MAP, 0, 0, &hMpq);
+    ri.FileExtract(mapFilename,mapFilename);
+    SFileOpenArchive(mapFilename, 0, 0, &hMpq);
     map = FileReadWar3Map(hMpq);
     R_FileReadShadowMap(hMpq, map);
     SFileCloseArchive(hMpq);
