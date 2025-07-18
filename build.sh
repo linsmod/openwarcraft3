@@ -9,7 +9,7 @@ m()
     echo "Building in directory: $p"
     cd "$p"
     # rm -rf build
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=OFF -B "build" &&
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=ON -B "build" &&
     cmake --build build
     cd $script_path
 }

@@ -1,6 +1,15 @@
 #include "r_war3map.h"
+#include <StormPort.h>
+
+#define DWORD_NEGATIVE  0xFFFFFFFF
 
 LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP war3Map, DWORD x, DWORD y) {
+    if(y>=war3Map->width){
+        y = war3Map->width - 1;
+    }
+    if(x>=war3Map->height){
+        x = war3Map->height - 1;
+    }
     int const index = x + y * war3Map->width;
     char const *ptr = ((char const *)war3Map->vertices) + index * MAP_VERTEX_SIZE;
     return (LPCWAR3MAPVERTEX)ptr;

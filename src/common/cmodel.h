@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-struct War3MapVertex {
+struct __attribute__((packed)) War3MapVertex {
     USHORT accurate_height;
     USHORT waterlevel:14;
     BYTE mapedge:2;
