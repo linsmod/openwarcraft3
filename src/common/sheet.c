@@ -114,7 +114,7 @@ sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
     LPSHEET start = current_cell;
     fprintf(stdout, "LOAD: %s\n", fileName);
     for (DWORD read = 0, cur = 0; read < fileSize; read++) {
-        fprintf(stdout, "- read=%d cur=%d\n", read,cur);
+        // fprintf(stdout, "- read=%d cur=%d\n", read,cur);
         SFileReadFile(file, &ch, 1, NULL, NULL);
         if (ch == '\n') {
             DWORD const numTokens = SheetParseTokens(czBuffer);

@@ -4,3 +4,4 @@
 *.user
 *.xcuserstate
 .DS_Store
+compile_commands.json

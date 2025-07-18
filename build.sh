@@ -17,3 +17,4 @@ home(){
     cd $script_path
 }
 m
+python combine_compile_commands.py
