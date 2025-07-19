@@ -81,7 +81,13 @@ KNOWN_AS(gevent_s, EVENT);
 KNOWN_AS(gtrigger_s, TRIGGER);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
+KNOWN_AS(sourceLocation, SOURCEREF);
 
+struct sourceLocation {
+    LPCSTR file;
+    DWORD line;
+    DWORD column;
+};
 typedef struct {
     BOOL (*on_entity_selected)(LPEDICT, LPEDICT);
     BOOL (*on_location_selected)(LPEDICT, LPCVECTOR2);

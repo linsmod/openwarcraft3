@@ -90,14 +90,11 @@ static BOOL parse_body(LPPARSER p, LPTOKEN function) {
     }
     return true;
 }
-
+LPSOURCEREF create_source_ref(LPPARSER p);
 LPTOKEN alloc_token(TOKENTYPE type, LPPARSER p) {
     LPTOKEN token = ALLOC(TOKEN);
     token->type = type;
-    token->location = ALLOC(SOURCEREF);
-    token->location->file = p->file ;
-    token->location->line = p->line;
-    token->location->column = p->column;
+    token->location = create_source_ref(p);
     return token;
 }
 

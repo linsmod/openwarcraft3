@@ -12,17 +12,45 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
     }
 }
 
-LPCSTR parse_token(LPPARSER p) {
-    static char word[MAX_SEGMENT_SIZE];
-    while (isspace(*p->buffer)){ 
-        if('\n' == *p->buffer) {
+void skip_spaces(LPPARSER p){
+    while (isspace(*(p)->buffer)) { 
+        (p)->buffer++; \
+    }
+}
+void safeskip_spaces(LPPARSER p) {
+    while (p->buffer && isspace((unsigned char)*p->buffer)) {
+        p->buffer++;
+    }
+}
+
+
+void update_location(LPCSTR start,LPPARSER p) {
+    size_t n = p->buffer - start;
+    for (LPCSTR s = start; s < p->buffer; s++) {
+        if (*s == '\n') {
             p->line++;
-            p->column = 0;
+            p->column = 1;
         } else {
             p->column++;
         }
-        ++p->buffer;
     }
+}
+
+LPCSOURCEREF create_source_ref(LPPARSER p) {
+    LPCSTR start = p->buffer;
+    skip_spaces(p);
+    update_location(start, p);
+    LPSOURCEREF ref = gi.MemAlloc(sizeof(SOURCEREF));
+    ref->file = p->file;
+    ref->line = p->line;
+    ref->column = p->column;
+    return ref;
+}
+
+LPCSTR parse_token(LPPARSER p) {
+    static char word[MAX_SEGMENT_SIZE];
+    LPCSTR start = p->buffer;
+    skip_spaces(p);
     if (*p->buffer == '\"') {
         LPCSTR closingQuote = strchr(p->buffer+1, '"');
         size_t stringLength = closingQuote-p->buffer+1;
@@ -34,10 +62,12 @@ LPCSTR parse_token(LPPARSER p) {
         word[stringLength] = '\0';
         p->buffer = ++closingQuote;
 //        printf("%s\n", word);
+        update_location(start, p);
         return word;
     } else if (strchr(p->delimiters, *p->buffer)) {
         word[0] = *(p->buffer++);
         word[1] = '\0';
+        update_location(start, p);
         return word;
     } else {
         size_t segmentLength = 0;
@@ -47,6 +77,7 @@ LPCSTR parse_token(LPPARSER p) {
             word[segmentLength++] = *(p->buffer++);
         }
         word[segmentLength] = '\0'; // Null-terminate the segment
+        update_location(start, p);
         return word;
     }
 }
