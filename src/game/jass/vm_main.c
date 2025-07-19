@@ -51,6 +51,7 @@ KNOWN_AS(jass_array, JASSARRAY);
 KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_env, JASSENV);
+KNOWN_AS(jass_targetfuncinfo, JASSTARGETFUNCINFO);
 
 VMPROGRAM VM_Compile(LPCTOKEN token);
 LPPLAYER currentplayer = NULL;
@@ -115,12 +116,19 @@ struct jass_dict {
     JASSVAR value;
 };
 
+struct jass_targetfuncinfo{
+    LPCSTR name;
+    LPCSOURCEREF location;
+    BOOL is_native;
+};
+
 struct jass_s {
     LPJASSDICT globals;
     LPJASSTYPE types;
     LPJASSFUNC functions;
     JASSVAR stack[MAX_JASS_STACK];
     DWORD num_stack;
+    LPJASSTARGETFUNCINFO target_funcinfo; 
     LPJASSVAR stack_pointer;
     JASSCONTEXT context;
     LPCTOKEN current_token;
@@ -278,7 +286,7 @@ static HANDLE RunAction(HANDLE handle) {
 #ifdef DEBUG_JASS
     fprintf(stdout,"<jass_thread> RunAction at %s:%d", __FILE__,__LINE__);
     INDENT(depth);
-    fprintf(stdout, "jass_call: %s at %s\n", j->context.func->name, dump_location(j->current_token->location));
+    fprintf(stdout, "call: %s at %s\n", j->context.func->name, dump_location(j->current_token->location));
 #endif
     jass_call(j, 0);
     gi.MemFree(handle);
@@ -311,9 +319,9 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
         tmp_state.context.unit = unit;
         jass_pushfunction(&tmp_state, cond->expr);
 #ifdef DEBUG_JASS
-    fprintf(stdout,"<vm> jass_evaluatetrigger at %s:%d", __FILE__,__LINE__);
+    fprintf(stdout,"<vm> jass_evaluatetrigger at %s:%d\n", __FILE__,__LINE__);
     INDENT(depth);
-    fprintf(stdout, "jass_call: %s at %s\n", cond->expr->name, dump_location(j->current_token->location));
+    fprintf(stdout, "call: %s at %s\n", cond->expr->name, dump_location(j->current_token->location));
 #endif
         if (jass_call(&tmp_state, 0) != 1 || !jass_popboolean(&tmp_state)) {
             return false;
@@ -763,6 +771,13 @@ DWORD VM_EvalFourCC(LPJASS j, LPCTOKEN token) {
     return jass_pushinteger(j, *(DWORD *)token->primary);
 }
 
+void set_targetfuncinfo(LPJASS j, LPCSTR funcname, LPSOURCEREF funcref, BOOL is_native) {
+    JASSTARGETFUNCINFO *info = j->target_funcinfo;
+    info->name = funcname;
+    info->location = funcref;
+    info->is_native = is_native;
+}
+
 DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
     LPCJASSFUNC f = NULL;
     LPJASSCFUNCTION cf = NULL;
@@ -787,6 +802,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
             INDENT(depth);
             fprintf(stdout, "call: %s at %s\n", token->primary, dump_location(token->location));
 #endif
+        set_targetfuncinfo(j, token->primary, token->location, false) ;
         jass_call(j, args);
         return j->num_stack - stacksize;
     } else if ((cf = find_cfunction(j, token->primary))) {
@@ -806,6 +822,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
             INDENT(depth);
             fprintf(stdout, "call %s at %s\n", token->primary, dump_location(token->location));
 #endif
+         set_targetfuncinfo(j, token->primary, token->location, true); ;
         jass_call(j, args);
         return j->num_stack - stacksize;
     } else {
@@ -1060,6 +1077,10 @@ BOOL jass_dobuffer(LPJASS j, LPSTR buffer2,LPCSTR fileName) {
 LPJASS jass_newstate(void) {
     LPJASS j = JASSALLOC(JASS);
     j->stack_pointer = j->stack;
+    j->target_funcinfo = JASSALLOC(JASSTARGETFUNCINFO);
+    j->target_funcinfo->name = "<unset>";
+    j->target_funcinfo->location = NULL;
+    j->target_funcinfo->is_native = false;
     return j;
 }
 
@@ -1187,7 +1208,7 @@ void jass_callbyname(LPJASS j, LPCSTR name, BOOL async) {
         jass_pushfunction(j, func);
 #ifdef DEBUG_JASS
             INDENT(depth);
-            fprintf(stdout, "jass_call: %s at %s:%d\n", name, __FILE__, __LINE__);
+            fprintf(stdout, "call: %s at %s:%d\n", name, __FILE__, __LINE__);
 #endif        
         jass_call(j, 0);
     }
