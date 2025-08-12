@@ -1,7 +1,6 @@
 #include "client.h"
 
-#include <SDL.h>
-#include <stdio.h>
+#include <SDL2/SDL.h>
 
 //struct {
 //    LPCSTR command;

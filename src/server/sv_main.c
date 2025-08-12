@@ -98,7 +98,7 @@ void SV_LoadModels(void) {
     for (DWORD i = 2; i < MAX_MODELS && *sv.configstrings[CS_MODELS + i]; i++) {
         if (sv.models[i])
             continue;
-        // LPCSTR filename = sv.configstrings[CS_MODELS + i];
+//        LPCSTR filename = sv.configstrings[CS_MODELS + i];
         sv.models[i] = SV_LoadModel(sv.configstrings[CS_MODELS + i]);
     }
 }
@@ -132,6 +132,8 @@ void SV_Frame(DWORD msec) {
     }
 
     SV_ReadPackets();
+
     SV_RunGameFrame();
+
     SV_SendClientMessages();
 }

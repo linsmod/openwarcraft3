@@ -56,6 +56,9 @@ HANDLE FS_AddArchive(LPCSTR filename) {
         if (archives[i])
             continue;
         SFileOpenArchive(filename, 0, 0, &archives[i]);
+        if (!archives[i]) {
+            fprintf(stderr, "Can't add archive %s\n", filename);
+        }
         return archives[i];
     }
     return NULL;
@@ -152,14 +155,8 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 int FS_Init(LPCSTR* mpqPaths, int numPaths) {
 //    ExtractStarCraft2();
     
-    for (int i = 0; i < numPaths; i++) {
-        if (!FS_AddArchive(mpqPaths[i])) {
-            fprintf(stderr, "ENO_FILE? %s\n", mpqPaths[i]);
-            return -1;
-        }
-    }
-    return 0;
-    // FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
+//    FS_AddArchive("/Users/igor/Documents/Warcraft III Demo/war3.mpq");
+//    FS_AddArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets");
 
 //    FS_ExtractFile("Scripts\\common.j", "/Users/igor/Desktop/common.j");
 //    FS_ExtractFile("Units\\UnitAbilities.slk", "/Users/igor/Desktop/UnitAbilities.slk");
@@ -185,7 +182,7 @@ int FS_Init(LPCSTR* mpqPaths, int numPaths) {
 //             if(strstr(findData.cFileName, ".fdf")) {
 //                 printf("%s\n", findData.cFileName);
 //             }
-#if 0
+#if 1
 //             if (strstr(findData.cFileName, "EscMenuTemplates")||strstr(findData.cFileName, "QuestDialog")){
 //             if (strstr(findData.cFileName, "Blizzard.j")) {
 //             if (strstr(findData.cFileName, "EscMenuTemplates") ||
@@ -319,8 +316,4 @@ void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
     }
     
     fprintf(stderr, "%s", msg);
-}
-
-int isnumber(int c) {
-    return (c >= '0' && c <= '9');
 }

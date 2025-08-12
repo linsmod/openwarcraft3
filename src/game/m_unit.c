@@ -56,9 +56,6 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
     return false;
 }
 
-// void order_move(LPEDICT self, LPEDICT target);
-// void order_stop(LPEDICT clent);
-
 BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
 //    printf("%.4s %s\n", &self->class_id, order);
     if (!strcmp(order, "move") || !strcmp(order, "attack")) {
@@ -78,9 +75,12 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     return false;
 }
 
-// void G_SolveCollisions(void);
-
-LPEDICT unit_createorfind(DWORD player, DWORD unitid, LPCVECTOR2 location, FLOAT facing) {
+LPEDICT 
+unit_createorfind(DWORD player,
+                  DWORD unitid,
+                  LPCVECTOR2 location,
+                  FLOAT facing) 
+{
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
         if (ent->class_id == unitid &&
@@ -119,7 +119,7 @@ BOOL unit_additem(LPEDICT edict, DWORD class_id) {
 }
 
 void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
-
+    
 }
 
 void unit_learnability(LPEDICT ent, DWORD abilcode) {
@@ -141,9 +141,8 @@ void SP_monster_unit(LPEDICT self) {
     self->die = unit_die;
     self->stand = unit_stand;
     self->birth = unit_birth;
-
+    
     unit_setmove(self, &unit_move_stand);
-
+    
     monster_start(self);
 }
-

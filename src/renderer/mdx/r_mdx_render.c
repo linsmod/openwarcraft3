@@ -1,5 +1,5 @@
 #include "r_mdx.h"
-#include "r_local.h"
+#include "../r_local.h"
 
 static struct {
     LPSHADER shader;
@@ -22,11 +22,11 @@ static LPCSTR vs =
 "in vec4 i_color;\n"
 "in vec2 i_texcoord;\n"
 "in vec3 i_normal;\n"
-"in ivec4 i_skin1;\n"
+"in vec4 i_skin1;\n"
 "in vec4 i_boneWeight1;\n"
 #if MAX_SKIN_BONES > 4
 "in vec4 i_boneWeight2;\n"
-"in ivec4 i_skin2;\n"
+"in vec4 i_skin2;\n"
 #endif
 "out vec4 v_color;\n"
 "out vec4 v_shadow;\n"
@@ -46,13 +46,13 @@ static LPCSTR vs =
 "    vec4 position = vec4(0.0);\n"
 "    vec4 normal = vec4(0.0);\n"
 "    for (int i = 0; i < 4; ++i) {\n"
-"        position += uBones[i_skin1[i]] * pos4 * i_boneWeight1[i];\n"
-"        normal += uBones[i_skin1[i]] * norm4 * i_boneWeight1[i];\n"
+"        position += uBones[int(i_skin1[i])] * pos4 * i_boneWeight1[i];\n"
+"        normal += uBones[int(i_skin1[i])] * norm4 * i_boneWeight1[i];\n"
 #if MAX_SKIN_BONES > 4
-"        position += uBones[i_skin2[i]] * pos4 * i_boneWeight2[i];\n"
-"        normal += uBones[i_skin2[i]] * norm4 * i_boneWeight2[i];\n"
+"        position += uBones[int(i_skin2[i])] * pos4 * i_boneWeight2[i];\n"
+"        normal += uBones[int(i_skin2[i])] * norm4 * i_boneWeight2[i];\n"
 #endif
-"    }\n"
+"    }\nposition=pos4;\n"
 "    position.w = 1.0;\n"
 "    v_color = i_color;\n"
 "    v_texcoord = i_texcoord;\n"
@@ -275,7 +275,6 @@ static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matr
         }
     }
 #endif
-
     R_Call(glUseProgram, mdlx.shader->progid);
     R_Call(glUniformMatrix4fv, mdlx.shader->uBones, numBones, GL_FALSE, global_matrices->v);
 }
@@ -422,12 +421,12 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
-        // case TEXOP_ADD_ALPHA:
-        //     if (is_rendering_lights)
-        //         return false;
-        //     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
-        //     R_Call(glDepthMask, GL_FALSE);
-        //     break;
+//        case TEXOP_ADD_ALPHA:
+//            if (is_rendering_lights)
+//                return false;
+//            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+//            R_Call(glDepthMask, GL_FALSE);
+//            break;
         default:
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);

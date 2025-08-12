@@ -260,19 +260,6 @@ struct src_location{
     int line;
     int column;
 } ;
-struct playerState_s {
-    DWORD number;
-    QUATERNION viewquat;
-    VECTOR2 origin;
-    FLOAT distance;
-    DWORD fov;
-    DWORD rdflags;
-    DWORD uiflags;
-    DWORD team;
-    FLOAT cinefade;
-    USHORT stats[MAX_STATS];
-    LPCSTR texts[MAX_STATS];
-};
 typedef enum {
     BLEND_MODE_NONE,
     BLEND_MODE_ALPHAKEY,
@@ -295,6 +282,19 @@ enum {
     ENT_MANA,
     ENT_UNUSED,
     ENT_STAT_COUNT,
+};
+struct playerState_s {
+    DWORD number;
+    QUATERNION viewquat;
+    VECTOR2 origin;
+    FLOAT distance;
+    DWORD fov;
+    DWORD rdflags;
+    DWORD uiflags;
+    DWORD team;
+    FLOAT cinefade;
+    USHORT stats[MAX_STATS];
+    LPCSTR texts[MAX_STATS];
 };
 
 #define MAX_INDI_COLOR 4

@@ -158,7 +158,7 @@ void ConvertMDLXAnimationName(LPANIMATION seq) {
     memset(buffer, 0, sizeof(buffer));
     strcpy(buffer, seq->name);
     for (char *ch = buffer; *ch; ch++) {
-        if (isnumber(*ch) || *ch == '-') {
+        if (isdigit(*ch) || *ch == '-') {
             while (*(++last_char)) {
                 *last_char = '\0';
             }
@@ -323,7 +323,6 @@ struct cmodel *SV_LoadModel(LPCSTR filename) {
     FS_CloseFile(file);
     return model;
 }
-
 
 LPCANIMATION SV_GetAnimation(DWORD modelindex, LPCSTR animname) {
     struct cmodel *model = sv.models[modelindex];

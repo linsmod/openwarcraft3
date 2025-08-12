@@ -378,7 +378,15 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
             return false;
         }
     }
-    return true;
+}
+
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+    if (jass_evaluatetrigger(j, trigger, unit)) {
+        jass_executetrigger(j, trigger, unit);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void jass_updatetimer(LPJASS j, FLOAT frame_time) {
@@ -1038,7 +1046,7 @@ DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
 
 static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
     DWORD stack = jass_dotoken(j, init);
-    assert(stack == 1);
+    assert(stack == 1); // likely init points to undefined, check what's inside
     jass_copy(j, dest, j->stack + jass_top(j));
     jass_pop(j, 1);
 }

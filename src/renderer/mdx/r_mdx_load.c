@@ -1,6 +1,5 @@
 #include "r_mdx.h"
-#include "../common/net.h"
-#include "r_local.h"
+#include "../r_local.h"
 
 // LPMODEL is already defined in shared.h as struct model*
 

@@ -13,7 +13,7 @@ void holylight_done(LPEDICT self) {
 
 void holylight_command(LPEDICT clent) {
     LPEDICT unit = G_GetMainSelectedUnit(clent->client);
-
+    
     LPEDICT effect = G_Spawn();
     effect->s.origin = unit->s.origin;
     effect->s.angle = unit->s.angle;
@@ -21,7 +21,7 @@ void holylight_command(LPEDICT clent) {
     effect->goalentity = unit;
     effect->movetype = MOVETYPE_LINK;
     effect->think = M_MoveFrame;
-
+    
     unit_setmove(effect, &effect_move_birth);
 
     unit_setmove(unit, &move_heal);

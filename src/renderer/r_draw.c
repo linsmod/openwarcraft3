@@ -33,16 +33,6 @@ void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
-// void R_SetBlending(ALPHAMODE mode) {
-//     switch (mode) {
-//         case AM_BLEND: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//         case AM_ALPHAKEY: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//         case AM_ADD: R_Call(glBlendFunc, GL_ONE, GL_ONE); break;
-//         case AM_ADDALPHA: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); break;
-//         case AM_MODULATE: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//         case AM_MODULATE2X: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//     }
-// }
 void R_SetBlending(BLEND_MODE mode) {
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     return;

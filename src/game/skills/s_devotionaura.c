@@ -10,7 +10,7 @@ static umove_t aura_move_death = { "death", NULL, G_FreeEdict };
 void devotionaura_command(LPEDICT clent) {
     LPEDICT unit = G_GetMainSelectedUnit(clent->client);
     unit_addstatus(unit, ID_DEVOTION_AURA, 1);
-
+    
     LPEDICT effect = G_Spawn();
     effect->s.origin = unit->s.origin;
     effect->s.angle = unit->s.angle;
@@ -18,9 +18,9 @@ void devotionaura_command(LPEDICT clent) {
     effect->goalentity = unit;
     effect->movetype = MOVETYPE_LINK;
     effect->think = M_MoveFrame;
-
+    
     unit_setmove(effect, &aura_move_stand);
-
+    
     Get_Commands_f(clent);
 }
 

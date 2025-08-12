@@ -377,7 +377,7 @@ struct uiFrameDef_s {
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
-    LPCSTR Text,Tip,Ubertip;
+    LPCSTR Text, Tip, Ubertip;
     FLOAT Width, Height;
     COLOR32 Color;
     BLEND_MODE AlphaMode;
@@ -647,7 +647,6 @@ typedef struct {
     DWORD timestamp;
 } heroabilitystatus_t;
 
-
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
@@ -679,6 +678,7 @@ struct edict_s {
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    
     VECTOR2 old_origin;
     EDICTSTAT health;
     EDICTSTAT mana;

@@ -114,7 +114,6 @@ CLIENTCOMMAND(Research) {
     Get_Commands_f(clent);
 }
 
-
 CLIENTCOMMAND(Cancel) {
     G_PublishEvent(clent, EVENT_PLAYER_END_CINEMATIC);
 }
@@ -229,7 +228,6 @@ typedef struct {
 
 clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
-     { "research", CMD_Research },
     { "select", CMD_Select },
     { "point", CMD_Point },
     { "cancel", CMD_Cancel },

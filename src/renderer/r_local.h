@@ -1,8 +1,7 @@
 #ifndef r_local_h
 #define r_local_h
 
-#include <SDL.h>
-#include <SDL_opengl.h>
+#include <SDL2/SDL.h>
 #include <StormLib.h>
 
 // TODO: M1 doesn't link without these includes
@@ -15,6 +14,7 @@
 #include <OpenGLES/ES3/gl.h>
 #endif
 #elif __linux__
+//#include <SDL2/SDL_opengl.h>
 #include <GLES3/gl3.h>
 #endif
 

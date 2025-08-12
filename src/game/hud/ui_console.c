@@ -159,6 +159,7 @@ LPCSTR GetBuildCommand(unitRace_t race) {
         default: return STR_CmdBuild;
     }
 }
+
 static LPCSTR ability_string(LPCSTR classname, LPCSTR field) {
     return gi.FindSheetCell(game.config.abilities, classname, field);
 }
@@ -183,18 +184,15 @@ static LPCSTR process_string(LPCSTR input) {
     }
     return output;
 }
+
 static LPCSTR remove_quotes(LPCSTR text) {
-    // if (*text != '"')
-    //     return text;
-    // static char text2[1024] = { 0 };
-    // memset(text2, 0, sizeof(text2));
-    // memcpy(text2, text+1, strlen(text)-2);
-    // return text2;
     static int counter = 0;
     static char text2[8][1024] = { 0 };
     LPSTR txt = text2[(counter++)&7];
     memset(txt, 0, sizeof(text2[0]));
-    if (*text != '"') {
+    if (!text) {
+        return "";
+    } else if (*text != '"') {
         memcpy(txt, text, strlen(text));
     } else {
         memcpy(txt, text+1, strlen(text)-2);
@@ -246,7 +244,6 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
         gi.error("Not BUTTONPOS for %s", altcode);
         return;
     }
-    char tooltip[1024] = { 0 };
     UI_InitFrame(&button, FT_COMMANDBUTTON);
     if (research) {
         UI_SetOnClick(&button, "research %s", code);
@@ -259,53 +256,21 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
     DWORD limber_cost = UNIT_LUMBER_COST(class_id);
     DWORD food_cost = UNIT_FOOD_USED(class_id);
     if (gold_cost > 0 || limber_cost > 0 || food_cost > 0) {
-        // Calculate required space for the tooltip
-        size_t tip_len = tip ? strlen(tip) : 0;
-        size_t ubertip_len = ubertip ? strlen(remove_quotes(ubertip)) : 0;
-        size_t remaining = sizeof(tooltip) - 1; // Reserve 1 byte for null terminator
-        
-        // Add tip with newline if there's enough space
-        if (tip_len + 2 <= remaining) { // +2 for "|n"
-            int written = snprintf(tooltip, remaining, "%s|n", tip);
-            if (written > 0) remaining -= written;
+        static char tip_buffer[1024] = { 0 };
+        memset(tip_buffer, 0, sizeof(tip_buffer));
+        strcpy(tip_buffer, tip);
+        if (gold_cost > 0) {
+            sprintf(tip_buffer+strlen(tip_buffer), "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
         }
-        
-        // Add resource icons
-        if (gold_cost > 0 && remaining > 20) { // Approximate space needed
-            int written = snprintf(tooltip+strlen(tooltip), remaining, "<Icon,%d> %d   ", ToolTipGoldIcon, gold_cost);
-            if (written > 0) remaining -= written;
+        if (limber_cost > 0) {
+            sprintf(tip_buffer+strlen(tip_buffer), "<Icon,%d> %d   ", ToolTipLumberIcon, limber_cost);
         }
-        if (limber_cost > 0 && remaining > 20) {
-            int written = snprintf(tooltip+strlen(tooltip), remaining, "<Icon,%d> %d   ", ToolTipLumberIcon, limber_cost);
-            if (written > 0) remaining -= written;
+        if (food_cost > 0) {
+            sprintf(tip_buffer+strlen(tip_buffer), "<Icon,%d> %d   ", ToolTipSupplyIcon, food_cost);
         }
-        if (food_cost > 0 && remaining > 20) {
-            int written = snprintf(tooltip+strlen(tooltip), remaining, "<Icon,%d> %d   ", ToolTipSupplyIcon, food_cost);
-            if (written > 0) remaining -= written;
-        }
-        
-        // Add ubertip if there's enough space
-        if (ubertip_len + 2 <= remaining) { // +2 for "|n"
-            snprintf(tooltip+strlen(tooltip), remaining, "|n%s", remove_quotes(ubertip));
-        }
-    } else if (tip || ubertip) {
-        // Calculate required space
-        size_t tip_len = tip ? strlen(tip) : 0;
-        size_t ubertip_len = ubertip ? strlen(remove_quotes(ubertip)) : 0;
-        
-        // Check if we have enough space for both
-        if (tip_len + ubertip_len + 2 <= sizeof(tooltip) - 1) { // +2 for "|n"
-            snprintf(tooltip, sizeof(tooltip)-1, "%s|n%s", 
-                    tip ? tip : "", 
-                    ubertip ? remove_quotes(ubertip) : "");
-        } else if (tip_len <= sizeof(tooltip) - 1) {
-            // Just include tip if there's not enough space for both
-            snprintf(tooltip, sizeof(tooltip)-1, "%s", tip);
-        } else {
-            // Truncate tip if it's too long
-            snprintf(tooltip, sizeof(tooltip)-1, "%.1019s...", tip);
-        }
+        tip = tip_buffer;
     }
+
     sscanf(buttonpos, "%d,%d", &x, &y);
     VECTOR2 bpos = MAKE(VECTOR2, COMMAND_BUTTON_POSITION(x, y));
     UI_SetTexture(&button, art, true);
@@ -318,9 +283,11 @@ void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
     button.Ubertip = remove_quotes(string_for_level(ubertip, level));
     UI_WriteFrame(&button);
 }
+
 void UI_AddCommandButton(LPCSTR code) {
     UI_AddCommandButtonExtended(code, false, 0);
 }
+
 void ui_portrait(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     FRAMEDEF portrait;
@@ -341,7 +308,6 @@ void ui_unit_inventory(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     if (!ent)
         return;
-    char tooltip[1024] = { 0 };
     FOR_LOOP(i, MAX_INVENTORY) {
         DWORD itemID = ent->inventory[i];
 //        itemID = MAKEFOURCC('s','e','h','r');
@@ -354,23 +320,6 @@ void ui_unit_inventory(LPGAMECLIENT client) {
         LPCSTR tip = FindConfigValue(code, STR_TIP);
         LPCSTR ubertip = FindConfigValue(code, STR_UBERTIP);
         FRAMEDEF button;
-        
-        // Calculate required space
-        size_t tip_len = tip ? strlen(tip) : 0;
-        size_t ubertip_len = ubertip ? strlen(remove_quotes(ubertip)) : 0;
-        
-        // Check if we have enough space for both
-        if (tip_len + ubertip_len + 2 <= sizeof(tooltip) - 1) { // +2 for "|n"
-            snprintf(tooltip, sizeof(tooltip)-1, "%s|n%s", 
-                    tip ? tip : "", 
-                    ubertip ? remove_quotes(ubertip) : "");
-        } else if (tip_len <= sizeof(tooltip) - 1) {
-            // Just include tip if there's not enough space for both
-            snprintf(tooltip, sizeof(tooltip)-1, "%s", tip);
-        } else {
-            // Truncate tip if it's too long
-            snprintf(tooltip, sizeof(tooltip)-1, "%.1019s...", tip);
-        }
         VECTOR2 bpos = MAKE(VECTOR2, INVENTORY_BUTTON_POSITION(x, y));
         UI_InitFrame(&button, FT_COMMANDBUTTON);
         UI_SetTexture(&button, art, false);
@@ -396,7 +345,7 @@ void ui_unit_commands(LPGAMECLIENT client) {
     LPCSTR abil_normal = UNIT_ABILITIES_NORMAL(ent->class_id);
     LPCSTR abil_hero = UNIT_ABILITIES_HERO(ent->class_id);
     LPCSTR trains = UNIT_TRAINS(ent->class_id);
-    //    BOOL hero = (ent->class_id & 0xff) < 'a';
+//    BOOL hero = (ent->class_id & 0xff) < 'a';
     if (UNIT_SPEED(ent->class_id) > 0) {
         UI_AddCommandButton(STR_CmdMove);
         UI_AddCommandButton(STR_CmdHoldPos);

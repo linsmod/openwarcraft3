@@ -53,7 +53,7 @@ static void G_InitGame(void) {
     globals.edicts = g_edicts;
     globals.num_edicts = 0;
     globals.max_edicts = MAX_ENTITIES;
-    globals.max_clients = 16;
+    globals.max_clients = MAX_CLIENTS;
     FOR_LOOP(i, MAX_ENTITIES) {
         edict_t *ent = globals.edicts+i;
         ent->s.player = NONE_PLAYER;
@@ -92,7 +92,7 @@ FLOAT G_Cinefade(void) {
 }
 
 static void G_RunClients(void) {
-     FLOAT cinefade = G_Cinefade();
+    FLOAT cinefade = G_Cinefade();
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients+i;
         DWORD duration = client->camera.end_time - client->camera.start_time;
@@ -160,7 +160,8 @@ LPGAMECLIENT G_GetPlayerClientByNumber(DWORD number) {
             return cl;
         }
     }
-    return NULL;
+    return &game.clients[MAX_PLAYERS-1];
+//    return NULL;
 }
 
 LPPLAYER G_GetPlayerByNumber(DWORD number) {
@@ -171,7 +172,8 @@ LPPLAYER G_GetPlayerByNumber(DWORD number) {
             return &game.clients[i].ps;
         }
     }
-    return NULL;
+    return &game.clients[MAX_PLAYERS-1].ps;
+//    return NULL;
 }
 
 GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {

@@ -36,6 +36,10 @@ DWORD IsTriggerWaitOnSleeps(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD GetTriggeringTrigger(LPJASS j) {
+    LPCJASSCONTEXT ctx =jass_getcontext(j);
+    if (!jass_getcontext(j)->trigger) {
+        int a= 0;
+    }
     return jass_pushlighthandle(j, jass_getcontext(j)->trigger, "trigger");
 }
 DWORD GetTriggerEventId(LPJASS j) {
