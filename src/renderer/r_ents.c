@@ -1,4 +1,3 @@
-#include "common/shared.h"
 #include "r_local.h"
 
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {

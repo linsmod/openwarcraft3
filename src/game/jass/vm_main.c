@@ -380,15 +380,6 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     }
 }
 
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    if (jass_evaluatetrigger(j, trigger, unit)) {
-        jass_executetrigger(j, trigger, unit);
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void jass_updatetimer(LPJASS j, FLOAT frame_time) {
     LPSRCLOC loc = gi.MemAlloc(sizeof(SRCLOC));
     loc->file = __FILE__;

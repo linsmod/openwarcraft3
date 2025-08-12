@@ -1293,3 +1293,4 @@ DWORD VersionCompatible(LPJASS j) {
 DWORD VersionSupported(LPJASS j) {
     return jass_pushboolean(j, jass_checkinteger(j, 1) == 0);
 }
+#endif

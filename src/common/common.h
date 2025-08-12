@@ -102,12 +102,12 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 #include "cmodel.h"
 
 // common.c
-void Com_Init(LPCSTR mpqPath);
+void Com_Init();
 void Com_Error(errorCode_t code, LPCSTR fmt, ...);
 
 void LoadMap(LPCSTR pFilename);
 
-int FS_Init(LPCSTR* mpqPaths, int numPaths);
+void FS_Init(void);
 void FS_Shutdown(void);
 
 void Com_Quit(void);

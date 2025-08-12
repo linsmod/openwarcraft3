@@ -228,6 +228,7 @@ typedef struct {
 
 clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
+    { "research", CMD_Research },
     { "select", CMD_Select },
     { "point", CMD_Point },
     { "cancel", CMD_Cancel },

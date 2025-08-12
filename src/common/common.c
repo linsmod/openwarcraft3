@@ -152,7 +152,7 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
     return false;
 }
 
-int FS_Init(LPCSTR* mpqPaths, int numPaths) {
+void FS_Init(void) {
 //    ExtractStarCraft2();
     
 //    FS_AddArchive("/Users/igor/Documents/Warcraft III Demo/war3.mpq");
@@ -236,54 +236,9 @@ void Com_Quit(void) {
     Sys_Quit();
 }
 
-void Com_Init(LPCSTR assetsDir) {
+void Com_Init(void) {
     Cbuf_Init();
-    // 定义 MPQ 文件列表，补丁具有更高优先级（硬编码）
-    // const char* mpqFileNames[] = {
-    //     "War3Patch.mpq", 
-    //     "War3xLocal.mpq",
-    //     "War3x.mpq",
-    //     "War3.mpq", 
-    // };
-    const char* mpqFileNames[] = {
-        "War3.mpq", 
-        "War3x.mpq",
-        "War3xLocal.mpq",
-        "War3Patch.mpq", 
-    };
-    int numFiles = sizeof(mpqFileNames) / sizeof(mpqFileNames[0]);
-
-    // 分配路径数组
-    char** mpqFiles = malloc(numFiles * sizeof(LPCSTR));
-    if (mpqFiles == NULL) {
-        fprintf(stderr, "Memory allocation failed!\n");
-        exit(-100);
-    }
-
-    // 拼接路径
-    char pathBuffer[256];
-    for (int i = 0; i < numFiles; i++) {
-        snprintf(pathBuffer, sizeof(pathBuffer), "%s/%s", assetsDir, mpqFileNames[i]);
-        mpqFiles[i] = strdup(pathBuffer); // 复制到堆内存
-        if (mpqFiles[i] == NULL) {
-            fprintf(stderr, "strdup failed!\n");
-            // 释放之前分配的内存
-            for (int j = 0; j < i; j++) {
-                free(mpqFiles[j]);
-            }
-            free(mpqFiles);
-            exit(-100);
-        }
-    }
-    LPCSTR* constmpqFiles = (LPCSTR*)mpqFiles;
-    if(FS_Init(constmpqFiles,numFiles)!=0){
-        // 如果失败，释放所有内存
-        for (int i = 0; i < numFiles; i++) {
-            free(mpqFiles[i]);
-        }
-        free(mpqFiles);
-        exit(-1);
-    }
+    FS_Init();
     SV_Init();
     CL_Init();
 }

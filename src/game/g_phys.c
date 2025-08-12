@@ -36,11 +36,6 @@ void SV_Physics_Link(LPEDICT ent) {
     ent->s.angle = ent->goalentity->s.angle;
 }
 
-void SV_Physics_Link(LPEDICT ent) {
-    ent->s.origin = ent->goalentity->s.origin;
-    ent->s.angle = ent->goalentity->s.angle;
-}
-
 void G_RunEntity(LPEDICT ent) {
     SAFE_CALL(ent->prethink, ent);
     switch (ent->movetype) {
