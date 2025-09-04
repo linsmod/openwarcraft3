@@ -11,9 +11,6 @@ project(renderer C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# 定义变量
-set(VENDOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../vendor)
-
 # 编译选项
 add_compile_definitions(GL_GLEXT_PROTOTYPES)
 

@@ -19,9 +19,6 @@ if(ENABLE_ASAN)
     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")
 endif()
 
-# 定义变量
-set(VENDOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../vendor)
-
 # 编译选项
 add_compile_definitions(GL_GLEXT_PROTOTYPES)
 
@@ -113,8 +110,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     game/api
     server
     lib
-    ${VENDOR_DIR}/stormlib/src
-    ${VENDOR_DIR}/sdl/include
 )
 
 find_package(SDL2 REQUIRED)
@@ -126,9 +121,7 @@ target_link_libraries(${PROJECT_NAME}
 
 # 库目录
 target_link_directories(${PROJECT_NAME} PRIVATE
-    ${VENDOR_DIR}/stormlib/build
     ${CMAKE_CURRENT_SOURCE_DIR}/cmath3/build
-    # ${VENDOR_DIR}/sdl/build
 )
 
 # 链接库 (Linux特定)
@@ -144,9 +137,7 @@ target_link_libraries(${PROJECT_NAME}
     renderer
     game
     # SDL2
-    # storm
-    # ${VENDOR_DIR}/sdl/build/libSDL2.so
-    ${VENDOR_DIR}/stormlib/build/libstorm.so
+    storm
 )
 
 # 设置调试工作目录

@@ -18,7 +18,7 @@ m()
         exit 1
     fi
     
-    python $SCRIPT_DIR/combine_compile_commands.py
+    # python $SCRIPT_DIR/combine_compile_commands.py
     cp $SCRIPT_DIR/src/build/openwarcraft3 $SCRIPT_DIR/build/openwarcraft3
     cd $SCRIPT_DIR
 }
