@@ -152,6 +152,7 @@ void FS_Init(void) {
 //    ExtractStarCraft2();
     
     FS_AddArchive("/work/war3files/War3.mpq");
+    FS_AddArchive("/home/wulin/Warcraft III/war3.mpq");
     // FS_AddArchive("//work/war3files/war3.mpq");
     // FS_AddArchive("//work/war3files/war3.mpq");
     // FS_AddArchive("//work/war3files/war3.mpq");
