@@ -655,61 +655,7 @@ void SCR_DrawOverlays(void) {
             SCR_DrawOverlay(layout);
         }
     }
-    
-    // 绘制canvas2d测试
-    if (g_canvas2d_test && g_canvas2d_test->texture) {
-        // 在屏幕右上角显示canvas2d测试
-        // 在屏幕右上角显示canvas2d测试，调整为更合适的比例
-        RECT screen_rect = {
-            0.7f,   // x position (70% from left)
-            0.05f,  // y position (5% from top)
-            0.25f,  // width (25% of screen)
-            0.35f   // height (35% of screen) - 调整为更合适的比例
-        };
-        
-        // 使用深色半透明背景，让canvas2d内容更突出
-        COLOR32 bg_color = {64, 64, 64, 200}; // Dark gray with higher alpha
-        re.DrawImage(cl.pics[0], &screen_rect, &MAKE(RECT,0,0,1,1), bg_color);
-        
-        // 在canvas2d测试区域显示标题
-        static char title[64];
-        sprintf(title, "Canvas 2D Test - Frame %d", g_test_frame_count);
-        re.PrintSysText(title, (int)(screen_rect.x * WINDOW_WIDTH), (int)(screen_rect.y * WINDOW_HEIGHT), COLOR32_WHITE);
-        
-        // 将canvas2d纹理渲染到屏幕上
-        // 由于canvas2d纹理是800x800，我们需要调整大小以适应显示区域
-        float canvas_width = 800.0f;
-        float canvas_height = 800.0f;
-        
-        // 计算缩放比例以适应显示区域，保持宽高比
-        float scale_x = screen_rect.w / (canvas_width / WINDOW_WIDTH);
-        float scale_y = screen_rect.h / (canvas_height / WINDOW_HEIGHT);
-        float scale = fmin(scale_x, scale_y);
-        
-        // 计算居中偏移
-        float scaled_width = (canvas_width / WINDOW_WIDTH) * scale;
-        float scaled_height = (canvas_height / WINDOW_HEIGHT) * scale;
-        float offset_x = screen_rect.x + (screen_rect.w - scaled_width) / 2;
-        float offset_y = screen_rect.y + 25; // 留出标题空间
-        
-        // 创建纹理显示区域
-        RECT texture_rect = {
-            offset_x,
-            offset_y,
-            scaled_width,
-            scaled_height
-        };
-        
-        // 渲染canvas2d纹理
-        if (g_canvas2d_test->texture) {
-            // 使用白色渲染纹理，这样canvas2d的内容会以原始颜色显示
-            COLOR32 texture_color = {255, 255, 255, 255}; // 完全不透明的白色
-            re.DrawImage(g_canvas2d_test->texture, &texture_rect, &MAKE(RECT,0,0,1,1), texture_color);
-        } else {
-            // 如果纹理不可用，显示提示信息
-            re.PrintSysText("Canvas 2D initializing...", (int)(screen_rect.x * WINDOW_WIDTH), (int)((screen_rect.y + 40) * WINDOW_HEIGHT), COLOR32_WHITE);
-        }
-    }
+    canvas2d_update_test();
 }
 
 void SCR_UpdateScreen(void) {

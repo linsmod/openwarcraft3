@@ -42,7 +42,7 @@ int main(int argc, LPSTR argv[]) {
     
     Com_Init();
     SV_Map(map);
-    canvas2d_runtest();
+    // canvas2d_runtest();
     DWORD startTime = SDL_GetTicks();
     while (true) {
         DWORD currentTime = SDL_GetTicks();

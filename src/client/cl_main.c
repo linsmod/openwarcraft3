@@ -134,10 +134,6 @@ void CL_SendCommand(void) {
 void CL_Frame(DWORD msec) {
     cl.time += msec;
 
-    // 更新canvas2d测试
-    canvas2d_update_test();
-    canvas2d_render_test();
-
     CL_ReadPackets();
 
     CL_Input();

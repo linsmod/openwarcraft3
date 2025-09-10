@@ -1,3 +1,4 @@
+// example.c
 #include "canvas2d.h"
 #include "canvas2d_test.h"
 #include <stdio.h>
@@ -223,24 +224,83 @@ int canvas2d_init_test() {
     return 0;
 }
 
+void canvas2d_update_bg(){
+    // 绘制canvas2d测试
+    if (g_canvas2d_test && g_canvas2d_test->texture) {
+        // 在屏幕显示canvas2d测试
+        // 在屏幕显示canvas2d测试，调整为更合适的比例
+        RECT screen_rect = {
+            0.0f, // x offset to window
+            0.1f,  // y 
+            0.5f,  // width 
+            0.5f   // height
+        };
+        
+        // 使用深色半透明背景，让canvas2d内容更突出
+        COLOR32 bg_color = {64, 64, 64, 200}; // Dark gray with higher alpha
+        re.DrawImage(cl.pics[0], &screen_rect, &MAKE(RECT,0,0,1,1), bg_color);
+        
+        // 在canvas2d测试区域显示标题
+        static char title[64];
+        sprintf(title, "Canvas 2D Test - Frame %d", g_test_frame_count);
+        re.PrintSysText(title, (int)(screen_rect.x * WINDOW_WIDTH), (int)(screen_rect.y * WINDOW_HEIGHT), COLOR32_WHITE);
+        
+        // 将canvas2d纹理渲染到屏幕上
+        // 由于canvas2d纹理是800x800，我们需要调整大小以适应显示区域
+        float canvas_width = 800.0f;
+        float canvas_height = 800.0f;
+        
+        // 计算缩放比例以适应显示区域，保持宽高比
+        float scale_x = screen_rect.w / (canvas_width / WINDOW_WIDTH);
+        float scale_y = screen_rect.h / (canvas_height / WINDOW_HEIGHT);
+        
+        // 计算居中偏移
+        float scaled_width = (canvas_width / WINDOW_WIDTH) * scale_x;
+        float scaled_height = (canvas_height / WINDOW_HEIGHT) * scale_y;
+        float offset_x = screen_rect.x + (screen_rect.w - scaled_width) / 2;
+        float offset_y = screen_rect.y + 25.0f /WINDOW_HEIGHT; // 留出标题空间
+        
+        // 创建纹理显示区域
+        RECT texture_rect = {
+            offset_x,
+            offset_y,
+            scaled_width,
+            scaled_height
+        };
+        
+        // 渲染canvas2d纹理
+        if (g_canvas2d_test->texture) {
+            // 使用白色渲染纹理，这样canvas2d的内容会以原始颜色显示
+            COLOR32 texture_color = {128, 255, 255, 255}; // 完全不透明的白色
+            re.DrawImage(g_canvas2d_test->texture, &texture_rect, &MAKE(RECT,0,0,1,1), texture_color);
+        } else {
+            // 如果纹理不可用，显示提示信息
+            re.PrintSysText("Canvas 2D initializing...", (int)(screen_rect.x * WINDOW_WIDTH), (int)((screen_rect.y + 40) * WINDOW_HEIGHT), COLOR32_WHITE);
+        }
+    }
+}
+
 // 更新canvas2d测试内容
 void canvas2d_update_test() {
     if (!g_canvas2d_test) return;
+
     
     g_test_frame_count++;
     
-    // 每隔一定帧数重绘测试内容
-    if (g_test_frame_count % 10 == 0) { // 每10帧重绘一次，让动画更流畅
+    // 每帧都重绘测试内容，确保动画流畅
+    if (g_test_frame_count % 1 == 0) { // 每帧都重绘
+        canvas2d_update_bg();
+
         canvas2d_context_t *ctx = canvas2d_get_context(g_canvas2d_test);
         if (!ctx) return;
 
         // printf("Updating Canvas 2D Test (frame %d)\n", g_test_frame_count);
 
         // 清除画布
-        canvas2d_clear_rect(ctx, 0, 0, g_canvas2d_test->width, g_canvas2d_test->height);
+        // canvas2d_clear_rect(ctx, 0, 0, g_canvas2d_test->width, g_canvas2d_test->height);
 
         // 绘制基本图形
-        draw_basic_shapes(g_canvas2d_test);
+        // draw_basic_shapes(g_canvas2d_test);
         
         // 添加动画效果
         float time_factor = g_test_frame_count * 0.01f;
@@ -250,19 +310,19 @@ void canvas2d_update_test() {
         canvas2d_translate(ctx, 400, 200);
         canvas2d_rotate(ctx, time_factor);
         canvas2d_set_fill_style(ctx, 0.5f + 0.5f * sin(time_factor), 0.2f, 0.8f, 1.0f);
-        canvas2d_fill_circle(ctx, 0, 0, 30);
+        // canvas2d_fill_circle(ctx, 0, 0, 30);
         canvas2d_restore(ctx);
 
         // 绘制移动的矩形
         canvas2d_set_fill_style(ctx, 0.8f, 0.4f, 0.2f, 1.0f);
         float rect_x = 100 + 50 * sin(time_factor * 0.5f);
-        canvas2d_fill_rect(ctx, rect_x, 400, 80, 60);
+        // canvas2d_fill_rect(ctx, rect_x, 400, 80, 60);
 
-        // 绘制动态文本
+        // 绘制动态文本 - 与矩形左对齐
         canvas2d_set_fill_style(ctx, 0.0f, 0.0f, 0.0f, 1.0f);
         char text_buffer[64];
         sprintf(text_buffer, "Canvas 2D Test - Frame %d", g_test_frame_count);
-        canvas2d_fill_text(ctx, text_buffer, 50, 50);
+        canvas2d_fill_text(ctx, text_buffer, rect_x, 50);
         
         // 绘制缩放效果
         float scale = 1.0f + 0.3f * sin(time_factor * 0.8f);
@@ -280,11 +340,23 @@ void canvas2d_update_test() {
 void canvas2d_render_test() {
     if (!g_canvas2d_test) return;
     
-    // 这里我们可以将canvas2d的纹理渲染到游戏屏幕上
-    // 目前先使用简单的控制台输出来显示
-    if (g_test_frame_count % 300 == 0) { // 每5秒输出一次，避免控制台输出过多
-        printf("Canvas 2D Test is running (frame %d)\n", g_test_frame_count);
-    }
+    // 将canvas2d的纹理渲染到游戏屏幕上
+    // 在屏幕右上角显示canvas2d内容
+    float screen_x = WINDOW_WIDTH - g_canvas2d_test->width - 10; // 右边距10像素
+    float screen_y = 10; // 上边距10像素
+    
+    // 使用R_DrawImageEx来渲染canvas2d的纹理到屏幕
+    DRAWIMAGE drawImage = {
+        .texture = g_canvas2d_test->texture,
+        .screen = {screen_x, screen_y, (float)g_canvas2d_test->width / 1000.0f, (float)g_canvas2d_test->height / 1000.0f},
+        .uv = {0, 0, 1, 1},
+        .color = COLOR32_WHITE,
+        .rotate = false,
+        .shader = SHADER_UI,
+        .alphamode = BLEND_MODE_BLEND
+    };
+
+    R_DrawImageEx(&drawImage);
 }
 
 // 清理canvas2d测试
