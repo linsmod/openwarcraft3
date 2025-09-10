@@ -1,5 +1,6 @@
 #include "r_local.h"
 #include "stb/stb_truetype.h"
+#include <stdio.h>
 
 #define MAX_GLYPHSET 256
 #define FONT_SCALE 2
@@ -94,6 +95,7 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
 
 
 LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
+    fprintf(stdout, "R_LoadFont %s\n", filename);
     size = MAX(9, size);
     font_t *font = ri.MemAlloc(sizeof(font_t));
     font->size = size * FONT_SCALE;

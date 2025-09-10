@@ -21,7 +21,7 @@ HANDLE FS_AddArchive(LPCSTR);
 void Sys_Quit(void) {
     exit(0);
 }
-
+#include "canvas2d/canvas2d.h"
 int main(int argc, LPSTR argv[]) {
     LPCSTR map = NULL;
     BOOL mpq = 0;
@@ -42,6 +42,7 @@ int main(int argc, LPSTR argv[]) {
     
     Com_Init();
     SV_Map(map);
+    canvas2d_runtest();
     DWORD startTime = SDL_GetTicks();
     while (true) {
         DWORD currentTime = SDL_GetTicks();

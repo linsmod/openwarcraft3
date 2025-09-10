@@ -508,7 +508,7 @@ static int dict_depth = 0;
 
 static void jass_deletedict(LPJASSDICT dict) {
     dict_depth++;
-    fprintf(stdout, "jass_deletedict: %s\n", dict->key);
+    // fprintf(stdout, "jass_deletedict: %s\n", dict->key);
     SAFE_DELETE(dict->next, jass_deletedict);
     jass_setnull(&dict->value);
     gi.MemFree(dict);
