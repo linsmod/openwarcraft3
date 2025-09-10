@@ -1,4 +1,5 @@
 #include "client.h"
+#include "../canvas2d/canvas2d_test.h"
 #include "renderer.h"
 
 refExport_t re;
@@ -48,6 +49,7 @@ void CL_ClearState(void) {
 void CL_Init(void) {
     CON_printf("OpenWarcraft3 v0.1");
 
+
     re = R_GetAPI((refImport_t) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
@@ -60,6 +62,13 @@ void CL_Init(void) {
     });
     
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    // 初始化canvas2d测试
+    if (canvas2d_init_test() == 0) {
+        CON_printf("Canvas 2D Test initialized successfully");
+    } else {
+        CON_printf("Failed to initialize Canvas 2D Test");
+    }
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
@@ -106,6 +115,9 @@ void CL_SendCmd(void) {
 }
 
 void CL_Shutdown(void) {
+    // 清理canvas2d测试
+    canvas2d_cleanup_test();
+    
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
@@ -121,6 +133,10 @@ void CL_SendCommand(void) {
 
 void CL_Frame(DWORD msec) {
     cl.time += msec;
+
+    // 更新canvas2d测试
+    canvas2d_update_test();
+    canvas2d_render_test();
 
     CL_ReadPackets();
 

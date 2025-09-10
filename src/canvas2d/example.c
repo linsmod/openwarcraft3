@@ -1,13 +1,19 @@
 #include "canvas2d.h"
+#include "canvas2d_test.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+
+// 全局变量定义
+canvas2d_t *g_canvas2d_test = NULL;
+int g_test_frame_count = 0;
 
 // Example program demonstrating Canvas 2D API usage
 void draw_basic_shapes(canvas2d_t *canvas) {
     canvas2d_context_t *ctx = canvas2d_get_context(canvas);
     if (!ctx) return;
 
-    printf("Drawing basic shapes...\n");
+    // printf("Drawing basic shapes...\n");
 
     // Clear the canvas
     canvas2d_clear_rect(ctx, 0, 0, canvas->width, canvas->height);
@@ -201,12 +207,102 @@ void draw_composite_operations(canvas2d_t *canvas) {
 #include "client/client.h"
 #include "server/server.h"
 
+// 初始化canvas2d测试
+int canvas2d_init_test() {
+    printf("Initializing Canvas 2D Test...\n");
+    
+    // 创建画布
+    g_canvas2d_test = canvas2d_create(800, 800);
+    if (!g_canvas2d_test) {
+        printf("Failed to create canvas\n");
+        return 1;
+    }
+
+    printf("Canvas created successfully\n");
+    g_test_frame_count = 0;
+    return 0;
+}
+
+// 更新canvas2d测试内容
+void canvas2d_update_test() {
+    if (!g_canvas2d_test) return;
+    
+    g_test_frame_count++;
+    
+    // 每隔一定帧数重绘测试内容
+    if (g_test_frame_count % 10 == 0) { // 每10帧重绘一次，让动画更流畅
+        canvas2d_context_t *ctx = canvas2d_get_context(g_canvas2d_test);
+        if (!ctx) return;
+
+        // printf("Updating Canvas 2D Test (frame %d)\n", g_test_frame_count);
+
+        // 清除画布
+        canvas2d_clear_rect(ctx, 0, 0, g_canvas2d_test->width, g_canvas2d_test->height);
+
+        // 绘制基本图形
+        draw_basic_shapes(g_canvas2d_test);
+        
+        // 添加动画效果
+        float time_factor = g_test_frame_count * 0.01f;
+        
+        // 绘制旋转的圆形
+        canvas2d_save(ctx);
+        canvas2d_translate(ctx, 400, 200);
+        canvas2d_rotate(ctx, time_factor);
+        canvas2d_set_fill_style(ctx, 0.5f + 0.5f * sin(time_factor), 0.2f, 0.8f, 1.0f);
+        canvas2d_fill_circle(ctx, 0, 0, 30);
+        canvas2d_restore(ctx);
+
+        // 绘制移动的矩形
+        canvas2d_set_fill_style(ctx, 0.8f, 0.4f, 0.2f, 1.0f);
+        float rect_x = 100 + 50 * sin(time_factor * 0.5f);
+        canvas2d_fill_rect(ctx, rect_x, 400, 80, 60);
+
+        // 绘制动态文本
+        canvas2d_set_fill_style(ctx, 0.0f, 0.0f, 0.0f, 1.0f);
+        char text_buffer[64];
+        sprintf(text_buffer, "Canvas 2D Test - Frame %d", g_test_frame_count);
+        canvas2d_fill_text(ctx, text_buffer, 50, 50);
+        
+        // 绘制缩放效果
+        float scale = 1.0f + 0.3f * sin(time_factor * 0.8f);
+        canvas2d_save(ctx);
+        canvas2d_translate(ctx, 600, 500);
+        canvas2d_scale(ctx, scale, scale);
+        canvas2d_set_stroke_style(ctx, 1.0f, 0.0f, 1.0f, 1.0f);
+        canvas2d_set_line_width(ctx, 3.0f);
+        canvas2d_stroke_rect(ctx, -25, -25, 50, 50);
+        canvas2d_restore(ctx);
+    }
+}
+
+// 渲染canvas2d测试到屏幕
+void canvas2d_render_test() {
+    if (!g_canvas2d_test) return;
+    
+    // 这里我们可以将canvas2d的纹理渲染到游戏屏幕上
+    // 目前先使用简单的控制台输出来显示
+    if (g_test_frame_count % 300 == 0) { // 每5秒输出一次，避免控制台输出过多
+        printf("Canvas 2D Test is running (frame %d)\n", g_test_frame_count);
+    }
+}
+
+// 清理canvas2d测试
+void canvas2d_cleanup_test() {
+    if (g_canvas2d_test) {
+        printf("Cleaning up Canvas 2D Test...\n");
+        canvas2d_destroy(g_canvas2d_test);
+        g_canvas2d_test = NULL;
+        g_test_frame_count = 0;
+    }
+}
+
+// 原始的测试函数（保持兼容性）
 int canvas2d_runtest() {
+    printf("Canvas 2D API Example (Single Run)\n");
+    printf("===================================\n");
 
-    printf("Canvas 2D API Example\n");
-    printf("====================\n");
-
-    // Create a canvas
+    // 创建一个临时画布
     canvas2d_t *canvas = canvas2d_create(800, 800);
     if (!canvas) {
         printf("Failed to create canvas\n");
@@ -215,7 +311,7 @@ int canvas2d_runtest() {
 
     printf("Canvas created successfully\n");
 
-    // Draw various examples
+    // 绘制各种示例
     draw_basic_shapes(canvas);
     draw_transformed_shapes(canvas);
     draw_text_example(canvas);
@@ -225,7 +321,7 @@ int canvas2d_runtest() {
 
     printf("All examples drawn successfully\n");
 
-    // Clean up
+    // 清理
     canvas2d_destroy(canvas);
     printf("Canvas destroyed\n");
     return 0;
