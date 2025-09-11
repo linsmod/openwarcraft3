@@ -206,6 +206,7 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 
 // r_draw.c
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
+void R_PrintSysTextEx(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 transform);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);

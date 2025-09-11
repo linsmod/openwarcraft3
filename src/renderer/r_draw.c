@@ -1,7 +1,8 @@
 #include "r_local.h"
+#include <unistd.h>
 
-void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
-    static VERTEX simp[256 * 6];
+void R_PrintSysTextEx(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 transform){
+static VERTEX simp[256 * 6];
     LPVERTEX it = simp;
     for (LPCSTR s = string; *s; s++) {
         DWORD ch = *s;
@@ -16,21 +17,30 @@ void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
     
     DWORD num_vertices = (DWORD)(it - simp);
     size2_t window = R_GetWindowSize();
-    MATRIX4 ui_matrix;
+    MATRIX4 ui_matrix,model_matrix;
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
     
+    if(!transform)
+        Matrix4_identity(&model_matrix);
+    else 
+        model_matrix = *transform;
+
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, simp, GL_STATIC_DRAW);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_BindTexture(tr.texture[TEX_FONT], 0);
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
+}
+
+void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
+    return R_PrintSysTextEx(string,x,y,color,NULL);
 }
 
 void R_SetBlending(BLEND_MODE mode) {
@@ -78,7 +88,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniform1f , shader->uActiveGlow, drawImage->uActiveGlow);
+    R_Call(glUniform1f , shader->uActiveGlow, 1);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * 6, simp, GL_STATIC_DRAW);

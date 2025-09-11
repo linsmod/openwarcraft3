@@ -108,7 +108,10 @@ void draw_test_tips_canvas(canvas2d_context_t *ctx) {
     canvas2d_set_fill_style(ctx, (COLOR32){255, 255, 255, 255});
     char title[64];
     sprintf(title, "Canvas 2D - Frame %d", g_test_frame_count);
-    canvas2d_fill_text(ctx, title, 410, 30);
+    canvas2d_fill_text(ctx, title, 410, 60);
+
+    sprintf(title, "Canvas 2D - Frame %d", g_test_frame_count);
+    canvas2d_fill_text(ctx, title, 410, 80);
 }
 
 // 更新canvas2d测试内容
@@ -180,11 +183,11 @@ void canvas2d_test_render_frame() {
     canvas2d_set_fill_style(ctx, (COLOR32){255, 255, 255, 255});
     char text_buffer[64];
     sprintf(text_buffer, "帧数 Frame: %d", g_test_frame_count);
-    canvas2d_fill_text(ctx, text_buffer, 20, 30);
+    canvas2d_fill_text(ctx, text_buffer, 410, 80);
     
-    canvas2d_fill_text(ctx, "Canvas 2D Demo", 20, 60);
+    canvas2d_fill_text(ctx, "Canvas 2D Demo", 410, 100);
 
-    draw_test_tips_canvas(g_canvas2d_test->context);
+    draw_test_tips_canvas(ctx);
 }
 
 
