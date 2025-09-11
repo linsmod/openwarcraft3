@@ -655,11 +655,14 @@ void SCR_DrawOverlays(void) {
             SCR_DrawOverlay(layout);
         }
     }
-    canvas2d_update_test();
 }
 
 void SCR_UpdateScreen(void) {
+
+
     re.BeginFrame();
+
+    canvas2d_test_render_frame();
     
     V_RenderView();
     

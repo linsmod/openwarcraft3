@@ -1,16 +1,23 @@
+// canvas2d_test.h
 #ifndef CANVAS2D_TEST_H
 #define CANVAS2D_TEST_H
 
 #include "canvas2d.h"
 
-// 全局变量声明，用于在游戏运行时持续显示canvas2d测试
+// 全局变量声明
 extern canvas2d_t *g_canvas2d_test;
 extern int g_test_frame_count;
 
-// 函数声明
-int canvas2d_init_test(void);
-void canvas2d_update_test(void);
-void canvas2d_render_test(void);
-void canvas2d_cleanup_test(void);
+// 测试函数声明
+int canvas2d_init_test();
+void canvas2d_test_render_frame();
+void draw_test_tips();
+void canvas2d_cleanup_test();
+int canvas2d_runtest();
+
+// 示例绘制函数
+void draw_basic_shapes(canvas2d_t *canvas);
+void draw_transformed_shapes(canvas2d_t *canvas);
+void draw_text_example(canvas2d_t *canvas);
 
 #endif // CANVAS2D_TEST_H

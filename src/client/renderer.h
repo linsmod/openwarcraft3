@@ -101,6 +101,7 @@ struct drawImage_s {
     COLOR32 color;
     BOOL rotate;
     FLOAT uActiveGlow;
+    LPMATRIX4 model_matrix;// for scale, transform,...
 };
 
 typedef struct {

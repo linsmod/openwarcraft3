@@ -1,18 +1,36 @@
 // canvas2d.c
 #include "canvas2d.h"
+#include "cmath3/types/rect.h"
+#include "r_local.h"
+#include <StormPort.h>
+#include <math.h>
 
+// 使用引擎的内存管理函数
+#define MemAlloc(size) malloc(size)
+#define MemFree(ptr) free(ptr)
+#define NORM(v) v*1.0/1000.0
 
-inline HANDLE MemAlloc(long size) {
-    HANDLE mem = malloc(size);
-//    printf("Alloc (%d) %llx\n", size, mem);
-    memset(mem, 0, size);
-    return mem;
+RECT* NormRect(RECT* rect){
+    rect->x = NORM(rect->x);
+    rect->y = NORM(rect->y);
+    rect->w = NORM(rect->w);
+    rect->h = NORM(rect->h);
+    return rect;
 }
-
-inline void MemFree(HANDLE mem) {
-//    printf("Free %llx\n", mem);
-    free(mem);
-}
+// 修改 DRAWIMAGE 宏以接受变换矩阵
+#define DRAWIMAGE(t, s, u, c, matrix) \
+    do { \
+        DRAWIMAGE drawImg = { \
+            .texture = t, \
+            .screen = *NormRect(s), \
+            .uv = u ? *NormRect(u) : (RECT){0,0,1,1}, \
+            .color = c, \
+            .rotate = false, \
+            .shader = SHADER_UI, \
+            .model_matrix = matrix \
+        }; \
+        R_DrawImageEx(&drawImg); \
+    } while (0)
 
 // Error handling
 static char canvas2d_error_string[256] = {0};
@@ -36,7 +54,7 @@ canvas2d_t* canvas2d_create(int width, int height) {
 
     canvas->width = width;
     canvas->height = height;
-    canvas->initialized = false;
+    canvas->initialized = true;
     
     // Create context
     canvas->context = (canvas2d_context_t*)MemAlloc(sizeof(canvas2d_context_t));
@@ -48,60 +66,28 @@ canvas2d_t* canvas2d_create(int width, int height) {
 
     // Initialize context
     canvas->context->canvas = canvas;
-    canvas->context->state.strokeStyle.r = 0;
-    canvas->context->state.strokeStyle.g = 0;
-    canvas->context->state.strokeStyle.b = 0;
-    canvas->context->state.strokeStyle.a = 1;
-    canvas->context->state.fillStyle.r = 0;
-    canvas->context->state.fillStyle.g = 0;
-    canvas->context->state.fillStyle.b = 0;
-    canvas->context->state.fillStyle.a = 1;
+    canvas->context->state.strokeStyle = COLOR32_BLACK;
+    canvas->context->state.fillStyle = COLOR32_BLACK;
     canvas->context->state.lineWidth = 1;
     canvas->context->state.lineCap = CANVAS2D_BUTT;
     canvas->context->state.lineJoin = CANVAS2D_MITER_JOIN;
     canvas->context->state.miterLimit = 10;
     canvas->context->state.globalCompositeOperation = CANVAS2D_SOURCE_OVER;
-    canvas->context->state.repeatMode = CANVAS2D_REPEAT;
-    canvas->context->state.patternImage = NULL;
     
-    // Initialize transform matrix
-    canvas->context->transformMatrix[0] = 1; // scale x
-    canvas->context->transformMatrix[1] = 0; // skew y
-    canvas->context->transformMatrix[2] = 0; // skew x
-    canvas->context->transformMatrix[3] = 1; // scale y
-    canvas->context->transformMatrix[4] = 0; // translate x
-    canvas->context->transformMatrix[5] = 0; // translate y
+    // Initialize transform matrix to identity
+    Matrix4_identity(&canvas->context->state.transformMatrix);
+
+    // Path
+    canvas->context->state.pathPoints = NULL;           // 初始为空指针
+    canvas->context->state.pathPointsCount = 0;         // 没有点
+    canvas->context->state.pathPointsCapacity = 0;      // 容量为0
+    canvas->context->state.pathOpen = false;            // 路径未开启
     
     // Initialize state stack
     canvas->context->stateStack = (canvas2d_state_t*)MemAlloc(sizeof(canvas2d_state_t) * 10);
     canvas->context->stateStackSize = 0;
     canvas->context->stateStackCapacity = 10;
-    
-    canvas->context->pathStarted = false;
-    canvas->context->currentPath = NULL;
 
-    // Create render buffer
-    canvas->buffer = R_MakeVertexArrayObject(NULL, 0);
-    if (!canvas->buffer) {
-        canvas2d_log_error("Failed to create render buffer");
-        MemFree(canvas->context->stateStack);
-        MemFree(canvas->context);
-        MemFree(canvas);
-        return NULL;
-    }
-
-    // Create texture
-    canvas->texture = R_AllocateTexture(width, height);
-    if (!canvas->texture) {
-        canvas2d_log_error("Failed to create texture");
-        R_ReleaseVertexArrayObject(canvas->buffer);
-        MemFree(canvas->context->stateStack);
-        MemFree(canvas->context);
-        MemFree(canvas);
-        return NULL;
-    }
-
-    canvas->initialized = true;
     return canvas;
 }
 
@@ -109,18 +95,14 @@ void canvas2d_destroy(canvas2d_t *canvas) {
     if (!canvas) return;
 
     if (canvas->context) {
+        if (canvas->context->state.pathPoints) {
+            MemFree(canvas->context->state.pathPoints);
+        }
+
         if (canvas->context->stateStack) {
             MemFree(canvas->context->stateStack);
         }
         MemFree(canvas->context);
-    }
-
-    if (canvas->buffer) {
-        R_ReleaseVertexArrayObject(canvas->buffer);
-    }
-
-    if (canvas->texture) {
-        R_ReleaseTexture(canvas->texture);
     }
 
     MemFree(canvas);
@@ -134,25 +116,6 @@ canvas2d_context_t* canvas2d_get_context(canvas2d_t *canvas) {
     return canvas->context;
 }
 
-void canvas2d_resize(canvas2d_t *canvas, int width, int height) {
-    if (!canvas || !canvas->initialized) {
-        canvas2d_log_error("Canvas not initialized");
-        return;
-    }
-
-    canvas->width = width;
-    canvas->height = height;
-
-    // Recreate texture
-    if (canvas->texture) {
-        R_ReleaseTexture(canvas->texture);
-    }
-    canvas->texture = R_AllocateTexture(width, height);
-    if (!canvas->texture) {
-        canvas2d_log_error("Failed to recreate texture");
-    }
-}
-
 // Context operations
 void canvas2d_clear_rect(canvas2d_context_t *ctx, float x, float y, float width, float height) {
     if (!ctx || !ctx->canvas || !ctx->canvas->initialized) {
@@ -160,28 +123,12 @@ void canvas2d_clear_rect(canvas2d_context_t *ctx, float x, float y, float width,
         return;
     }
 
-    // Clear the specified rectangle
-    // Implementation would depend on the underlying renderer
-    // For now, we'll just clear the entire canvas
-    VERTEX vertices[6];
-    R_AddQuad(vertices, &(RECT){0, 0, ctx->canvas->width, ctx->canvas->height}, 
-              &(RECT){0, 0, 1, 1}, COLOR32_BLACK, 0);
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
+    // 使用透明颜色清除矩形区域
+    COLOR32 clearColor = {0, 0, 0, 0};
+    RECT screen = {x, y, width, height};
+    RECT uv = {0, 0, 1, 1};
     
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+    DRAWIMAGE(tr.texture[TEX_WHITE], &screen, &uv, clearColor, &ctx->state.transformMatrix);
 }
 
 void canvas2d_fill_rect(canvas2d_context_t *ctx, float x, float y, float width, float height) {
@@ -190,32 +137,10 @@ void canvas2d_fill_rect(canvas2d_context_t *ctx, float x, float y, float width, 
         return;
     }
 
-    COLOR32 color = {
-        (BYTE)(ctx->state.fillStyle.r * 255),
-        (BYTE)(ctx->state.fillStyle.g * 255),
-        (BYTE)(ctx->state.fillStyle.b * 255),
-        (BYTE)(ctx->state.fillStyle.a * 255)
-    };
-
-    VERTEX vertices[6];
-    R_AddQuad(vertices, &(RECT){x, y, width, height}, 
-              &(RECT){0, 0, 1, 1}, color, 0);
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
+    RECT screen = {x,y,width,height};
+    RECT uv = {0, 0, 1, 1};
     
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+    DRAWIMAGE(tr.texture[TEX_WHITE], &screen, &uv, ctx->state.fillStyle, &ctx->state.transformMatrix);
 }
 
 void canvas2d_stroke_rect(canvas2d_context_t *ctx, float x, float y, float width, float height) {
@@ -224,111 +149,35 @@ void canvas2d_stroke_rect(canvas2d_context_t *ctx, float x, float y, float width
         return;
     }
 
-    COLOR32 color = {
-        (BYTE)(ctx->state.strokeStyle.r * 255),
-        (BYTE)(ctx->state.strokeStyle.g * 255),
-        (BYTE)(ctx->state.strokeStyle.b * 255),
-        (BYTE)(ctx->state.strokeStyle.a * 255)
-    };
-
-    // Create vertices for rectangle outline
-    VERTEX vertices[20]; // 5 vertices per line, 4 lines
-    VERTEX *current = vertices;
-
-    // Top line
-    current = R_AddStrip(current, &(RECT){x, y, width, ctx->state.lineWidth}, color);
+    float lineWidth = ctx->state.lineWidth;
     
-    // Right line
-    current = R_AddStrip(current, &(RECT){x + width - ctx->state.lineWidth, y, ctx->state.lineWidth, height}, color);
+    // 绘制四条边
+    RECT top = {x, y, width, lineWidth};
+    RECT bottom = {x, y + height - lineWidth, width, lineWidth};
+    RECT left = {x, y, lineWidth, height};
+    RECT right = {x + width - lineWidth, y, lineWidth, height};
     
-    // Bottom line
-    current = R_AddStrip(current, &(RECT){x, y + height - ctx->state.lineWidth, width, ctx->state.lineWidth}, color);
+    RECT uv = {0, 0, 1, 1};
     
-    // Left line
-    current = R_AddStrip(current, &(RECT){x, y, ctx->state.lineWidth, height}, color);
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_LINE_STRIP, 0, 20);
+    DRAWIMAGE(tr.texture[TEX_WHITE], &top, &uv, ctx->state.strokeStyle, &ctx->state.transformMatrix);
+    DRAWIMAGE(tr.texture[TEX_WHITE], &bottom, &uv, ctx->state.strokeStyle, &ctx->state.transformMatrix);
+    DRAWIMAGE(tr.texture[TEX_WHITE], &left, &uv, ctx->state.strokeStyle, &ctx->state.transformMatrix);
+    DRAWIMAGE(tr.texture[TEX_WHITE], &right, &uv, ctx->state.strokeStyle, &ctx->state.transformMatrix);
 }
 
-// Circle drawing functions
+// 简化的圆形绘制（使用纹理近似）
 void canvas2d_fill_circle(canvas2d_context_t *ctx, float x, float y, float radius) {
     if (!ctx || !ctx->canvas || !ctx->canvas->initialized) {
         canvas2d_log_error("Context or canvas not initialized");
         return;
     }
 
-    COLOR32 color = {
-        (BYTE)(ctx->state.fillStyle.r * 255),
-        (BYTE)(ctx->state.fillStyle.g * 255),
-        (BYTE)(ctx->state.fillStyle.b * 255),
-        (BYTE)(ctx->state.fillStyle.a * 255)
-    };
-
-    // Create vertices for circle (approximated with triangles)
-    const int segments = 32;
-    VERTEX vertices[segments * 3];
-    VERTEX *current = vertices;
-
-    for (int i = 0; i < segments; i++) {
-        float angle1 = (i / (float)segments) * 2.0f * M_PI;
-        float angle2 = ((i + 1) / (float)segments) * 2.0f * M_PI;
-
-        // Center vertex
-        current[0].position.x = x;
-        current[0].position.y = y;
-        current[0].position.z = 0;
-        current[0].color = color;
-        current[0].texcoord.x = 0;
-        current[0].texcoord.y = 0;
-
-        // Edge vertex 1
-        current[1].position.x = x + cos(angle1) * radius;
-        current[1].position.y = y + sin(angle1) * radius;
-        current[1].position.z = 0;
-        current[1].color = color;
-        current[1].texcoord.x = 0;
-        current[1].texcoord.y = 0;
-
-        // Edge vertex 2
-        current[2].position.x = x + cos(angle2) * radius;
-        current[2].position.y = y + sin(angle2) * radius;
-        current[2].position.z = 0;
-        current[2].color = color;
-        current[2].texcoord.x = 0;
-        current[2].texcoord.y = 0;
-
-        current += 3;
-    }
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
+    RECT screen = {x - radius, y - radius, radius * 2, radius * 2};
+    RECT uv = {0, 0, 1, 1};
     
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, segments * 3);
+    // 使用圆形纹理（如果有的话），否则使用白色纹理
+    LPCTEXTURE circleTex = tr.texture[TEX_WHITE]; // 可以替换为专门的圆形纹理
+    DRAWIMAGE(circleTex, &screen, &uv, ctx->state.fillStyle, &ctx->state.transformMatrix);
 }
 
 void canvas2d_stroke_circle(canvas2d_context_t *ctx, float x, float y, float radius) {
@@ -337,446 +186,51 @@ void canvas2d_stroke_circle(canvas2d_context_t *ctx, float x, float y, float rad
         return;
     }
 
-    COLOR32 color = {
-        (BYTE)(ctx->state.strokeStyle.r * 255),
-        (BYTE)(ctx->state.strokeStyle.g * 255),
-        (BYTE)(ctx->state.strokeStyle.b * 255),
-        (BYTE)(ctx->state.strokeStyle.a * 255)
-    };
-
-    // Create vertices for circle outline (approximated with line segments)
+    // 简化的圆形描边：绘制多个小矩形来近似
     const int segments = 32;
-    VERTEX vertices[segments * 2];
-    VERTEX *current = vertices;
+    float angleStep = (2.0f * M_PI) / segments;
+    float lineWidth = ctx->state.lineWidth;
 
     for (int i = 0; i < segments; i++) {
-        float angle1 = (i / (float)segments) * 2.0f * M_PI;
-        float angle2 = ((i + 1) / (float)segments) * 2.0f * M_PI;
+        float angle1 = i * angleStep;
+        float angle2 = (i + 1) * angleStep;
+        
+        float x1 = x + cos(angle1) * radius;
+        float y1 = y + sin(angle1) * radius;
+        float x2 = x + cos(angle2) * radius;
+        float y2 = y + sin(angle2) * radius;
 
-        // Vertex 1
-        current[0].position.x = x + cos(angle1) * radius;
-        current[0].position.y = y + sin(angle1) * radius;
-        current[0].position.z = 0;
-        current[0].color = color;
-        current[0].texcoord.x = 0;
-        current[0].texcoord.y = 0;
-
-        // Vertex 2
-        current[1].position.x = x + cos(angle2) * radius;
-        current[1].position.y = y + sin(angle2) * radius;
-        current[1].position.z = 0;
-        current[1].color = color;
-        current[1].texcoord.x = 0;
-        current[1].texcoord.y = 0;
-
-        current += 2;
-    }
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_LINES, 0, segments * 2);
-}
-
-// Triangle drawing functions
-void canvas2d_fill_triangle(canvas2d_context_t *ctx, const canvas2d_triangle_t *triangle) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !triangle) {
-        canvas2d_log_error("Invalid parameters");
-        return;
-    }
-
-    COLOR32 color = {
-        (BYTE)(ctx->state.fillStyle.r * 255),
-        (BYTE)(ctx->state.fillStyle.g * 255),
-        (BYTE)(ctx->state.fillStyle.b * 255),
-        (BYTE)(ctx->state.fillStyle.a * 255)
-    };
-
-    VERTEX vertices[3];
-    for (int i = 0; i < 3; i++) {
-        vertices[i].position.x = triangle->points[i].x;
-        vertices[i].position.y = triangle->points[i].y;
-        vertices[i].position.z = 0;
-        vertices[i].color = color;
-        vertices[i].texcoord.x = 0;
-        vertices[i].texcoord.y = 0;
-    }
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 3);
-}
-
-void canvas2d_stroke_triangle(canvas2d_context_t *ctx, const canvas2d_triangle_t *triangle) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !triangle) {
-        canvas2d_log_error("Invalid parameters");
-        return;
-    }
-
-    COLOR32 color = {
-        (BYTE)(ctx->state.strokeStyle.r * 255),
-        (BYTE)(ctx->state.strokeStyle.g * 255),
-        (BYTE)(ctx->state.strokeStyle.b * 255),
-        (BYTE)(ctx->state.strokeStyle.a * 255)
-    };
-
-    VERTEX vertices[6]; // 2 vertices per line, 3 lines
-    VERTEX *current = vertices;
-
-    // Line 1: point 0 to point 1
-    current[0].position.x = triangle->points[0].x;
-    current[0].position.y = triangle->points[0].y;
-    current[0].position.z = 0;
-    current[0].color = color;
-    current[0].texcoord.x = 0;
-    current[0].texcoord.y = 0;
-
-    current[1].position.x = triangle->points[1].x;
-    current[1].position.y = triangle->points[1].y;
-    current[1].position.z = 0;
-    current[1].color = color;
-    current[1].texcoord.x = 0;
-    current[1].texcoord.y = 0;
-
-    current += 2;
-
-    // Line 2: point 1 to point 2
-    current[0].position.x = triangle->points[1].x;
-    current[0].position.y = triangle->points[1].y;
-    current[0].position.z = 0;
-    current[0].color = color;
-    current[0].texcoord.x = 0;
-    current[0].texcoord.y = 0;
-
-    current[1].position.x = triangle->points[2].x;
-    current[1].position.y = triangle->points[2].y;
-    current[1].position.z = 0;
-    current[1].color = color;
-    current[1].texcoord.x = 0;
-    current[1].texcoord.y = 0;
-
-    current += 2;
-
-    // Line 3: point 2 to point 0
-    current[0].position.x = triangle->points[2].x;
-    current[0].position.y = triangle->points[2].y;
-    current[0].position.z = 0;
-    current[0].color = color;
-    current[0].texcoord.x = 0;
-    current[0].texcoord.y = 0;
-
-    current[1].position.x = triangle->points[0].x;
-    current[1].position.y = triangle->points[0].y;
-    current[1].position.z = 0;
-    current[1].color = color;
-    current[1].texcoord.x = 0;
-    current[1].texcoord.y = 0;
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_LINES, 0, 6);
-}
-
-// Quad drawing functions
-void canvas2d_fill_quad(canvas2d_context_t *ctx, const canvas2d_quad_t *quad) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !quad) {
-        canvas2d_log_error("Invalid parameters");
-        return;
-    }
-
-    COLOR32 color = {
-        (BYTE)(ctx->state.fillStyle.r * 255),
-        (BYTE)(ctx->state.fillStyle.g * 255),
-        (BYTE)(ctx->state.fillStyle.b * 255),
-        (BYTE)(ctx->state.fillStyle.a * 255)
-    };
-
-    VERTEX vertices[6];
-    R_AddQuad(vertices, &(RECT){quad->points[0].x, quad->points[0].y, 
-                                quad->points[2].x - quad->points[0].x, 
-                                quad->points[2].y - quad->points[0].y}, 
-              &(RECT){0, 0, 1, 1}, color, 0);
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
-}
-
-void canvas2d_stroke_quad(canvas2d_context_t *ctx, const canvas2d_quad_t *quad) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !quad) {
-        canvas2d_log_error("Invalid parameters");
-        return;
-    }
-
-    COLOR32 color = {
-        (BYTE)(ctx->state.strokeStyle.r * 255),
-        (BYTE)(ctx->state.strokeStyle.g * 255),
-        (BYTE)(ctx->state.strokeStyle.b * 255),
-        (BYTE)(ctx->state.strokeStyle.a * 255)
-    };
-
-    // Create vertices for quad outline
-    VERTEX vertices[8]; // 2 vertices per line, 4 lines
-    VERTEX *current = vertices;
-
-    // Line 1: point 0 to point 1
-    current[0].position.x = quad->points[0].x;
-    current[0].position.y = quad->points[0].y;
-    current[0].position.z = 0;
-    current[0].color = color;
-    current[0].texcoord.x = 0;
-    current[0].texcoord.y = 0;
-
-    current[1].position.x = quad->points[1].x;
-    current[1].position.y = quad->points[1].y;
-    current[1].position.z = 0;
-    current[1].color = color;
-    current[1].texcoord.x = 0;
-    current[1].texcoord.y = 0;
-
-    current += 2;
-
-    // Line 2: point 1 to point 2
-    current[0].position.x = quad->points[1].x;
-    current[0].position.y = quad->points[1].y;
-    current[0].position.z = 0;
-    current[0].color = color;
-    current[0].texcoord.x = 0;
-    current[0].texcoord.y = 0;
-
-    current[1].position.x = quad->points[2].x;
-    current[1].position.y = quad->points[2].y;
-    current[1].position.z = 0;
-    current[1].color = color;
-    current[1].texcoord.x = 0;
-    current[1].texcoord.y = 0;
-
-    current += 2;
-
-    // Line 3: point 2 to point 3
-    current[0].position.x = quad->points[2].x;
-    current[0].position.y = quad->points[2].y;
-    current[0].position.z = 0;
-    current[0].color = color;
-    current[0].texcoord.x = 0;
-    current[0].texcoord.y = 0;
-
-    current[1].position.x = quad->points[3].x;
-    current[1].position.y = quad->points[3].y;
-    current[1].position.z = 0;
-    current[1].color = color;
-    current[1].texcoord.x = 0;
-    current[1].texcoord.y = 0;
-
-    current += 2;
-
-    // Line 4: point 3 to point 0
-    current[0].position.x = quad->points[3].x;
-    current[0].position.y = quad->points[3].y;
-    current[0].position.z = 0;
-    current[0].color = color;
-    current[0].texcoord.x = 0;
-    current[0].texcoord.y = 0;
-
-    current[1].position.x = quad->points[0].x;
-    current[1].position.y = quad->points[0].y;
-    current[1].position.z = 0;
-    current[1].color = color;
-    current[1].texcoord.x = 0;
-    current[1].texcoord.y = 0;
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_LINES, 0, 8);
-}
-
-// Path drawing functions (stub implementation)
-void canvas2d_fill_path(canvas2d_context_t *ctx, const canvas2d_path_t *path) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !path) {
-        canvas2d_log_error("Invalid parameters");
-        return;
-    }
-
-    // For now, just draw lines between points
-    if (path->count < 3) return;
-
-    COLOR32 color = {
-        (BYTE)(ctx->state.fillStyle.r * 255),
-        (BYTE)(ctx->state.fillStyle.g * 255),
-        (BYTE)(ctx->state.fillStyle.b * 255),
-        (BYTE)(ctx->state.fillStyle.a * 255)
-    };
-
-    // Triangulate the path (simplified implementation)
-    VERTEX *vertices = MemAlloc(path->count * 3 * sizeof(VERTEX));
-    VERTEX *current = vertices;
-
-    for (int i = 1; i < path->count - 1; i++) {
-        // Triangle: point 0, point i, point i+1
-        for (int j = 0; j < 3; j++) {
-            canvas2d_point_t *point = NULL;
-            if (j == 0) point = &path->points[0];
-            else if (j == 1) point = &path->points[i];
-            else point = &path->points[i + 1];
-
-            current->position.x = point->x;
-            current->position.y = point->y;
-            current->position.z = 0;
-            current->color = color;
-            current->texcoord.x = 0;
-            current->texcoord.y = 0;
-            current++;
+        // 计算线段的方向和长度
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float length = sqrt(dx * dx + dy * dy);
+        
+        if (length > 0) {
+            dx /= length;
+            dy /= length;
         }
+
+        // 创建线段矩形
+        RECT lineRect = {
+            x1 - (dy * lineWidth) / 2,
+            y1 + (dx * lineWidth) / 2,
+            length,
+            lineWidth
+        };
+        
+        RECT uv = {0, 0, 1, 1};
+        DRAWIMAGE(tr.texture[TEX_WHITE], &lineRect, &uv, ctx->state.strokeStyle, &ctx->state.transformMatrix);
     }
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, path->count * 3 * sizeof(VERTEX), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, path->count * 3);
-
-    MemFree(vertices);
 }
 
-void canvas2d_stroke_path(canvas2d_context_t *ctx, const canvas2d_path_t *path) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !path) {
-        canvas2d_log_error("Invalid parameters");
-        return;
-    }
-
-    COLOR32 color = {
-        (BYTE)(ctx->state.strokeStyle.r * 255),
-        (BYTE)(ctx->state.strokeStyle.g * 255),
-        (BYTE)(ctx->state.strokeStyle.b * 255),
-        (BYTE)(ctx->state.strokeStyle.a * 255)
-    };
-
-    VERTEX *vertices = MemAlloc(path->count * 2 * sizeof(VERTEX));
-    VERTEX *current = vertices;
-
-    for (int i = 0; i < path->count - 1; i++) {
-        // Line from point i to point i+1
-        current[0].position.x = path->points[i].x;
-        current[0].position.y = path->points[i].y;
-        current[0].position.z = 0;
-        current[0].color = color;
-        current[0].texcoord.x = 0;
-        current[0].texcoord.y = 0;
-
-        current[1].position.x = path->points[i + 1].x;
-        current[1].position.y = path->points[i + 1].y;
-        current[1].position.z = 0;
-        current[1].color = color;
-        current[1].texcoord.x = 0;
-        current[1].texcoord.y = 0;
-
-        current += 2;
-    }
-
-    MATRIX4 matrix;
-    Matrix4_ortho(&matrix, 0.0f, ctx->canvas->width, ctx->canvas->height, 0.0f, 0.0f, 100.0f);
-
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glBindVertexArray, ctx->canvas->buffer->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, ctx->canvas->buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, path->count * 2 * sizeof(VERTEX), vertices, GL_STATIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, matrix.v);
-    
-    R_BindTexture(ctx->canvas->texture, 0);
-    
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDrawArrays, GL_LINES, 0, path->count * 2);
-
-    MemFree(vertices);
-}
-
-// Text operations (simplified implementation)
+// 文本绘制
 void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, float y) {
     if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !text) {
         canvas2d_log_error("Invalid parameters");
         return;
     }
 
-    // Use the existing text rendering function
-    COLOR32 color = {
-        (BYTE)(ctx->state.fillStyle.r * 255),
-        (BYTE)(ctx->state.fillStyle.g * 255),
-        (BYTE)(ctx->state.fillStyle.b * 255),
-        (BYTE)(ctx->state.fillStyle.a * 255)
-    };
-
-    R_PrintSysText(text, (DWORD)x, (DWORD)y, color);
+    R_PrintSysText(text, (DWORD)x, (DWORD)y, ctx->state.fillStyle);
 }
 
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y) {
@@ -785,303 +239,261 @@ void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, fl
         return;
     }
 
-    // For stroke text, we'll use a slightly offset version to simulate stroke
-    // This is a simplified implementation
-    canvas2d_set_fill_style(ctx, ctx->state.strokeStyle.r, ctx->state.strokeStyle.g, 
-                           ctx->state.strokeStyle.b, ctx->state.strokeStyle.a);
+    // 简化的描边文本：在多个偏移位置绘制文本
+    float offset = ctx->state.lineWidth;
+    COLOR32 strokeColor = ctx->state.strokeStyle;
     
-    // Draw text multiple times with small offsets to create stroke effect
-    const float offset = ctx->state.lineWidth;
-    for (float dx = -offset; dx <= offset; dx += 0.5f) {
-        for (float dy = -offset; dy <= offset; dy += 0.5f) {
+    for (float dx = -offset; dx <= offset; dx += offset/2) {
+        for (float dy = -offset; dy <= offset; dy += offset/2) {
             if (dx == 0 && dy == 0) continue;
-            R_PrintSysText(text, (DWORD)(x + dx), (DWORD)(y + dy), 
-                          COLOR32_BLACK); // Black stroke
+            R_PrintSysText(text, (DWORD)(x + dx), (DWORD)(y + dy), strokeColor);
         }
     }
     
-    // Draw the actual text on top
-    canvas2d_set_fill_style(ctx, ctx->state.fillStyle.r, ctx->state.fillStyle.g, 
-                           ctx->state.fillStyle.b, ctx->state.fillStyle.a);
-    R_PrintSysText(text, (DWORD)x, (DWORD)y, 
-                   COLOR32_WHITE); // White fill
+    // 绘制主体文本
+    R_PrintSysText(text, (DWORD)x, (DWORD)y, ctx->state.fillStyle);
 }
 
-void canvas2d_set_font(canvas2d_context_t *ctx, const char *fontFamily, float fontSize) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized) {
-        canvas2d_log_error("Context or canvas not initialized");
-        return;
-    }
-
-    // Load font using the existing font loading system
-    if (fontFamily && strlen(fontFamily) > 0) {
-        ctx->canvas->font = R_LoadFont(fontFamily, (DWORD)fontSize);
-        if (!ctx->canvas->font) {
-            canvas2d_log_error("Failed to load font");
-        }
-    }
-}
-
-// Image operations
-canvas2d_image_t* canvas2d_create_image(const char *filename) {
-    if (!filename) {
-        canvas2d_log_error("Filename is null");
-        return NULL;
-    }
-
-    canvas2d_image_t *image = (canvas2d_image_t*)MemAlloc(sizeof(canvas2d_image_t));
-    if (!image) {
-        canvas2d_log_error("Failed to allocate memory for image");
-        return NULL;
-    }
-
-    strncpy(image->filename, filename, sizeof(image->filename) - 1);
-    image->filename[sizeof(image->filename) - 1] = '\0';
-    image->loaded = false;
-    image->data = NULL;
-    image->texture = NULL;
-    image->width = 0;
-    image->height = 0;
-    image->channels = 4; // Default to RGBA
-
-    // Load texture using the existing texture loading system
-    image->texture = R_LoadTexture(filename);
-    if (image->texture) {
-        image->loaded = true;
-        image->width = image->texture->width;
-        image->height = image->texture->height;
-    } else {
-        canvas2d_log_error("Failed to load texture");
-    }
-
-    return image;
-}
-
-canvas2d_image_t* canvas2d_create_image_from_data(unsigned char *data, int width, int height, int channels) {
-    if (!data || width <= 0 || height <= 0 || channels <= 0) {
-        canvas2d_log_error("Invalid image data parameters");
-        return NULL;
-    }
-
-    canvas2d_image_t *image = (canvas2d_image_t*)MemAlloc(sizeof(canvas2d_image_t));
-    if (!image) {
-        canvas2d_log_error("Failed to allocate memory for image");
-        return NULL;
-    }
-
-    image->filename[0] = '\0';
-    image->loaded = true;
-    image->data = data;
-    image->width = width;
-    image->height = height;
-    image->channels = channels;
-    image->texture = NULL;
-
-    // Create texture from data
-    image->texture = R_AllocateTexture(width, height);
-    if (image->texture) {
-        // Load mip level with the provided data
-        R_LoadTextureMipLevel(image->texture, 0, (COLOR32*)data, width, height);
-    } else {
-        canvas2d_log_error("Failed to create texture from data");
-        MemFree(image);
-        return NULL;
-    }
-
-    return image;
-}
-
-void canvas2d_destroy_image(canvas2d_image_t *image) {
-    if (!image) return;
-
-    if (image->texture) {
-        R_ReleaseTexture(image->texture);
-    }
-
-    if (image->data) {
-        MemFree(image->data);
-    }
-
-    MemFree(image);
-}
-
-void canvas2d_draw_image(canvas2d_context_t *ctx, canvas2d_image_t *image, float x, float y) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !image || !image->loaded) {
+// 图像绘制
+void canvas2d_draw_image(canvas2d_context_t *ctx, LPCTEXTURE texture, float x, float y) {
+    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !texture) {
         canvas2d_log_error("Invalid parameters");
         return;
     }
 
-    DRAWIMAGE drawImage = {
-        .texture = image->texture,
-        .screen = {x, y, (float)image->width / 2000.0f, (float)image->height / 2000.0f},
-        .uv = {0, 0, 1, 1},
-        .color = COLOR32_WHITE,
-        .rotate = false,
-        .shader = SHADER_UI,
-        .alphamode = BLEND_MODE_BLEND
-    };
-
-    R_DrawImageEx(&drawImage);
+    RECT screen = {x, y, (float)texture->width, (float)texture->height};
+    DRAWIMAGE(texture, &screen, NULL, COLOR32_WHITE, &ctx->state.transformMatrix);
 }
 
-void canvas2d_draw_image_scaled(canvas2d_context_t *ctx, canvas2d_image_t *image, float x, float y, float width, float height) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !image || !image->loaded) {
+void canvas2d_draw_image_scaled(canvas2d_context_t *ctx, LPCTEXTURE texture, float x, float y, float width, float height) {
+    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !texture) {
         canvas2d_log_error("Invalid parameters");
         return;
     }
 
-    DRAWIMAGE drawImage = {
-        .texture = image->texture,
-        .screen = {x, y, width, height},
-        .uv = {0, 0, 1, 1},
-        .color = COLOR32_WHITE,
-        .rotate = false,
-        .shader = SHADER_UI,
-        .alphamode = BLEND_MODE_BLEND
-    };
-
-    R_DrawImageEx(&drawImage);
+    RECT screen = {x, y, width, height};
+    DRAWIMAGE(texture, &screen, NULL, COLOR32_WHITE, &ctx->state.transformMatrix);
 }
 
-void canvas2d_draw_image_sliced(canvas2d_context_t *ctx, canvas2d_image_t *image, 
-                               float sx, float sy, float sw, float sh, 
-                               float dx, float dy, float dw, float dh) {
-    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !image || !image->loaded) {
-        canvas2d_log_error("Invalid parameters");
-        return;
-    }
-
-    DRAWIMAGE drawImage = {
-        .texture = image->texture,
-        .screen = {dx, dy, dw, dh},
-        .uv = {sx / image->width, sy / image->height, sw / image->width, sh / image->height},
-        .color = COLOR32_WHITE,
-        .rotate = false,
-        .shader = SHADER_UI,
-        .alphamode = BLEND_MODE_BLEND
-    };
-
-    R_DrawImageEx(&drawImage);
-}
-
-// Transform operations
+// 变换操作
 void canvas2d_translate(canvas2d_context_t *ctx, float x, float y) {
     if (!ctx) return;
-
-    // Apply translation to the transformation matrix
-    ctx->transformMatrix[4] += x;
-    ctx->transformMatrix[5] += y;
+    
+    MATRIX4 translation;
+    Matrix4_identity(&translation);
+    Matrix4_translate(&translation, &(VECTOR3){x, y, 0});
+    Matrix4_multiply(&ctx->state.transformMatrix, &translation, &ctx->state.transformMatrix);
 }
 
 void canvas2d_rotate(canvas2d_context_t *ctx, float angle) {
     if (!ctx) return;
-
-    float cos_a = cos(angle);
-    float sin_a = sin(angle);
-
-    // Create rotation matrix
-    float matrix[6] = {
-        cos_a, -sin_a,  // scale x, skew y
-        sin_a, cos_a,   // skew x, scale y
-        0, 0            // translate x, translate y
-    };
-
-    // Multiply current matrix by rotation matrix
-    float result[6];
-    result[0] = ctx->transformMatrix[0] * matrix[0] + ctx->transformMatrix[2] * matrix[1];
-    result[1] = ctx->transformMatrix[1] * matrix[0] + ctx->transformMatrix[3] * matrix[1];
-    result[2] = ctx->transformMatrix[0] * matrix[2] + ctx->transformMatrix[2] * matrix[3];
-    result[3] = ctx->transformMatrix[1] * matrix[2] + ctx->transformMatrix[3] * matrix[3];
-    result[4] = ctx->transformMatrix[4];
-    result[5] = ctx->transformMatrix[5];
-
-    memcpy(ctx->transformMatrix, result, sizeof(result));
+    
+    MATRIX4 rotation;
+    Matrix4_identity(&rotation);
+    Matrix4_rotate(&rotation, &(VECTOR3){0, 0, angle * 180 / M_PI}, ROTATE_XYZ);
+    Matrix4_multiply(&ctx->state.transformMatrix, &rotation, &ctx->state.transformMatrix);
 }
 
 void canvas2d_scale(canvas2d_context_t *ctx, float x, float y) {
     if (!ctx) return;
-
-    // Apply scaling to the transformation matrix
-    ctx->transformMatrix[0] *= x;  // scale x
-    ctx->transformMatrix[1] *= y;  // skew y
-    ctx->transformMatrix[2] *= x;  // skew x
-    ctx->transformMatrix[3] *= y;  // scale y
+    
+    MATRIX4 scaling;
+    Matrix4_identity(&scaling);
+    Matrix4_scale(&scaling, &(VECTOR3){x, y, 1});
+    Matrix4_multiply(&ctx->state.transformMatrix, &scaling, &ctx->state.transformMatrix);
 }
 
 void canvas2d_reset_transform(canvas2d_context_t *ctx) {
     if (!ctx) return;
-
-    // Reset transformation matrix to identity
-    ctx->transformMatrix[0] = 1; // scale x
-    ctx->transformMatrix[1] = 0; // skew y
-    ctx->transformMatrix[2] = 0; // skew x
-    ctx->transformMatrix[3] = 1; // scale y
-    ctx->transformMatrix[4] = 0; // translate x
-    ctx->transformMatrix[5] = 0; // translate y
+    Matrix4_identity(&ctx->state.transformMatrix);
 }
 
+// 状态管理
 void canvas2d_save(canvas2d_context_t *ctx) {
     if (!ctx) return;
 
-    // Save current state to stack
     if (ctx->stateStackSize >= ctx->stateStackCapacity) {
-        // Resize stack if needed
         ctx->stateStackCapacity *= 2;
-        ctx->stateStack = (canvas2d_state_t*)MemAlloc(ctx->stateStackCapacity * sizeof(canvas2d_state_t));
+        ctx->stateStack = realloc(ctx->stateStack, ctx->stateStackCapacity * sizeof(canvas2d_state_t));
     }
 
-    // Copy current state to stack
     memcpy(&ctx->stateStack[ctx->stateStackSize], &ctx->state, sizeof(canvas2d_state_t));
+
+    // Path: deep clone
+    if (ctx->state.pathOpen && ctx->state.pathPointsCount > 0) {
+        // 分配新的路径点数组
+        ctx->stateStack[ctx->stateStackSize].pathPoints = (VECTOR2*)MemAlloc(sizeof(VECTOR2) * ctx->state.pathPointsCapacity);
+        if (ctx->stateStack[ctx->stateStackSize].pathPoints) {
+            memcpy(ctx->stateStack[ctx->stateStackSize].pathPoints, 
+                   ctx->state.pathPoints, 
+                   sizeof(VECTOR2) * ctx->state.pathPointsCount);
+        }
+    } else {
+        // 路径未开启或为空，设置为NULL
+        ctx->stateStack[ctx->stateStackSize].pathPoints = NULL;
+        ctx->stateStack[ctx->stateStackSize].pathPointsCount = 0;
+        ctx->stateStack[ctx->stateStackSize].pathPointsCapacity = 0;
+    }
+
     ctx->stateStackSize++;
 }
 
 void canvas2d_restore(canvas2d_context_t *ctx) {
     if (!ctx || ctx->stateStackSize <= 0) return;
 
-    // Restore state from stack
     ctx->stateStackSize--;
     memcpy(&ctx->state, &ctx->stateStack[ctx->stateStackSize], sizeof(canvas2d_state_t));
+
+    // path
+    if (ctx->stateStack[ctx->stateStackSize].pathPoints) {
+        // 分配新内存并复制路径数据
+        ctx->state.pathPoints = (VECTOR2*)MemAlloc(sizeof(VECTOR2) * ctx->state.pathPointsCapacity);
+        if (ctx->state.pathPoints) {
+            memcpy(ctx->state.pathPoints, 
+                   ctx->stateStack[ctx->stateStackSize].pathPoints, 
+                   sizeof(VECTOR2) * ctx->state.pathPointsCount);
+        }
+        
+        // 释放栈中的路径数据
+        MemFree(ctx->stateStack[ctx->stateStackSize].pathPoints);
+        ctx->stateStack[ctx->stateStackSize].pathPoints = NULL;
+    }
+}
+void canvas2d_reset_path(canvas2d_context_t *ctx) {
+    if (!ctx) return;
+    
+    if (ctx->state.pathPoints) {
+        MemFree(ctx->state.pathPoints);
+        ctx->state.pathPoints = NULL;
+    }
+    
+    ctx->state.pathPointsCount = 0;
+    ctx->state.pathPointsCapacity = 0;
+    ctx->state.pathOpen = false;
+}
+void canvas2d_transform(canvas2d_context_t *ctx, float a, float b, float c, float d, float e, float f) {
+    if (!ctx) return;
+    
+    MATRIX4 customTransform = {
+        .v = {
+            a, b, 0, 0,
+            c, d, 0, 0,
+            0, 0, 1, 0,
+            e, f, 0, 1
+        }
+    };
+    
+    Matrix4_multiply(&ctx->state.transformMatrix, &customTransform, &ctx->state.transformMatrix);
 }
 
-// Style operations
-void canvas2d_set_stroke_style(canvas2d_context_t *ctx, float r, float g, float b, float a) {
+void canvas2d_set_transform(canvas2d_context_t *ctx, float a, float b, float c, float d, float e, float f) {
     if (!ctx) return;
-
-    ctx->state.strokeStyle.r = r;
-    ctx->state.strokeStyle.g = g;
-    ctx->state.strokeStyle.b = b;
-    ctx->state.strokeStyle.a = a;
+    
+    ctx->state.transformMatrix = (MATRIX4){
+        .v = {
+            a, b, 0, 0,
+            c, d, 0, 0,
+            0, 0, 1, 0,
+            e, f, 0, 1
+        }
+    };
+}
+// 样式设置
+void canvas2d_set_stroke_style(canvas2d_context_t *ctx, COLOR32 color) {
+    if (!ctx) return;
+    ctx->state.strokeStyle = color;
 }
 
-void canvas2d_set_fill_style(canvas2d_context_t *ctx, float r, float g, float b, float a) {
+void canvas2d_set_fill_style(canvas2d_context_t *ctx, COLOR32 color) {
     if (!ctx) return;
-
-    ctx->state.fillStyle.r = r;
-    ctx->state.fillStyle.g = g;
-    ctx->state.fillStyle.b = b;
-    ctx->state.fillStyle.a = a;
+    ctx->state.fillStyle = color;
 }
 
 void canvas2d_set_line_width(canvas2d_context_t *ctx, float width) {
     if (!ctx) return;
-
     ctx->state.lineWidth = width;
 }
-
-void canvas2d_set_line_cap(canvas2d_context_t *ctx, canvas2d_line_cap_t cap) {
+// 路径操作函数
+void canvas2d_begin_path(canvas2d_context_t *ctx) {
     if (!ctx) return;
-
-    ctx->state.lineCap = cap;
+    ctx->state.pathPointsCount = 0;
+    ctx->state.pathOpen = true;
 }
 
-void canvas2d_set_line_join(canvas2d_context_t *ctx, canvas2d_line_join_t join) {
-    if (!ctx) return;
-
-    ctx->state.lineJoin = join;
+void canvas2d_move_to(canvas2d_context_t *ctx, float x, float y) {
+    if (!ctx || !ctx->state.pathOpen) return;
+    
+    // 添加点到路径
+    if (ctx->state.pathPointsCount >= ctx->state.pathPointsCapacity) {
+        ctx->state.pathPointsCapacity = ctx->state.pathPointsCapacity ? ctx->state.pathPointsCapacity * 2 : 16;
+        ctx->state.pathPoints = realloc(ctx->state.pathPoints, ctx->state.pathPointsCapacity * sizeof(VECTOR2));
+    }
+    
+    ctx->state.pathPoints[ctx->state.pathPointsCount++] = (VECTOR2){x, y};
 }
 
-void canvas2d_set_global_composite_operation(canvas2d_context_t *ctx, canvas2d_global_composite_operation_t operation) {
-    if (!ctx) return;
+void canvas2d_line_to(canvas2d_context_t *ctx, float x, float y) {
+    canvas2d_move_to(ctx, x, y);
+}
 
-    ctx->state.globalCompositeOperation = operation;
+void canvas2d_close_path(canvas2d_context_t *ctx) {
+    if (!ctx || ctx->state.pathPointsCount < 2) return;
+    
+    // 添加第一个点以闭合路径
+    canvas2d_line_to(ctx, ctx->state.pathPoints[0].x, ctx->state.pathPoints[0].y);
+    ctx->state.pathOpen = false;
+}
+
+void canvas2d_stroke_path(canvas2d_context_t *ctx) {
+    if (!ctx || ctx->state.pathPointsCount < 2) return;
+    
+    // 绘制路径
+    for (int i = 0; i < ctx->state.pathPointsCount - 1; i++) {
+        VECTOR2 p1 = ctx->state.pathPoints[i];
+        VECTOR2 p2 = ctx->state.pathPoints[i + 1];
+        
+        // 计算线段方向和长度
+        float dx = p2.x - p1.x;
+        float dy = p2.y - p1.y;
+        float length = sqrt(dx * dx + dy * dy);
+        
+        if (length > 0) {
+            dx /= length;
+            dy /= length;
+        }
+        
+        // 创建线段矩形
+        float lineWidth = ctx->state.lineWidth;
+        RECT lineRect = {
+            p1.x - (dy * lineWidth) / 2,
+            p1.y + (dx * lineWidth) / 2,
+            length,
+            lineWidth
+        };
+        
+        // 计算旋转角度
+        float angle = atan2(dy, dx);
+        
+        // 创建变换矩阵
+        MATRIX4 transform;
+        Matrix4_identity(&transform);
+        
+        // 平移到起点
+        MATRIX4 translation;
+        Matrix4_identity(&translation);
+        Matrix4_translate(&translation, &(VECTOR3){p1.x, p1.y, 0});
+        Matrix4_multiply(&transform, &translation, &transform);
+        
+        // 旋转
+        MATRIX4 rotation;
+        Matrix4_identity(&rotation);
+        Matrix4_rotate(&rotation, &(VECTOR3){0, 0, angle}, ROTATE_XYZ);
+        Matrix4_multiply(&transform, &rotation, &transform);
+        
+        // 应用当前上下文变换
+        Matrix4_multiply(&ctx->state.transformMatrix, &transform, &transform);
+        
+        RECT uv = {0, 0, 1, 1};
+        DRAWIMAGE(tr.texture[TEX_WHITE], &lineRect, &uv, ctx->state.strokeStyle, &transform);
+    }
 }

@@ -63,7 +63,16 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     //    size2_t screensize = R_GetWindowSize();
     MATRIX4 ui_matrix, model_matrix;
     Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6, 0.0f, 0.0f, 100.0f);
-    Matrix4_identity(&model_matrix);
+
+    // Matrix4_identity(&model_matrix);
+    if(!drawImage->model_matrix)
+    {
+        Matrix4_identity(&model_matrix);
+    }
+    else{
+        model_matrix = *drawImage->model_matrix;
+    }
+    
     
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glUseProgram, shader->progid);
@@ -157,4 +166,119 @@ void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 matrix, COLOR32 color) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
+}
+void R_UpdateTransformMatrix2D(MATRIX4 transform,VECTOR2 position, float rotation, VECTOR2 scale, VECTOR2 pivot, RECT screen) {
+    
+    // 计算枢轴点的世界坐标
+    float pivotX = screen.x + screen.w * pivot.x;
+    float pivotY = screen.y + screen.h * pivot.y;
+    
+    // 构建变换矩阵：T * R * S * T⁻¹
+    MATRIX4 translate_to_origin, scale_mat, rotate_mat, translate_to_target;
+    VECTOR3 translate_vec, scale_vec, rotate_axis;
+    QUATERNION quat;
+    
+    // 1. 平移到原点（相对于枢轴点）
+    translate_vec = (VECTOR3){ -pivotX, -pivotY, 0.0f };
+    Matrix4_identity(&translate_to_origin);
+    Matrix4_translate(&translate_to_origin, &translate_vec);
+    
+    // 2. 应用缩放
+    scale_vec = (VECTOR3){ scale.x, scale.y, 1.0f };
+    Matrix4_identity(&scale_mat);
+    Matrix4_scale(&scale_mat, &scale_vec);
+    
+    // 3. 应用旋转（使用四元数创建绕Z轴旋转）
+    quat = (QUATERNION){ 0.0f, 0.0f, sinf(rotation / 2.0f), cosf(rotation / 2.0f) };
+    Matrix4_identity(&rotate_mat);
+    Matrix4_rotateQuat(&rotate_mat, &quat);
+    
+    // 4. 平移到目标位置
+    translate_vec = (VECTOR3){ pivotX + position.x, pivotY + position.y, 0.0f };
+    Matrix4_identity(&translate_to_target);
+    Matrix4_translate(&translate_to_target, &translate_vec);
+    
+    // 组合变换：T_final * R * S * T_origin
+    Matrix4_multiply(&translate_to_target, &rotate_mat, &transform);
+    Matrix4_multiply(&transform, &scale_mat, &transform);
+    Matrix4_multiply(&transform, &translate_to_origin, &transform);
+}
+// 创建2D变换矩阵（针对UI元素的简化版本）
+MATRIX4 R_CreateTransformMatrix2D(VECTOR2 position, float rotation, VECTOR2 scale, VECTOR2 pivot, RECT screen) {
+    MATRIX4 transform;
+    Matrix4_identity(&transform);
+    
+    // 计算枢轴点的世界坐标
+    float pivotX = screen.x + screen.w * pivot.x;
+    float pivotY = screen.y + screen.h * pivot.y;
+    
+    // 构建变换矩阵：T * R * S * T⁻¹
+    MATRIX4 translate_to_origin, scale_mat, rotate_mat, translate_to_target;
+    VECTOR3 translate_vec, scale_vec, rotate_axis;
+    QUATERNION quat;
+    
+    // 1. 平移到原点（相对于枢轴点）
+    translate_vec = (VECTOR3){ -pivotX, -pivotY, 0.0f };
+    Matrix4_identity(&translate_to_origin);
+    Matrix4_translate(&translate_to_origin, &translate_vec);
+    
+    // 2. 应用缩放
+    scale_vec = (VECTOR3){ scale.x, scale.y, 1.0f };
+    Matrix4_identity(&scale_mat);
+    Matrix4_scale(&scale_mat, &scale_vec);
+    
+    // 3. 应用旋转（使用四元数创建绕Z轴旋转）
+    quat = (QUATERNION){ 0.0f, 0.0f, sinf(rotation / 2.0f), cosf(rotation / 2.0f) };
+    Matrix4_identity(&rotate_mat);
+    Matrix4_rotateQuat(&rotate_mat, &quat);
+    
+    // 4. 平移到目标位置
+    translate_vec = (VECTOR3){ pivotX + position.x, pivotY + position.y, 0.0f };
+    Matrix4_identity(&translate_to_target);
+    Matrix4_translate(&translate_to_target, &translate_vec);
+    
+    // 组合变换：T_final * R * S * T_origin
+    Matrix4_multiply(&translate_to_target, &rotate_mat, &transform);
+    Matrix4_multiply(&transform, &scale_mat, &transform);
+    Matrix4_multiply(&transform, &translate_to_origin, &transform);
+    
+    return transform;
+}
+
+// 简化的旋转矩阵创建函数
+MATRIX4 R_CreateRotationMatrixZ(float angle) {
+    MATRIX4 rotation;
+    Matrix4_identity(&rotation);
+    
+    float c = cosf(angle);
+    float s = sinf(angle);
+    
+    rotation.v[0] = c;
+    rotation.v[1] = s;
+    rotation.v[4] = -s;
+    rotation.v[5] = c;
+    
+    return rotation;
+}
+
+// 简化的平移矩阵创建函数
+MATRIX4 R_CreateTranslationMatrix2D(float x, float y) {
+    MATRIX4 translation;
+    Matrix4_identity(&translation);
+    
+    VECTOR3 translate_vec = { x, y, 0.0f };
+    Matrix4_translate(&translation, &translate_vec);
+    
+    return translation;
+}
+
+// 简化的缩放矩阵创建函数
+MATRIX4 R_CreateScaleMatrix2D(float sx, float sy) {
+    MATRIX4 scale;
+    Matrix4_identity(&scale);
+    
+    VECTOR3 scale_vec = { sx, sy, 1.0f };
+    Matrix4_scale(&scale, &scale_vec);
+    
+    return scale;
 }
