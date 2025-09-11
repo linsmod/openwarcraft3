@@ -18,6 +18,6 @@ int canvas2d_runtest();
 // 示例绘制函数
 void draw_basic_shapes(canvas2d_t *canvas);
 void draw_transformed_shapes(canvas2d_t *canvas);
-void draw_text_example(canvas2d_t *canvas);
+void draw_text_test(canvas2d_t *canvas);
 
 #endif // CANVAS2D_TEST_H

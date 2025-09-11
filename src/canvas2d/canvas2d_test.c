@@ -61,7 +61,7 @@ void draw_transformed_shapes(canvas2d_t *canvas) {
     canvas2d_restore(ctx);
 }
 
-void draw_text_example(canvas2d_t *canvas) {
+void draw_text_test(canvas2d_t *canvas) {
     canvas2d_context_t *ctx = canvas2d_get_context(canvas);
     if (!ctx) return;
 
@@ -117,7 +117,6 @@ void canvas2d_test_render_frame() {
 
     g_test_frame_count++;
 
-    draw_test_tips_canvas(g_canvas2d_test->context);
 
     canvas2d_context_t *ctx = canvas2d_get_context(g_canvas2d_test);
     if (!ctx) return;
@@ -129,7 +128,7 @@ void canvas2d_test_render_frame() {
     float time_factor = g_test_frame_count * 0.01f;
     
     // 绘制背景渐变
-    for (int y = 0; y < g_canvas2d_test->height; y += 20) {
+    for (int y = 0; y < g_canvas2d_test->height; y += 1) {
         float t = (float)y / g_canvas2d_test->height;
         COLOR32 bg_color = {
             (BYTE)(64 + 64 * sin(time_factor + t * 2)),
@@ -138,7 +137,7 @@ void canvas2d_test_render_frame() {
             255
         };
         canvas2d_set_fill_style(ctx, bg_color);
-        canvas2d_fill_rect(ctx, 0, y, g_canvas2d_test->width, 20);
+        canvas2d_fill_rect(ctx, 0, y, g_canvas2d_test->width, 1);
     }
 
     // 绘制旋转的圆形
@@ -161,13 +160,6 @@ void canvas2d_test_render_frame() {
     float rect_x = 100 + 50 * sin(time_factor * 0.5f);
     canvas2d_fill_rect(ctx, rect_x, 400, 80, 60);
 
-    // 绘制动态文本
-    canvas2d_set_fill_style(ctx, (COLOR32){255, 255, 255, 255});
-    char text_buffer[64];
-    sprintf(text_buffer, "Frame: %d", g_test_frame_count);
-    canvas2d_fill_text(ctx, text_buffer, 20, 30);
-    
-    canvas2d_fill_text(ctx, "Canvas 2D Demo", 20, 60);
 
     // 绘制缩放效果
     float scale = 1.0f + 0.3f * sin(time_factor * 0.8f);
@@ -182,7 +174,17 @@ void canvas2d_test_render_frame() {
     // 绘制一些静态示例
     draw_basic_shapes(g_canvas2d_test);
     draw_transformed_shapes(g_canvas2d_test);
-    draw_text_example(g_canvas2d_test);
+    draw_text_test(g_canvas2d_test);
+
+    // 绘制动态文本
+    canvas2d_set_fill_style(ctx, (COLOR32){255, 255, 255, 255});
+    char text_buffer[64];
+    sprintf(text_buffer, "帧数 Frame: %d", g_test_frame_count);
+    canvas2d_fill_text(ctx, text_buffer, 20, 30);
+    
+    canvas2d_fill_text(ctx, "Canvas 2D Demo", 20, 60);
+
+    draw_test_tips_canvas(g_canvas2d_test->context);
 }
 
 

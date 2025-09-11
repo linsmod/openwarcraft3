@@ -110,7 +110,9 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
                         .uv = uv ? *uv : MAKE(RECT,0,0,1,1),
                         .color = color,
                         .rotate = false,
-                        .shader = SHADER_UI));
+                        .shader = SHADER_UI,
+                        .model_matrix = NULL
+                    ));
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {

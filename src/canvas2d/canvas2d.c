@@ -230,7 +230,7 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
         return;
     }
 
-    R_PrintSysText(text, (DWORD)x, (DWORD)y, ctx->state.fillStyle);
+    R_PrintSysText(text, NORM(x), NORM(y), ctx->state.fillStyle);
 }
 
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y) {
@@ -281,7 +281,7 @@ void canvas2d_translate(canvas2d_context_t *ctx, float x, float y) {
     
     MATRIX4 translation;
     Matrix4_identity(&translation);
-    Matrix4_translate(&translation, &(VECTOR3){x, y, 0});
+    Matrix4_translate(&translation, &(VECTOR3){NORM(x), NORM(y), 0});
     Matrix4_multiply(&ctx->state.transformMatrix, &translation, &ctx->state.transformMatrix);
 }
 
@@ -299,7 +299,7 @@ void canvas2d_scale(canvas2d_context_t *ctx, float x, float y) {
     
     MATRIX4 scaling;
     Matrix4_identity(&scaling);
-    Matrix4_scale(&scaling, &(VECTOR3){x, y, 1});
+    Matrix4_scale(&scaling, &(VECTOR3){NORM(x), NORM(y), 1});
     Matrix4_multiply(&ctx->state.transformMatrix, &scaling, &ctx->state.transformMatrix);
 }
 
@@ -429,7 +429,7 @@ void canvas2d_move_to(canvas2d_context_t *ctx, float x, float y) {
         ctx->state.pathPoints = realloc(ctx->state.pathPoints, ctx->state.pathPointsCapacity * sizeof(VECTOR2));
     }
     
-    ctx->state.pathPoints[ctx->state.pathPointsCount++] = (VECTOR2){x, y};
+    ctx->state.pathPoints[ctx->state.pathPointsCount++] = (VECTOR2){NORM(x), NORM(y)};
 }
 
 void canvas2d_line_to(canvas2d_context_t *ctx, float x, float y) {
@@ -481,7 +481,7 @@ void canvas2d_stroke_path(canvas2d_context_t *ctx) {
         // 平移到起点
         MATRIX4 translation;
         Matrix4_identity(&translation);
-        Matrix4_translate(&translation, &(VECTOR3){p1.x, p1.y, 0});
+        Matrix4_translate(&translation, &(VECTOR3){NORM(p1.x), NORM(p1.y) , 0});
         Matrix4_multiply(&transform, &translation, &transform);
         
         // 旋转
