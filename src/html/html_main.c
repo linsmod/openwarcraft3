@@ -148,8 +148,8 @@ static error_code parse_completed(context *c);
 /* Layout helper functions */
 static int extract_number(const char *css, const char *property);
 void apply_css_to_layout(context *c, xmlNode *node, const char *css);
-void print_layout_info(lay_context *layout_ctx, xmlDoc *document);
-static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth);
+void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c);
+static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c);
 
 int html_main(LPCSTR filename)
 {
@@ -257,7 +257,7 @@ int html_main(LPCSTR filename)
 	
 	/* Print layout information */
 	printf("=== Layout Information ===\n");
-	print_layout_info(&c->layout_ctx, c->document);
+	print_layout_info(&c->layout_ctx, c->document, c);
 	printf("=========================\n");
 	
 	/* Clean up */
@@ -1156,18 +1156,21 @@ static int extract_number(const char *css, const char *property)
 }
 
 /**
-	* Print layout information
-	*/
-void print_layout_info(lay_context *layout_ctx, xmlDoc *document)
+ * Print layout information
+ */
+void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c)
 {
 	xmlNode *root = xmlDocGetRootElement(document);
-	print_node_layout(layout_ctx, root, 0);
+	print_node_layout(layout_ctx, root, 0, c);
 }
 
-void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth)
+void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c)
 {
 	/* Get corresponding layout ID */
-	lay_id layout_id = (uintptr_t)pzhash_get(((context*)0)->node_to_layout_id, node);
+	lay_id layout_id = 0;
+	if (c != NULL) {
+		layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, node);
+	}
 	
 	if (layout_id != 0) {
 		lay_scalar x, y, width, height;
@@ -1183,7 +1186,7 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth)
 	/* Recursively process child nodes */
 	xmlNode *child = node->children;
 	while (child != NULL) {
-		print_node_layout(layout_ctx, child, depth + 1);
+		print_node_layout(layout_ctx, child, depth + 1, c);
 		child = child->next;
 	}
 }
