@@ -20,6 +20,9 @@
 
 #include <hubbub/parser.h>
 #include <hubbub/tree.h>
+#define LAY_IMPLEMENTATION
+#include "layout.h"
+#include "common/pzhash.h"
 
 #define UNUSED(x) ((x)=(x))
 
@@ -58,6 +61,10 @@ typedef struct context {
 #undef NUM_NAMESPACES
 
 	hubbub_tree_handler tree_handler;	/**< Hubbub tree callbacks */
+	
+	// Layout integration
+	lay_context layout_ctx;			/**< Layout context */
+	struct PZHashTable *node_to_layout_id; /**< XML node -> layout ID mapping */
 } context;
 
 /**
@@ -137,6 +144,12 @@ static error_code create_context(const char *charset, context **ctx);
 static void destroy_context(context *c);
 static error_code parse_chunk(context *c, const uint8_t *data, size_t len);
 static error_code parse_completed(context *c);
+
+/* Layout helper functions */
+static int extract_number(const char *css, const char *property);
+void apply_css_to_layout(context *c, xmlNode *node, const char *css);
+void print_layout_info(lay_context *layout_ctx, xmlDoc *document);
+static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth);
 
 int html_main(LPCSTR filename)
 {
@@ -236,10 +249,17 @@ int html_main(LPCSTR filename)
 	/* At this point, the DOM tree can be accessed through c->document */
 	/* Let's dump it to stdout */
 	/* In a real application, we'd probably want to grab the document
-	 * from the parsing context, then destroy the context as it's no 
+	 * from the parsing context, then destroy the context as it's no
 	 * longer of any use */
-	xmlDebugDumpDocument(stdout, c->document);
-
+	
+	/* Run layout calculations after parsing is complete */
+	lay_run_context(&c->layout_ctx);
+	
+	/* Print layout information */
+	printf("=== Layout Information ===\n");
+	print_layout_info(&c->layout_ctx, c->document);
+	printf("=========================\n");
+	
 	/* Clean up */
 	destroy_context(c);
 
@@ -293,13 +313,13 @@ error_code create_context(const char *charset, context **ctx)
 	/* Reference count of zero */
 	c->document->_private = (void *) 0;
 
-	for (i = 0; 
+	for (i = 0;
 		i < sizeof(c->namespaces) / sizeof(c->namespaces[0]); i++) {
 		c->namespaces[i] = NULL;
 	}
 
-	/* The following are both needed to make hubbub do anything. If it has 
-	 * no tree handler or document node registered, it won't attempt to 
+	/* The following are both needed to make hubbub do anything. If it has
+	 * no tree handler or document node registered, it won't attempt to
 	 * build a tree. */
 
 	/* Register tree handler with hubbub */
@@ -313,6 +333,19 @@ error_code create_context(const char *charset, context **ctx)
 	ref_node(c, c->document);
 	params.document_node = c->document;
 	hubbub_parser_setopt(c->parser, HUBBUB_PARSER_DOCUMENT_NODE, &params);
+
+	/* Initialize layout context */
+	lay_init_context(&c->layout_ctx);
+	lay_reserve_items_capacity(&c->layout_ctx, 100); /* Pre-allocate */
+
+	/* Create node to layout ID mapping */
+	c->node_to_layout_id = pzhash_create();
+	if (c->node_to_layout_id == NULL) {
+		hubbub_parser_destroy(c->parser);
+		xmlFreeDoc(c->document);
+		free(c);
+		return NOMEM;
+	}
 
 	*ctx = c;
 
@@ -333,6 +366,14 @@ void destroy_context(context *c)
 		hubbub_parser_destroy(c->parser);
 
 	xmlFreeDoc(c->document);
+
+	/* Clean up layout context */
+	lay_destroy_context(&c->layout_ctx);
+
+	/* Clean up mapping table */
+	if (c->node_to_layout_id != NULL) {
+		pzhash_destroy(c->node_to_layout_id);
+	}
 
 	c->parser = NULL;
 	c->encoding = NULL;
@@ -547,7 +588,7 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 		return HUBBUB_NOMEM;
 
 	if (c->namespaces[0] != NULL) {
-		n = xmlNewDocNode(c->document, c->namespaces[tag->ns - 1], 
+		n = xmlNewDocNode(c->document, c->namespaces[tag->ns - 1],
 				BAD_CAST name, NULL);
 	} else {
 		n = xmlNewDocNode(c->document, NULL, BAD_CAST name, NULL);
@@ -568,12 +609,30 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	n->_private = (void *) (uintptr_t) 1;
 
 	/* Attempt to add attributes to node */
-	if (tag->n_attributes > 0 && add_attributes(ctx, (void *) n, 
+	if (tag->n_attributes > 0 && add_attributes(ctx, (void *) n,
 			tag->attributes, tag->n_attributes) != 0) {
 		xmlFreeNode(n);
 		free(name);
 		return HUBBUB_NOMEM;
 	}
+
+	/* Create corresponding layout item */
+	lay_id layout_id = lay_item(&c->layout_ctx);
+
+	/* Set different layout behaviors based on tag type */
+	if (strcasecmp(name, "div") == 0) {
+		lay_set_contain(&c->layout_ctx, layout_id, LAY_COLUMN);
+	} else if (strcasecmp(name, "span") == 0) {
+		lay_set_behave(&c->layout_ctx, layout_id, LAY_HFILL);
+	} else if (strcasecmp(name, "button") == 0) {
+		lay_set_size_xy(&c->layout_ctx, layout_id, 100, 40);
+		lay_set_behave(&c->layout_ctx, layout_id, LAY_HCENTER | LAY_VCENTER);
+	} else if (strcasecmp(name, "img") == 0) {
+		lay_set_size_xy(&c->layout_ctx, layout_id, 64, 64);
+	}
+
+	/* Save mapping relationship */
+	pzhash_set(c->node_to_layout_id, n, (void *)(uintptr_t)layout_id);
 
 	*result = (void *) n;
 
@@ -697,13 +756,13 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 
 	/* Note: this does not exactly follow the current specification.
 	 * See http://www.whatwg.org/specs/web-apps/current-work/ \
-	 *     multipage/tree-construction.html#insert-a-character 
+	 *     multipage/tree-construction.html#insert-a-character
 	 * for the exact behaviour required.
 	 */
 
-	if (chld->type == XML_TEXT_NODE && p->last != NULL && 
+	if (chld->type == XML_TEXT_NODE && p->last != NULL &&
 			p->last->type == XML_TEXT_NODE) {
-		/* Need to clone the child, as libxml will free it if it 
+		/* Need to clone the child, as libxml will free it if it
 		 * merges the content with a pre-existing text node. */
 		chld = xmlCopyNode(chld, 0);
 		if (chld == NULL)
@@ -720,6 +779,15 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 		return HUBBUB_NOMEM;
 
 	ref_node(ctx, *result);
+
+	/* Establish layout hierarchy relationship */
+	context *c = (context *) ctx;
+	lay_id parent_layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, parent);
+	lay_id child_layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, child);
+	
+	if (parent_layout_id != 0 && child_layout_id != 0) {
+		lay_insert(&c->layout_ctx, parent_layout_id, child_layout_id);
+	}
 
 	return HUBBUB_OK;
 }
@@ -1028,5 +1096,95 @@ hubbub_error change_encoding(void *ctx, const char *charset)
 
 	/* Equal encodings will have the same string pointers */
 	return (charset == name) ? HUBBUB_OK : HUBBUB_ENCODINGCHANGE;
+}
+
+/**
+	* Simple CSS property to layout mapping
+	*/
+void apply_css_to_layout(context *c, xmlNode *node, const char *css)
+{
+	lay_id layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, node);
+	
+	if (layout_id == 0) return;
+	
+	/* Parse simple CSS (here we need to implement CSS parser, the following is pseudo code) */
+	if (strstr(css, "display: flex")) {
+		if (strstr(css, "flex-direction: row")) {
+			lay_set_contain(&c->layout_ctx, layout_id, LAY_ROW);
+		} else {
+			lay_set_contain(&c->layout_ctx, layout_id, LAY_COLUMN);
+		}
+	}
+	
+	if (strstr(css, "width:")) {
+		int width = extract_number(css, "width:");
+		lay_set_size_xy(&c->layout_ctx, layout_id, width,
+		               lay_get_size(&c->layout_ctx, layout_id)[1]);
+	}
+	
+	if (strstr(css, "height:")) {
+		int height = extract_number(css, "height:");
+		lay_set_size_xy(&c->layout_ctx, layout_id,
+		               lay_get_size(&c->layout_ctx, layout_id)[0], height);
+	}
+	
+	if (strstr(css, "margin:")) {
+		int margin = extract_number(css, "margin:");
+		lay_set_margins_ltrb(&c->layout_ctx, layout_id,
+		                    margin, margin, margin, margin);
+	}
+}
+
+/**
+	* Helper function to extract number from CSS string
+	*/
+static int extract_number(const char *css, const char *property)
+{
+	const char *start = strstr(css, property);
+	if (!start) return 0;
+	
+	start += strlen(property);
+	while (*start && (*start == ' ' || *start == ':')) start++;
+	
+	int num = 0;
+	while (*start >= '0' && *start <= '9') {
+		num = num * 10 + (*start - '0');
+		start++;
+	}
+	
+	return num;
+}
+
+/**
+	* Print layout information
+	*/
+void print_layout_info(lay_context *layout_ctx, xmlDoc *document)
+{
+	xmlNode *root = xmlDocGetRootElement(document);
+	print_node_layout(layout_ctx, root, 0);
+}
+
+void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth)
+{
+	/* Get corresponding layout ID */
+	lay_id layout_id = (uintptr_t)pzhash_get(((context*)0)->node_to_layout_id, node);
+	
+	if (layout_id != 0) {
+		lay_scalar x, y, width, height;
+		lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
+		
+		/* Print indentation */
+		for (int i = 0; i < depth; i++) printf("  ");
+		
+		printf("%s: (%d, %d) %dx%d\n",
+		       node->name ? (char*)node->name : "unknown", x, y, width, height);
+	}
+	
+	/* Recursively process child nodes */
+	xmlNode *child = node->children;
+	while (child != NULL) {
+		print_node_layout(layout_ctx, child, depth + 1);
+		child = child->next;
+	}
 }
 
