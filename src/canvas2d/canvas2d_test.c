@@ -75,8 +75,11 @@ void draw_text_test(canvas2d_t *canvas) {
     canvas2d_stroke_text(ctx, "Stroked Text", 50, 350);
 
     // Draw more text
+    canvas2d_save(ctx);
     canvas2d_set_fill_style(ctx, (COLOR32){0, 0, 255, 255}); // Blue
-    canvas2d_fill_text(ctx, "Canvas 2D API", 50, 400);
+    // canvas2d_rotate(ctx, M_PI / 4 * 0.01 * g_test_frame_count); // 45 degrees
+    canvas2d_fill_text(ctx, "Canvas 2D API", 50, 400+ g_test_frame_count%100);
+    canvas2d_restore(ctx);
 }
 
 // 初始化canvas2d测试

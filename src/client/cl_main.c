@@ -1,7 +1,6 @@
 #include "client.h"
 #include "../canvas2d/canvas2d_test.h"
 #include "renderer.h"
-
 refExport_t re;
 
 struct client_static cls;
