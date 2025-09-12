@@ -56,11 +56,14 @@ file(GLOB SOURCES
     "src/common/*.c"
     "src/client/*.c"
     "src/server/*.c"
+    "src/html/*.c"
 )
 
 file(GLOB_RECURSE HEADERS 
     "src/*.h"
 )
+
+find_package(LibXml2 REQUIRED)
 
 # 创建可执行文件
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
@@ -73,6 +76,7 @@ include_directories(
     src/renderer
     src/server
     src/lib
+    ${LIBXML2_INCLUDE_DIR}
 )
 
 file(GLOB_RECURSE CMATH3_SRCS "src/cmath3/*.c")
@@ -102,6 +106,9 @@ target_link_libraries(${PROJECT_NAME}
     cmath3
     game
     renderer
+    hubbub
+    xml2
+    parserutils
 )
 
 # 设置调试工作目录
