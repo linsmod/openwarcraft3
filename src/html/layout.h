@@ -316,6 +316,8 @@ LAY_EXPORT lay_id lay_items_capacity(lay_context *ctx);
 // id (handle) used to identify the item.
 LAY_EXPORT lay_id lay_item(lay_context *ctx);
 
+int lay_isinserted(lay_context *ctx, lay_id child);
+
 // Inserts an item into another item, forming a parent - child relationship. An
 // item can contain any number of child items. Items inserted into a parent are
 // put at the end of the ordering, after any existing siblings.
@@ -627,6 +629,12 @@ void lay_append(lay_context *ctx, lay_id earlier, lay_id later)
     lay_item_t *LAY_RESTRICT pearlier = lay_get_item(ctx, earlier);
     lay_item_t *LAY_RESTRICT plater = lay_get_item(ctx, later);
     lay_append_by_ptr(pearlier, later, plater);
+}
+
+int lay_isinserted(lay_context *ctx, lay_id child){
+    LAY_ASSERT(child != 0); // Must not be root item
+    lay_item_t *LAY_RESTRICT pchild = lay_get_item(ctx, child);
+    return pchild->flags & LAY_ITEM_INSERTED;
 }
 
 void lay_insert(lay_context *ctx, lay_id parent, lay_id child)

@@ -9,6 +9,11 @@
 
 #include "common/common.h"
 #include "common/shared.h"
+#include "libxml/tree.h"
+#include "r_local.h"
+#include <stdint.h>
+#include <strings.h>
+#include <unicode/ucnv.h>
 #define _GNU_SOURCE /* for strndup */
 #include <assert.h>
 #include <stdbool.h>
@@ -22,9 +27,10 @@
 #include <hubbub/tree.h>
 #define LAY_IMPLEMENTATION
 #include "layout.h"
-#include "common/pzhash.h"
 
 #define UNUSED(x) ((x)=(x))
+
+#define GETLAYID(node) ((userdata*)node->_private)->layid
 
 /**
  * Error codes
@@ -63,9 +69,18 @@ typedef struct context {
 	hubbub_tree_handler tree_handler;	/**< Hubbub tree callbacks */
 	
 	// Layout integration
-	lay_context layout_ctx;			/**< Layout context */
+	lay_context* layout_ctx;			/**< Layout context */
 	struct PZHashTable *node_to_layout_id; /**< XML node -> layout ID mapping */
+
+	int inhead;
 } context;
+
+typedef struct userdata{
+	uint refcount;
+	lay_id layid;
+	LPSTR __f;
+	int __ln;
+} userdata;
 
 /**
  * Mapping of namespace prefixes to URIs, indexed by hubbub_ns.
@@ -253,11 +268,18 @@ int html_main(LPCSTR filename)
 	 * longer of any use */
 	
 	/* Run layout calculations after parsing is complete */
-	lay_run_context(&c->layout_ctx);
+	printf("Running layout calculation...\n");
+	printf("Layout context count: %d\n", lay_items_count(c->layout_ctx));
+	
+
+	/* Find the html element's layout ID and run layout from there */
+	// lay_run_item(c->layout_ctx, GETLAYID(c->document)); 
+
+	lay_run_context(c->layout_ctx);
 	
 	/* Print layout information */
 	printf("=== Layout Information ===\n");
-	print_layout_info(&c->layout_ctx, c->document, c);
+	print_layout_info(c->layout_ctx, c->document, c);
 	printf("=========================\n");
 	
 	/* Clean up */
@@ -310,8 +332,30 @@ error_code create_context(const char *charset, context **ctx)
 		free(c);
 		return NOMEM;
 	}
-	/* Reference count of zero */
-	c->document->_private = (void *) 0;
+	/* Reference count of zero, allocate userdata for document */
+	userdata *doc_ud = malloc(sizeof(userdata));
+	if (doc_ud == NULL) {
+		hubbub_parser_destroy(c->parser);
+		free(c);
+		return NOMEM;
+	}
+	doc_ud->refcount = 0;
+
+	// layout context 
+	c->layout_ctx = malloc(sizeof(lay_context));
+
+	/* Initialize layout context */
+	lay_init_context(c->layout_ctx);
+	lay_reset_context(c->layout_ctx); /* Clear any existing data */
+	lay_reserve_items_capacity(c->layout_ctx, 1000); /* Pre-allocate */
+
+	size2_t const window = R_GetWindowSize();
+	
+	doc_ud->layid = lay_item(c->layout_ctx);
+
+	lay_set_size(c->layout_ctx, doc_ud->layid, (lay_vec2){window.width,window.height});
+
+	c->document->_private = (void *) doc_ud;
 
 	for (i = 0;
 		i < sizeof(c->namespaces) / sizeof(c->namespaces[0]); i++) {
@@ -334,19 +378,6 @@ error_code create_context(const char *charset, context **ctx)
 	params.document_node = c->document;
 	hubbub_parser_setopt(c->parser, HUBBUB_PARSER_DOCUMENT_NODE, &params);
 
-	/* Initialize layout context */
-	lay_init_context(&c->layout_ctx);
-	lay_reserve_items_capacity(&c->layout_ctx, 100); /* Pre-allocate */
-
-	/* Create node to layout ID mapping */
-	c->node_to_layout_id = pzhash_create();
-	if (c->node_to_layout_id == NULL) {
-		hubbub_parser_destroy(c->parser);
-		xmlFreeDoc(c->document);
-		free(c);
-		return NOMEM;
-	}
-
 	*ctx = c;
 
 	return OK;
@@ -365,15 +396,17 @@ void destroy_context(context *c)
 	if (c->parser != NULL)
 		hubbub_parser_destroy(c->parser);
 
-	xmlFreeDoc(c->document);
+	if (c->document != NULL) {
+		/* Free userdata for document node */
+		userdata *doc_ud = (userdata *) c->document->_private;
+		if (doc_ud != NULL) {
+			free(doc_ud);
+		}
+		xmlFreeDoc(c->document);
+	}
 
 	/* Clean up layout context */
-	lay_destroy_context(&c->layout_ctx);
-
-	/* Clean up mapping table */
-	if (c->node_to_layout_id != NULL) {
-		pzhash_destroy(c->node_to_layout_id);
-	}
+	lay_destroy_context(c->layout_ctx);
 
 	c->parser = NULL;
 	c->encoding = NULL;
@@ -496,9 +529,18 @@ hubbub_error create_comment(void *ctx, const hubbub_string *data, void **result)
 		free(content);
 		return HUBBUB_NOMEM;
 	}
-	/* We use the _private field of libXML's xmlNode struct for the 
-	 * reference count. */
-	n->_private = (void *) (uintptr_t) 1;
+	/* We use the _private field of libXML's xmlNode struct for the
+	 * userdata structure containing reference count and layout ID. */
+	userdata *ud = malloc(sizeof(userdata));
+	if (ud == NULL) {
+		free(content);
+		return HUBBUB_NOMEM;
+	}
+	ud->refcount = 1;
+	ud->__f = __FILE__;
+	ud->__ln= __LINE__;
+	ud->layid = lay_item(c->layout_ctx);
+	n->_private = (void *) ud;
 
 	free(content);
 
@@ -546,7 +588,7 @@ hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **res
 		}
 	}
 
-	n = xmlNewDtd(c->document, BAD_CAST name, 
+	n = xmlNewDtd(c->document, BAD_CAST name,
 			BAD_CAST (public ? public : ""),
 			BAD_CAST (system ? system : ""));
 	if (n == NULL) {
@@ -555,8 +597,19 @@ hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **res
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	/* Again, reference count must be 1 */
-	n->_private = (void *) (uintptr_t) 1;
+	/* Again, reference count must be 1, and allocate userdata */
+	userdata *ud = malloc(sizeof(userdata));
+	if (ud == NULL) {
+		free(system);
+		free(public);
+		free(name);
+		return HUBBUB_NOMEM;
+	}
+	ud->refcount = 1;
+	ud->__f = __FILE__;
+	ud->__ln= __LINE__;
+	ud->layid = lay_item(c->layout_ctx);
+	n->_private = (void *) ud;
 
 	*result = (void *) n;
 
@@ -605,8 +658,17 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	/* Reference count must be 1 */
-	n->_private = (void *) (uintptr_t) 1;
+	/* Reference count must be 1, and allocate userdata */
+	userdata *ud = malloc(sizeof(userdata));
+	if (ud == NULL) {
+		free(name);
+		return HUBBUB_NOMEM;
+	}
+	ud->refcount = 1;
+	ud->__f = __FILE__;
+	ud->__ln= __LINE__;
+	ud->layid = lay_item(c->layout_ctx);
+	n->_private = (void *) ud;
 
 	/* Attempt to add attributes to node */
 	if (tag->n_attributes > 0 && add_attributes(ctx, (void *) n,
@@ -616,26 +678,16 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 		return HUBBUB_NOMEM;
 	}
 
-	/* Create corresponding layout item */
-	lay_id layout_id = lay_item(&c->layout_ctx);
-
-	/* Set different layout behaviors based on tag type */
-	if (strcasecmp(name, "div") == 0) {
-		lay_set_contain(&c->layout_ctx, layout_id, LAY_COLUMN);
-	} else if (strcasecmp(name, "span") == 0) {
-		lay_set_behave(&c->layout_ctx, layout_id, LAY_HFILL);
-	} else if (strcasecmp(name, "button") == 0) {
-		lay_set_size_xy(&c->layout_ctx, layout_id, 100, 40);
-		lay_set_behave(&c->layout_ctx, layout_id, LAY_HCENTER | LAY_VCENTER);
-	} else if (strcasecmp(name, "img") == 0) {
-		lay_set_size_xy(&c->layout_ctx, layout_id, 64, 64);
-	}
-
-	/* Save mapping relationship */
-	pzhash_set(c->node_to_layout_id, n, (void *)(uintptr_t)layout_id);
-
 	*result = (void *) n;
 
+	// 获取布局 ID
+    lay_id layout_id = ud->layid;
+	if (strcmp(name, "div") == 0) {
+		// 默认块级元素：填充可用宽度
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+    } else if (strcmp(name, "span") == 0) {
+        // 内联元素：不设置填充，大小由内容决定
+    }
 	free(name);
 
 	return HUBBUB_OK;
@@ -660,8 +712,16 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
 	if (n == NULL) {
 		return HUBBUB_NOMEM;
 	}
-	/* Reference count must be 1 */
-	n->_private = (void *) (uintptr_t) 1;
+	/* Reference count must be 1, and allocate userdata */
+	userdata *ud = malloc(sizeof(userdata));
+	if (ud == NULL) {
+		return HUBBUB_NOMEM;
+	}
+	ud->refcount = 1;
+	ud->__f = __FILE__;
+	ud->__ln= __LINE__;
+	ud->layid = lay_item(c->layout_ctx);
+	n->_private = (void *) ud;
 
 	*result = (void *) n;
 
@@ -681,14 +741,17 @@ hubbub_error ref_node(void *ctx, void *node)
 
 	if (node == c->document) {
 		xmlDoc *n = (xmlDoc *) node;
-		uintptr_t count = (uintptr_t) n->_private;
-
-		n->_private = (void *) ++count;
+		userdata *ud = (userdata *) n->_private;
+		assert(ud!=NULL);
+		ud->refcount++;
 	} else {
 		xmlNode *n = (xmlNode *) node;
-		uintptr_t count = (uintptr_t) n->_private;
-
-		n->_private = (void *) ++count;
+		userdata *ud = (userdata *) n->_private;
+		if (ud == NULL) {
+			/* This should not happen for properly created nodes */
+			return HUBBUB_NOMEM;
+		}
+		ud->refcount++;
 	}
 
 	return HUBBUB_OK;
@@ -710,25 +773,25 @@ hubbub_error unref_node(void *ctx, void *node)
 
 	if (node == c->document) {
 		xmlDoc *n = (xmlDoc *) node;
-		uintptr_t count = (uintptr_t) n->_private;
-
+		userdata *ud = (userdata *) n->_private;
+		
 		/* Trap any attempt to unref a non-referenced node */
-		assert(count != 0 && "Node has refcount of zero");
+		assert(ud != NULL && ud->refcount != 0 && "Node has refcount of zero");
 
 		/* Never destroy document node */
-
-		n->_private = (void *) --count;
+		ud->refcount--;
 	} else {
 		xmlNode *n = (xmlNode *) node;
-		uintptr_t count = (uintptr_t) n->_private;
+		userdata *ud = (userdata *) n->_private;
 
 		/* Trap any attempt to unref a non-referenced node */
-		assert(count != 0 && "Node has refcount of zero");
+		assert(ud != NULL && ud->refcount != 0 && "Node has refcount of zero");
 
-		n->_private = (void *) --count;
+		ud->refcount--;
 
-		/* Destroy node, if it has no parent */
-		if (count == 0 && n->parent == NULL) {
+		/* Destroy node, if it has no parent and refcount is zero */
+		if (ud->refcount == 0 && n->parent == NULL) {
+			free(ud);  /* Free userdata structure */
 			xmlFreeNode(n);
 		}
 	}
@@ -764,15 +827,33 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 			p->last->type == XML_TEXT_NODE) {
 		/* Need to clone the child, as libxml will free it if it
 		 * merges the content with a pre-existing text node. */
+
+		userdata cud = *((userdata*)chld->_private);
 		chld = xmlCopyNode(chld, 0);
 		if (chld == NULL)
 			return HUBBUB_NOMEM;
 
+		if (chld->_private == NULL) {
+			// 如果 xmlCopyNode 没有拷贝 _private，则需要手动拷贝
+			userdata *orig_private = (userdata*)((xmlNode *) child)->_private;
+			if (orig_private != NULL) {
+				userdata *new_private = MemAlloc(sizeof(userdata));
+				if (new_private != NULL) {
+					// 只复制必要的字段，不复制 layid，因为需要重新分配
+					new_private->refcount = 1;
+					new_private->__f = orig_private->__f;
+					new_private->__ln = orig_private->__ln;
+					new_private->layid = orig_private->layid;
+					chld->_private = new_private;
+				}
+			}
+	   	}
 		*result = xmlAddChild(p, chld);
 
 		assert(*result != (void *) chld);
 	} else {
 		*result = xmlAddChild(p, chld);
+		assert(chld->_private);
 	}
 
 	if (*result == NULL)
@@ -780,14 +861,24 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 
 	ref_node(ctx, *result);
 
-	/* Establish layout hierarchy relationship */
-	context *c = (context *) ctx;
-	lay_id parent_layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, parent);
-	lay_id child_layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, child);
-	
-	if (parent_layout_id != 0 && child_layout_id != 0) {
-		lay_insert(&c->layout_ctx, parent_layout_id, child_layout_id);
-	}
+	// 获取父节点的布局 ID
+	   lay_id parent_id = GETLAYID(p);
+	   
+	   // 获取子节点的布局 ID（使用 *result 而不是 chld，因为 chld 可能已被释放）
+	   lay_id child_id;
+	   if (*result != NULL) {
+	       xmlNode *result_node = (xmlNode *)*result;
+	       child_id = GETLAYID(result_node);
+	   } else {
+	       child_id = LAY_INVALID_ID;
+	   }
+
+	   // 将子布局项插入到父布局项中
+	   if (parent_id != LAY_INVALID_ID && child_id != LAY_INVALID_ID) {
+			if(!lay_isinserted(((context *)ctx)->layout_ctx,child_id)){
+	       		lay_insert(((context *)ctx)->layout_ctx, parent_id, child_id);
+			}
+	   }
 
 	return HUBBUB_OK;
 }
@@ -820,6 +911,20 @@ hubbub_error insert_before(void *ctx, void *parent, void *child, void *ref_child
 			return HUBBUB_NOMEM;
 
 		*result = xmlAddNextSibling(ref->prev, chld);
+		if (chld->_private == NULL) {
+			// 如果 xmlCopyNode 没有拷贝 _private，则需要手动拷贝
+			userdata *orig_private = (userdata*)((xmlNode *) child)->_private;
+			if (orig_private != NULL) {
+				userdata *new_private = MemAlloc(sizeof(userdata));
+				if (new_private != NULL) {
+					new_private->refcount = 1;
+					new_private->__f = orig_private->__f;
+					new_private->__ln = orig_private->__ln;
+					new_private->layid = orig_private->layid;
+					chld->_private = new_private;
+				}
+			}
+		  	}
 
 		assert(*result != (void *) chld);
 	} else {
@@ -872,13 +977,13 @@ hubbub_error remove_child(void *ctx, void *parent, void *child, void **result)
 hubbub_error clone_node(void *ctx, void *node, bool deep, void **result)
 {
 	xmlNode *n = (xmlNode *) node;
-
+	context* c = (context *) ctx;
 	*result = xmlCopyNode(n, deep ? 1 : 2);
 
 	if (*result == NULL)
 		return HUBBUB_NOMEM;
 
-	((xmlNode *)(*result))->_private = (void *) (uintptr_t) 1;
+	memcpy(((xmlNode *)(*result))->_private,n->_private,sizeof(userdata));
 
 	return HUBBUB_OK;
 }
@@ -1027,6 +1132,13 @@ hubbub_error add_attributes(void *ctx, void *node,
 			return HUBBUB_NOMEM;
 		}
 
+		if (name != NULL && strcmp(name, "style") == 0) {
+            if (value != NULL) {
+                apply_css_to_layout(c, n, value);
+                free(value);
+            }
+        }
+
 		free(value);
 		free(name);
 	}
@@ -1103,34 +1215,34 @@ hubbub_error change_encoding(void *ctx, const char *charset)
 	*/
 void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 {
-	lay_id layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, node);
+	lay_id layout_id = GETLAYID(node);
 	
-	if (layout_id == 0) return;
+	if (layout_id == LAY_INVALID_ID) return;
 	
 	/* Parse simple CSS (here we need to implement CSS parser, the following is pseudo code) */
 	if (strstr(css, "display: flex")) {
 		if (strstr(css, "flex-direction: row")) {
-			lay_set_contain(&c->layout_ctx, layout_id, LAY_ROW);
+			lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
 		} else {
-			lay_set_contain(&c->layout_ctx, layout_id, LAY_COLUMN);
+			lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
 		}
 	}
 	
 	if (strstr(css, "width:")) {
 		int width = extract_number(css, "width:");
-		lay_set_size_xy(&c->layout_ctx, layout_id, width,
-		               lay_get_size(&c->layout_ctx, layout_id)[1]);
+		lay_set_size_xy(c->layout_ctx, layout_id, width,
+		               lay_get_size(c->layout_ctx, layout_id)[1]);
 	}
 	
 	if (strstr(css, "height:")) {
 		int height = extract_number(css, "height:");
-		lay_set_size_xy(&c->layout_ctx, layout_id,
-		               lay_get_size(&c->layout_ctx, layout_id)[0], height);
+		lay_set_size_xy(c->layout_ctx, layout_id,
+		               lay_get_size(c->layout_ctx, layout_id)[0], height);
 	}
 	
 	if (strstr(css, "margin:")) {
 		int margin = extract_number(css, "margin:");
-		lay_set_margins_ltrb(&c->layout_ctx, layout_id,
+		lay_set_margins_ltrb(c->layout_ctx, layout_id,
 		                    margin, margin, margin, margin);
 	}
 }
@@ -1167,22 +1279,37 @@ void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c)
 void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c)
 {
 	/* Get corresponding layout ID */
-	lay_id layout_id = 0;
+	lay_id layout_id;
 	if (c != NULL) {
-		layout_id = (uintptr_t)pzhash_get(c->node_to_layout_id, node);
+		layout_id = GETLAYID(node);
+		if(layout_id==LAY_INVALID_ID){
+			return;
+		}
 	}
+	/* Always print the node, even if it has no layout ID */
+	/* Print indentation */
+	for (int i = 0; i < depth; i++) printf("  ");
 	
-	if (layout_id != 0) {
 		lay_scalar x, y, width, height;
 		lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
 		
-		/* Print indentation */
-		for (int i = 0; i < depth; i++) printf("  ");
+		printf("%s: xy=(%d, %d) w=%d, h=%d [id:%d]\n",
+		       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id);
 		
-		printf("%s: (%d, %d) %dx%d\n",
-		       node->name ? (char*)node->name : "unknown", x, y, width, height);
-	}
-	
+		/* Debug: print parent-child relationships */
+		// lay_id parent_id = lay_first_child(layout_ctx, layout_id);
+		// if (parent_id != LAY_INVALID_ID) {
+		// 	printf("    children: ");
+		// 	lay_id child_id = parent_id;
+		// 	int count = 0;
+		// 	while (child_id != LAY_INVALID_ID && count < 10) {
+		// 		printf("%d ", child_id);
+		// 		child_id = lay_next_sibling(layout_ctx, child_id);
+		// 		count++;
+		// 	}
+		// 	if (count >= 10) printf("...");
+		// 	printf("\n");
+		// }
 	/* Recursively process child nodes */
 	xmlNode *child = node->children;
 	while (child != NULL) {
