@@ -1,6 +1,8 @@
 // example.c
 #include "canvas2d.h"
 #include "canvas2d_test.h"
+#include "../common/common.h"
+#include "../common/shared.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -9,6 +11,17 @@
 // 全局变量定义
 canvas2d_t *g_canvas2d_test = NULL;
 int g_test_frame_count = 0;
+
+// 渲染模式枚举
+typedef enum {
+    CANVAS2D_MODE_TEST,    // 测试模式（默认）
+    CANVAS2D_MODE_UI,     // UI模式（与游戏UI集成）
+    CANVAS2D_MODE_HTML     // HTML模式
+} canvas2d_mode_t;
+
+static canvas2d_mode_t g_canvas2d_mode = CANVAS2D_MODE_TEST;
+static bool g_canvas2d_enabled = true;
+static float g_canvas2d_alpha = 1.0f;
 
 // Example program demonstrating Canvas 2D API usage
 void draw_basic_shapes(canvas2d_t *canvas) {

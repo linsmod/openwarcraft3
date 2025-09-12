@@ -681,13 +681,128 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	*result = (void *) n;
 
 	// 获取布局 ID
-    lay_id layout_id = ud->layid;
-	if (strcmp(name, "div") == 0) {
-		// 默认块级元素：填充可用宽度
+	   lay_id layout_id = ud->layid;
+	
+	// 为HTML元素设置根级布局
+	if (strcmp(name, "html") == 0) {
+		// HTML元素作为根级容器：填充整个窗口，使用列布局
 		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
-    } else if (strcmp(name, "span") == 0) {
-        // 内联元素：不设置填充，大小由内容决定
-    }
+		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		// 设置默认边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
+	}
+	// 为body元素设置布局
+	else if (strcmp(name, "body") == 0) {
+		// Body元素：填充可用空间，使用文档流布局
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		// 设置默认边距（符合浏览器标准）
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 8, 8, 8, 8);
+	}
+	// 为div元素设置布局
+	else if (strcmp(name, "div") == 0) {
+		// 默认块级元素：填充可用宽度，垂直排列子元素
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		// 设置默认边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
+	}
+	// 为span元素设置布局
+	else if (strcmp(name, "span") == 0) {
+		// 内联元素：不设置填充，大小由内容决定
+		// 保持默认布局行为
+	}
+	// 为p元素设置布局
+	else if (strcmp(name, "p") == 0) {
+		// 段落元素：块级，有下边距，垂直排列内容
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		// 设置段落间距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
+	}
+	// 为h1-h6元素设置布局
+	else if (strncmp(name, "h", 1) == 0 && strlen(name) == 2 &&
+			 name[1] >= '1' && name[1] <= '6') {
+		// 标题元素：块级，有边距，垂直排列内容
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		// 设置标题边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 6);
+	}
+	// 为ul和ol元素设置布局
+	else if (strcmp(name, "ul") == 0 || strcmp(name, "ol") == 0) {
+		// 列表元素：块级，有边距，垂直排列列表项
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		// 设置列表边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
+	}
+	// 为li元素设置布局
+	else if (strcmp(name, "li") == 0) {
+		// 列表项元素：块级，有左边距用于列表标记
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		// 设置列表项边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 20, 0, 0, 2);
+	}
+	// 为table元素设置布局
+	else if (strcmp(name, "table") == 0) {
+		// 表格元素：填充可用宽度，自动布局
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		// 表格默认边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
+	}
+	// 为tr元素设置布局
+	else if (strcmp(name, "tr") == 0) {
+		// 表格行元素：行布局，填充可用宽度
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
+	}
+	// 为td和th元素设置布局
+	else if (strcmp(name, "td") == 0 || strcmp(name, "th") == 0) {
+		// 表格单元格元素：填充可用空间
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		// 设置单元格内边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 4, 4, 4, 4);
+	}
+	// 为form元素设置布局
+	else if (strcmp(name, "form") == 0) {
+		// 表单元素：块级，有边距，垂直排列表单项
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		// 设置表单边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 16);
+	}
+	// 为input, textarea, select元素设置布局
+	else if (strcmp(name, "input") == 0 || strcmp(name, "textarea") == 0 ||
+			 strcmp(name, "select") == 0) {
+		// 表单控件元素：固定高度，填充宽度
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		// 设置默认大小
+		lay_set_size_xy(c->layout_ctx, layout_id, 0, 24);
+		// 设置表单控件边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 4, 0, 4);
+	}
+	// 为img元素设置布局
+	else if (strcmp(name, "img") == 0) {
+		// 图片元素：内联块级，由内容决定大小
+		// 保持默认布局行为，不设置填充
+		// 设置图片边距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
+	}
+	// 为a元素设置布局
+	else if (strcmp(name, "a") == 0) {
+		// 链接元素：内联元素，由内容决定大小
+		// 保持默认布局行为
+		// 设置链接下划线间距
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 2);
+	}
+	// 为br元素设置布局
+	else if (strcmp(name, "br") == 0) {
+		// 换行元素：强制换行
+		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		// 设置最小高度
+		lay_set_size_xy(c->layout_ctx, layout_id, 0, 16);
+	}
+	
 	free(name);
 
 	return HUBBUB_OK;
@@ -1210,9 +1325,6 @@ hubbub_error change_encoding(void *ctx, const char *charset)
 	return (charset == name) ? HUBBUB_OK : HUBBUB_ENCODINGCHANGE;
 }
 
-/**
-	* Simple CSS property to layout mapping
-	*/
 void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 {
 	lay_id layout_id = GETLAYID(node);
@@ -1246,10 +1358,6 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		                    margin, margin, margin, margin);
 	}
 }
-
-/**
-	* Helper function to extract number from CSS string
-	*/
 static int extract_number(const char *css, const char *property)
 {
 	const char *start = strstr(css, property);
@@ -1267,9 +1375,6 @@ static int extract_number(const char *css, const char *property)
 	return num;
 }
 
-/**
- * Print layout information
- */
 void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c)
 {
 	xmlNode *root = xmlDocGetRootElement(document);
@@ -1278,7 +1383,6 @@ void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c)
 
 void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c)
 {
-	/* Get corresponding layout ID */
 	lay_id layout_id;
 	if (c != NULL) {
 		layout_id = GETLAYID(node);
@@ -1286,8 +1390,6 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 			return;
 		}
 	}
-	/* Always print the node, even if it has no layout ID */
-	/* Print indentation */
 	for (int i = 0; i < depth; i++) printf("  ");
 	
 		lay_scalar x, y, width, height;
@@ -1296,21 +1398,6 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 		printf("%s: xy=(%d, %d) w=%d, h=%d [id:%d]\n",
 		       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id);
 		
-		/* Debug: print parent-child relationships */
-		// lay_id parent_id = lay_first_child(layout_ctx, layout_id);
-		// if (parent_id != LAY_INVALID_ID) {
-		// 	printf("    children: ");
-		// 	lay_id child_id = parent_id;
-		// 	int count = 0;
-		// 	while (child_id != LAY_INVALID_ID && count < 10) {
-		// 		printf("%d ", child_id);
-		// 		child_id = lay_next_sibling(layout_ctx, child_id);
-		// 		count++;
-		// 	}
-		// 	if (count >= 10) printf("...");
-		// 	printf("\n");
-		// }
-	/* Recursively process child nodes */
 	xmlNode *child = node->children;
 	while (child != NULL) {
 		print_node_layout(layout_ctx, child, depth + 1, c);
@@ -1318,3 +1405,6 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 	}
 }
 
+void html_render_frame(){
+
+}

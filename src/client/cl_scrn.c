@@ -657,12 +657,16 @@ void SCR_DrawOverlays(void) {
     }
 }
 
+void html_render_frame();
+
 void SCR_UpdateScreen(void) {
 
 
     re.BeginFrame();
 
     canvas2d_test_render_frame();
+
+    html_render_frame();
     
     V_RenderView();
     
