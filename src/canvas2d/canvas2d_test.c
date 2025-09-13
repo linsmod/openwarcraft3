@@ -131,17 +131,17 @@ void draw_test_tips_canvas(canvas2d_context_t *ctx) {
 }
 
 // 更新canvas2d测试内容
-void canvas2d_test_render_frame() {
+void canvas2d_update_frame() {
     if (!g_canvas2d_test) return;
 
     g_test_frame_count++;
 
-
     canvas2d_context_t *ctx = canvas2d_get_context(g_canvas2d_test);
     if (!ctx) return;
 
-    // 清除画布
-    // canvas2d_clear_rect(ctx, 0, 0, g_canvas2d_test->width, g_canvas2d_test->height);
+    // 清除画布 - 使用半透明背景而不是完全透明
+    // canvas2d_set_fill_style(ctx, (COLOR32){255, 255, 255, 128});
+    // canvas2d_fill_rect(ctx, 0, 0, g_canvas2d_test->width, g_canvas2d_test->height);
 
     // 添加动画效果
     float time_factor = g_test_frame_count * 0.01f;

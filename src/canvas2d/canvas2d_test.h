@@ -10,7 +10,7 @@ extern int g_test_frame_count;
 
 // 测试函数声明
 int canvas2d_init_test();
-void canvas2d_test_render_frame();
+void canvas2d_update_frame();
 void draw_test_tips();
 void canvas2d_cleanup_test();
 int canvas2d_runtest();

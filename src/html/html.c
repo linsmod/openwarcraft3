@@ -1731,7 +1731,7 @@ void html_update_frame() {
     g_html_frame_count++;
     
     // 1. 渲染背景
-    draw_html_background(g_html_render_context);
+    // draw_html_background(g_html_render_context);
     
     // 2. 重新计算布局（如果需要）
     if (g_html_render_mode == HTML_RENDER_MODE_ANIMATED) {

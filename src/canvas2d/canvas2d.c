@@ -2,6 +2,7 @@
 #include "canvas2d.h"
 #include "cmath3/types/rect.h"
 #include "r_local.h"
+#include "../common/shared.h"
 #include <StormPort.h>
 #include <math.h>
 
@@ -17,7 +18,7 @@ RECT* NormRect(RECT* rect){
     rect->h = NORM(rect->h);
     return rect;
 }
-// 修改 DRAWIMAGE 宏以接受变换矩阵
+// 修改 DRAWIMAGE 宏以接受变换矩阵和混合模式
 #define DRAWIMAGE(t, s, u, c, matrix) \
     do { \
         DRAWIMAGE drawImg = { \
@@ -27,6 +28,7 @@ RECT* NormRect(RECT* rect){
             .color = c, \
             .rotate = false, \
             .shader = SHADER_UI, \
+            .alphamode = BLEND_MODE_BLEND, \
             .model_matrix = matrix \
         }; \
         R_DrawImageEx(&drawImg); \
@@ -123,8 +125,8 @@ void canvas2d_clear_rect(canvas2d_context_t *ctx, float x, float y, float width,
         return;
     }
 
-    // 使用透明颜色清除矩形区域
-    COLOR32 clearColor = {0, 0, 0, 0};
+    // 使用半透明黑色来创建覆盖效果，而不是完全透明
+    COLOR32 clearColor = {0, 0, 0, 64}; // 25% 透明度的黑色
     RECT screen = {x, y, width, height};
     RECT uv = {0, 0, 1, 1};
     

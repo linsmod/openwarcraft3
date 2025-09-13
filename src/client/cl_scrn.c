@@ -680,14 +680,14 @@ void SCR_UpdateScreen(void) {
 
 
     re.BeginFrame();
-
-    canvas2d_test_render_frame();
-
-    // html_update_frame();
     
-    V_RenderView();
+    V_RenderView();  // 先渲染3D场景
     
-    SCR_DrawOverlays();
+    SCR_DrawOverlays();  // 再渲染UI元素
+
+    canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
+
+    html_update_frame();
 
     CON_DrawConsole();
     
