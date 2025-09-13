@@ -107,8 +107,10 @@ target_link_libraries(${PROJECT_NAME}
     game
     renderer
     hubbub
+    css
     xml2
     parserutils
+    wapcaplet
 )
 
 # 设置调试工作目录

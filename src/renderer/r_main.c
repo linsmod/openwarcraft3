@@ -215,6 +215,8 @@ void R_Init(DWORD width, DWORD height) {
     context = SDL_GL_CreateContext(window);
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
+
+    R_InitDefaultFonts();
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
@@ -276,6 +278,8 @@ void R_Shutdown(void) {
     
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
+
+    R_ReleaseDefaultFonts();
     
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
@@ -407,7 +411,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetWindowSize = R_GetWindowSize,
         .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
-        .DrawText = R_DrawText,
+        .DrawText = R_DrawUtf8TextEx,
         .GetTextSize = R_GetTextSize,
         .GetHeightAtPoint = GetAccurateHeightAtPoint,
         .TraceEntity = R_TraceEntity,

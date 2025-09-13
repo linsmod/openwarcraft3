@@ -17,6 +17,7 @@ typedef enum {
 
 typedef struct {
     HANDLE (*FileOpen)(LPCSTR fileName);
+    void* (*ReadText)(LPCSTR fileName,DWORD* size);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
     void (*FileClose)(HANDLE file);
     
@@ -90,6 +91,7 @@ struct drawText_s {
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
     LPCTEXTURE *icons;
+    LPMATRIX4 model_matrix;// for scale, transform,...
 };
 
 struct drawImage_s {
@@ -111,7 +113,7 @@ typedef struct {
     void (*RenderFrame)(viewDef_t const *viewdef);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);
     LPMODEL (*LoadModel)(LPCSTR filename);
-    LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
+    LPFONT (*LoadFont)(LPCSTR filename, DWORD fontsize);
     size2_t (*GetWindowSize)(void);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
     void (*ReleaseModel)(LPMODEL model);

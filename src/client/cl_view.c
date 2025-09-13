@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h> // atoi()
 
 #include "client.h"
@@ -200,9 +201,12 @@ void CL_PrepRefresh(void) {
             memcpy(filename, fontspec, split - fontspec);
             DWORD fontsize = atoi(split+1);
             cl.fonts[i] = re.LoadFont(filename, fontsize);
+            printf("LoadFont: %d %s fontSIze=%d\n",i,filename,fontsize);
         } else {
             cl.fonts[i] = re.LoadFont(cl.configstrings[CS_FONTS + i], 16);
+            printf("LoadFont: %d %s fontSIze=%d\n",i,cl.configstrings[CS_FONTS + i],16);
         }
+        
     }
 }
 

@@ -1,10 +1,13 @@
 #include "r_local.h"
 #include <unistd.h>
 
-void R_PrintSysTextEx(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 transform){
+void R_PrintSysText2(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 transform){
 static VERTEX simp[256 * 6];
     LPVERTEX it = simp;
-    for (LPCSTR s = string; *s; s++) {
+    DWORD string_len = string ? strlen(string) : 0;
+    DWORD max_chars = sizeof(simp) / (6 * sizeof(VERTEX)); // 最多支持的字符数
+    
+    for (LPCSTR s = string; *s && (DWORD)(s - string) < max_chars && (DWORD)(s - string) < string_len; s++) {
         DWORD ch = *s;
         float fx = ch % 16;
         float fy = ch / 16;
@@ -40,7 +43,7 @@ static VERTEX simp[256 * 6];
 }
 
 void R_PrintSysText(LPCSTR string, DWORD x, DWORD y, COLOR32 color) {
-    return R_PrintSysTextEx(string,x,y,color,NULL);
+    return R_PrintSysText2(string,x,y,color,NULL);
 }
 
 void R_SetBlending(BLEND_MODE mode) {
@@ -122,6 +125,17 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
                         .rotate = false,
                         .shader = SHADER_UI,
                         .model_matrix = NULL
+                    ));
+}
+void R_DrawImage2(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color,LPMATRIX4 transform) {
+    R_DrawImageEx(&MAKE(DRAWIMAGE,
+                        .texture = texture,
+                        .screen = *screen,
+                        .uv = uv ? *uv : MAKE(RECT,0,0,1,1),
+                        .color = color,
+                        .rotate = false,
+                        .shader = SHADER_UI,
+                        .model_matrix = transform
                     ));
 }
 

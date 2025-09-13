@@ -1,7 +1,14 @@
+#include "common/common.h"
+#include "common/shared.h"
+#include "common/zhash.h"
 #include "r_local.h"
 #include "stb/stb_truetype.h"
+#include <StormPort.h>
+#include <assert.h>
 #include <stdio.h>
-
+#include <string.h>
+#include <unistd.h>
+#include <stdint.h>
 #define MAX_GLYPHSET 256
 #define FONT_SCALE 2
 #define INV_SCALE(x) ((x) / (FONT_SCALE * 1000.f))
@@ -18,6 +25,25 @@ typedef struct  font {
     FLOAT size;
     int height;
 } font_t;
+
+
+// KNOWN_AS(ZHashTable, HASHTABLE);
+// KNOWN_AS(ZHashEntry, HASHENTRY);
+// #include "common/zhash.h"
+// static LPHASHTABLE fontcache;
+
+// void R_FontCacheInit(){
+//     fontcache= zcreate_hash_table();
+// }
+// void R_FontCacheCleanup(){
+//     zfree_hash_table(fontcache);
+// }
+// void R_FontCacheSet(LPSTR key,LPFONT font){
+//     zhash_set(fontcache, strdup(key), font);
+// }
+// LPFONT R_FontCacheGet(LPSTR key){
+//     return (LPFONT)zhash_get(fontcache, key);
+// }
 
 static const char* utf8_to_codepoint(const char *p, unsigned *dst) {
     unsigned res, n;
@@ -92,17 +118,185 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
     }
     return font->sets[idx];
 }
+#define SUBSTR_TO(buf, start, end) do { \
+    int len = (end) - (start); \
+    if (len < 0) len = 0; \
+    if (len >= (int)sizeof(buf)-1) len = (int)sizeof(buf)-1; \
+    memcpy(buf, start, len); \
+    buf[len] = '\0'; \
+} while(0)
 
+#define STR_APPENDLINE(dst, chars) do { \
+    char* _new_ptr = NULL; \
+    size_t _old_len = (dst) ? strlen(dst) : 0; \
+    size_t _add_len = (chars) ? strlen(chars) : 0; \
+    size_t _new_len = _old_len + 1 + _add_len + 1; /* +1: '\n', +1: '\0' */ \
+    \
+    _new_ptr = (char*)realloc((dst), _new_len); \
+    if (_new_ptr == NULL) { \
+        /* realloc 失败，保留原指针（系统未释放） */ \
+        break; \
+    } \
+    (dst) = _new_ptr; /* 更新原指针 */ \
+    if (_old_len > 0) { \
+        (dst)[_old_len] = '\n'; /* 添加换行 */ \
+    } \
+    memcpy((dst) + _old_len + 1, (chars), _add_len); \
+    (dst)[_old_len + 1 + _add_len] = '\0'; /* 确保结尾 */ \
+} while(0)
 
-LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
+// 遍历每一行，start 和 end 指向行的开始和 \n 位置
+#define FOR_EACH_LINE(start, end, input) \
+    char *start, *end; \
+    for (char* _pos = (input), *_next = NULL; \
+         (_pos ? ((start) = _pos, \
+            (_next = strchr(_pos, '\n')) ? ((end) = _next) : ((end) = _pos + strlen(_pos)), \
+            1) : 0); \
+         _pos = (_next && *(_next)) ? _next + 1 : NULL \
+        )
+
+// 判断是否为字体文件（不区分大小写）
+static BOOL IsFontFile(LPCSTR filename) {
+    int len = strlen(filename);
+    if (len < 4) return false;
+    
+    const char* ext = filename + len - 4;
+    if (_stricmp(ext, ".ttf") == 0) return true;
+    if (_stricmp(ext, ".otf") == 0) return true;
+    
+    if (len >= 5) {
+        ext = filename + len - 5;
+        if (_stricmp(ext, ".ttc") == 0) return true;  // TrueType Collection
+    }
+    return false;
+}
+void loadAvialbeFonts(){
+    DWORD buf_size;
+    char* buffer= ri.ReadText("(listfile)",&buf_size);
+    if(!buffer)
+        return;
+    printf("AailableFonts:\n");
+    FOR_EACH_LINE(start, end, buffer) {
+        char line[512];
+        SUBSTR_TO(line, start, end);
+
+        // 去除可能的 \r
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        // 判断是否为字体文件
+        int len = strlen(line);
+        if (len >= 4) {
+            const char* ext = line + len - 4;
+            if (_stricmp(ext, ".ttf") == 0 || 
+                _stricmp(ext, ".otf") == 0 ||
+                _stricmp(ext, ".TTF") == 0 ||
+                _stricmp(ext, ".OTF") == 0) {
+                // Fonts\dffn_b31.ttf
+                // Fonts\DFHeiMd.ttf
+                // Fonts\dfst-m3u.ttf
+                // Fonts\FRIZQT__.TTF
+                // Fonts\NIM_____.ttf
+                // Fonts\tt5500m_.ttf
+                printf("loadAvialbeFont: %s\n", line);
+                if(_stricmp("Fonts\\dfst-m3u.ttf",line)){
+                    R_FontCacheSet("Arial", DEFAULT_TEXTFONT_SIZE,line);
+                }
+                else if(_stricmp("Fonts\\dfst-m3u.ttf",line)){
+                    R_FontCacheSet("Arial", DEFAULT_TEXTFONT_SIZE,line);
+                    R_FontCacheSet("sans-serif", DEFAULT_TEXTFONT_SIZE,line);
+                }
+            }
+        }
+    }
+}
+/* Font cache structure */
+typedef struct {
+    char family[64];
+    int size;
+    FONT* font;
+    LPCSTR filename;
+    LPSTR alias;
+} font_cache_entry_t;
+static font_cache_entry_t font_cache[16] = {0};
+static int font_cache_count = 0;
+/**
+ * @brief Get font from cache or load it
+ */
+LPFONT R_FontCacheGet(LPCSTR family, DWORD size)
+{
+    for (int i = 0; i < font_cache_count; i++) {
+        if (strcmp(font_cache[i].family, family) == 0 && 
+            font_cache[i].size == size) {
+            return font_cache[i].font;
+        }
+        FOR_EACH_LINE(start, end, font_cache[i].alias){
+            char line[512];
+            SUBSTR_TO(line, start, end);
+            if(_stricmp(line,family)==0){
+                return font_cache[i].font;
+                break;
+            }
+        }
+    }
+    return NULL;
+}
+LPFONT R_FontCacheSet(LPCSTR family, DWORD size,LPCSTR filename){
+    for (int i = 0; i < font_cache_count; i++) {
+        if (strcmp(font_cache[i].filename, filename) == 0 && 
+            font_cache[i].size == size) {
+                BOOL exists = 0;
+                FOR_EACH_LINE(start, end, font_cache[i].alias){
+                    char line[512];
+                    SUBSTR_TO(line, start, end);
+                    if(_stricmp(line,family)==0){
+                        exists=1;
+                        break;
+                    }
+                }
+                if(!exists){
+                    STR_APPENDLINE(font_cache[i].alias, family);
+                }
+            return font_cache[i].font;
+        }
+    }
+    FONT* new_font = R_LoadFont(filename, size);
+    if (new_font) {
+        font_cache_entry_t *entry = &font_cache[font_cache_count++];
+        strncpy(entry->family, family, sizeof(entry->family)-1);
+        entry->size = size;
+        entry->font = new_font;
+        entry->filename = strdup(filename);
+        return new_font;
+    }
+    else{
+        fprintf(stdout, "warn: R_FontCacheMapFont bad font %s", filename);
+    }
+}
+/**
+ * @brief Cleanup font cache
+ */
+void R_CleanupFontCache(void)
+{
+    for (int i = 0; i < font_cache_count; i++) {
+        if (font_cache[i].font) {
+            R_ReleaseFont(font_cache[i].font);
+        }
+    }
+    font_cache_count = 0;
+}
+
+LPFONT R_LoadFont(LPCSTR filename, DWORD fontsize) {
     fprintf(stdout, "R_LoadFont %s\n", filename);
-    size = MAX(9, size);
+    fontsize = MAX(9, fontsize);
     font_t *font = ri.MemAlloc(sizeof(font_t));
-    font->size = size * FONT_SCALE;
+    font->size = fontsize * FONT_SCALE;
     
     /* load font into buffer */
     HANDLE file = ri.FileOpen(filename);
-    if (!file) { return NULL; }
+    if (!file) { 
+        return NULL; 
+    }
     /* get size */
     DWORD buf_size = SFileGetFileSize(file, NULL);
     /* load */
@@ -117,7 +311,7 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
     /* get height and scale */
     int ascent, descent, linegap;
     stbtt_GetFontVMetrics(&font->stbfont, &ascent, &descent, &linegap);
-    FLOAT scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, size);
+    FLOAT scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, fontsize);
     font->height = (ascent - descent + linegap) * scale + 0.5;
     
     /* make tab and newline glyphs invisible */
@@ -294,10 +488,67 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
 }
 
 
-void R_DrawText(LPCDRAWTEXT arg) {
+void R_DrawUtf8TextEx(LPCDRAWTEXT arg) {
     process_text(arg, true);
     
 //    R_DrawWireRect(&arg->rect, MAKE(COLOR32, 255, 0, 255, 255));
+}
+
+LPFONT g_default_text_font;
+
+
+
+// 初始化默认字体
+void R_InitDefaultFonts(void) {
+    loadAvialbeFonts();
+    if (!g_default_text_font) {
+        // 尝试加载默认字体
+        // 这里可以使用系统字体或War3的默认字体
+        g_default_text_font = R_FontCacheSet(DEFAULT_TEXTFONT_NAME, 14,"Fonts\\dfst-m3u.ttf"); // 黑体，14px
+        if (!g_default_text_font) {
+            printf("Warning: Failed to load default font\n");
+        }
+        printf("Default font loaded\n");
+    }
+}
+
+// 清理默认字体
+void R_ReleaseDefaultFonts() {
+    if (g_default_text_font) {
+        R_ReleaseFont(g_default_text_font);
+        g_default_text_font = NULL;
+        printf("Default font cleaned up\n");
+    }
+}
+
+void R_DrawUtf8Text(LPCSTR string, DWORD x, DWORD y, COLOR32 color){
+    assert(g_default_text_font);
+
+    DRAWTEXT arg;
+    arg.color = color;
+    arg.rect = MAKE(RECT,x,y);
+    arg.halign= FONT_JUSTIFYLEFT;
+    arg.wordWrap = 1;
+    arg.text = string;
+    arg.valign = FONT_JUSTIFYBOTTOM;
+    arg.model_matrix = NULL;
+    arg.font = g_default_text_font;
+    process_text(&arg, true);
+}
+
+void R_DrawUtf8Text2(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 transform){
+    assert(g_default_text_font);
+    
+    DRAWTEXT arg;
+    arg.color = color;
+    arg.rect = MAKE(RECT,x,y);
+    arg.halign= FONT_JUSTIFYLEFT;
+    arg.wordWrap = 1;
+    arg.text = string;
+    arg.valign = FONT_JUSTIFYBOTTOM;
+    arg.model_matrix = transform;
+    arg.font = g_default_text_font;
+    process_text(&arg, true);
 }
 
 VECTOR2 R_GetTextSize(LPCDRAWTEXT arg) {

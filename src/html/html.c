@@ -11,9 +11,13 @@
 #include "common/shared.h"
 #include "libxml/tree.h"
 #include "r_local.h"
+#include <math.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <unicode/ucnv.h>
+#include <wchar.h>
 #define _GNU_SOURCE /* for strndup */
 #include <assert.h>
 #include <stdbool.h>
@@ -25,8 +29,11 @@
 
 #include <hubbub/parser.h>
 #include <hubbub/tree.h>
+#include <libcss/libcss.h>
 #define LAY_IMPLEMENTATION
 #include "layout.h"
+
+#include "html.h"
 
 #define UNUSED(x) ((x)=(x))
 
@@ -75,12 +82,34 @@ typedef struct context {
 	int inhead;
 } context;
 
+#include "css.h"
 typedef struct userdata{
 	uint refcount;
 	lay_id layid;
-	LPSTR __f;
 	int __ln;
+	LPCSTR __f;
+	LPCSS parsedStyle;
 } userdata;
+
+#define ALLOCUDREF(c,ud,rc) \
+	assert(c); \
+	assert(c->layout_ctx); \
+	userdata *ud = malloc(sizeof(userdata)); \
+	ud->__f = __FILE__; \
+	ud->__ln= __LINE__; \
+	ud->layid = lay_item(c->layout_ctx); \
+	ud->parsedStyle = NULL; \
+	ud->refcount = rc;
+
+#define ALLOCUD(c,ud) \
+	assert(c); \
+	assert(c->layout_ctx); \
+	userdata *ud = malloc(sizeof(userdata)); \
+	ud->__f = __FILE__; \
+	ud->__ln= __LINE__; \
+	ud->layid = lay_item(c->layout_ctx); \
+	ud->parsedStyle = NULL; \
+	ud->refcount = 0;
 
 /**
  * Mapping of namespace prefixes to URIs, indexed by hubbub_ns.
@@ -159,6 +188,7 @@ static error_code create_context(const char *charset, context **ctx);
 static void destroy_context(context *c);
 static error_code parse_chunk(context *c, const uint8_t *data, size_t len);
 static error_code parse_completed(context *c);
+int html_render_init(context *ctx);
 
 /* Layout helper functions */
 static int extract_number(const char *css, const char *property);
@@ -166,129 +196,7 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css);
 void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c);
 static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c);
 
-int html_main(LPCSTR filename)
-{
-	error_code error;
-	context *c;
-	hubbub_parser_optparams params;
-	FILE *input;
-	uint8_t *buf;
-	size_t len;
 
-	/* Read input file into memory. If we wanted to, we could read into
-	 * a fixed-size buffer and pass each chunk to the parser sequentially.
-	 */
-	input = fopen(filename, "r");
-	if (input == NULL) {
-		fprintf(stderr, "Failed opening %s\n", filename);
-		return 1;
-	}
-
-	fseek(input, 0, SEEK_END);
-	len = ftell(input);
-	fseek(input, 0, SEEK_SET);
-
-	buf = malloc(len);
-	if (buf == NULL) {
-		fclose(input);
-		fprintf(stderr, "No memory for buf\n");
-		return 1;
-	}
-
-	fread(buf, 1, len, input);
-
-	/* Create our parsing context */
-	error = create_context(NULL, &c);
-	if (error != OK) {
-		free(buf);
-		fclose(input);
-		fprintf(stderr, "Failed creating parsing context\n");
-		return 1;
-	}
-
-	/* Attempt to parse the document */
-	error = parse_chunk(c, buf, len);
-	assert(error == OK || error == ENCODINGCHANGE);
-	if (error == ENCODINGCHANGE) {
-		/* During parsing, we detected that the charset of the 
-		 * input data was different from what was auto-detected
-		 * (see the change_encoding callback for more details).
-		 * Therefore, we must destroy the current parser and create
-		 * a new one using the newly-detected charset. Then we
-		 * reparse the data using the new parser. 
-		 *
-		 * change_encoding() will have put the new charset into
-		 * c->encoding.
-		 */
-		context *c2;
-
-		error = create_context(c->encoding, &c2);
-		if (error != OK) {
-			destroy_context(c2);
-			free(buf);
-			fclose(input);
-			fprintf(stderr, "Failed recreating context\n");
-			return 1;
-		}
-
-		destroy_context(c);
-
-		c = c2;
-
-		/* Retry the parse */
-		error = parse_chunk(c, buf, len);
-	}
-
-	if (error != OK) {
-		destroy_context(c);
-		free(buf);
-		fclose(input);
-		fprintf(stderr, "Failed parsing document\n");
-		return 1;
-	}
-
-
-	/* Tell hubbub that we've finished */
-	error = parse_completed(c);
-	if (error != OK) {
-		destroy_context(c);
-		free(buf);
-		fclose(input);
-		fprintf(stderr, "Failed parsing document\n");
-		return 1;
-	}
-
-	/* We're done with this */
-	free(buf);
-
-	/* At this point, the DOM tree can be accessed through c->document */
-	/* Let's dump it to stdout */
-	/* In a real application, we'd probably want to grab the document
-	 * from the parsing context, then destroy the context as it's no
-	 * longer of any use */
-	
-	/* Run layout calculations after parsing is complete */
-	printf("Running layout calculation...\n");
-	printf("Layout context count: %d\n", lay_items_count(c->layout_ctx));
-	
-
-	/* Find the html element's layout ID and run layout from there */
-	// lay_run_item(c->layout_ctx, GETLAYID(c->document)); 
-
-	lay_run_context(c->layout_ctx);
-	
-	/* Print layout information */
-	printf("=== Layout Information ===\n");
-	print_layout_info(c->layout_ctx, c->document, c);
-	printf("=========================\n");
-	
-	/* Clean up */
-	destroy_context(c);
-
-	fclose(input);
-
-	return 0;
-}
 
 /**
  * Create a parsing context
@@ -332,26 +240,26 @@ error_code create_context(const char *charset, context **ctx)
 		free(c);
 		return NOMEM;
 	}
-	/* Reference count of zero, allocate userdata for document */
-	userdata *doc_ud = malloc(sizeof(userdata));
-	if (doc_ud == NULL) {
-		hubbub_parser_destroy(c->parser);
-		free(c);
-		return NOMEM;
-	}
-	doc_ud->refcount = 0;
 
 	// layout context 
 	c->layout_ctx = malloc(sizeof(lay_context));
-
 	/* Initialize layout context */
 	lay_init_context(c->layout_ctx);
 	lay_reset_context(c->layout_ctx); /* Clear any existing data */
 	lay_reserve_items_capacity(c->layout_ctx, 1000); /* Pre-allocate */
 
-	size2_t const window = R_GetWindowSize();
+
+	/* Allocate userdata for document */
+	ALLOCUD(c,doc_ud);
+	if (doc_ud == NULL) {
+		hubbub_parser_destroy(c->parser);
+		free(c);
+		return NOMEM;
+	}
+
 	
-	doc_ud->layid = lay_item(c->layout_ctx);
+
+	size2_t const window = R_GetWindowSize();
 
 	lay_set_size(c->layout_ctx, doc_ud->layid, (lay_vec2){window.width,window.height});
 
@@ -529,17 +437,7 @@ hubbub_error create_comment(void *ctx, const hubbub_string *data, void **result)
 		free(content);
 		return HUBBUB_NOMEM;
 	}
-	/* We use the _private field of libXML's xmlNode struct for the
-	 * userdata structure containing reference count and layout ID. */
-	userdata *ud = malloc(sizeof(userdata));
-	if (ud == NULL) {
-		free(content);
-		return HUBBUB_NOMEM;
-	}
-	ud->refcount = 1;
-	ud->__f = __FILE__;
-	ud->__ln= __LINE__;
-	ud->layid = lay_item(c->layout_ctx);
+	ALLOCUDREF(c, ud,1);
 	n->_private = (void *) ud;
 
 	free(content);
@@ -598,17 +496,13 @@ hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **res
 		return HUBBUB_NOMEM;
 	}
 	/* Again, reference count must be 1, and allocate userdata */
-	userdata *ud = malloc(sizeof(userdata));
+	ALLOCUDREF(c, ud,1);
 	if (ud == NULL) {
 		free(system);
 		free(public);
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	ud->refcount = 1;
-	ud->__f = __FILE__;
-	ud->__ln= __LINE__;
-	ud->layid = lay_item(c->layout_ctx);
 	n->_private = (void *) ud;
 
 	*result = (void *) n;
@@ -659,15 +553,11 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 		return HUBBUB_NOMEM;
 	}
 	/* Reference count must be 1, and allocate userdata */
-	userdata *ud = malloc(sizeof(userdata));
+	ALLOCUDREF(c, ud, 1)
 	if (ud == NULL) {
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	ud->refcount = 1;
-	ud->__f = __FILE__;
-	ud->__ln= __LINE__;
-	ud->layid = lay_item(c->layout_ctx);
 	n->_private = (void *) ud;
 
 	/* Attempt to add attributes to node */
@@ -681,7 +571,7 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	*result = (void *) n;
 
 	// 获取布局 ID
-	   lay_id layout_id = ud->layid;
+	lay_id layout_id = ud->layid;
 	
 	// 为HTML元素设置根级布局
 	if (strcmp(name, "html") == 0) {
@@ -828,14 +718,10 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
 		return HUBBUB_NOMEM;
 	}
 	/* Reference count must be 1, and allocate userdata */
-	userdata *ud = malloc(sizeof(userdata));
+	ALLOCUDREF(c, ud, 1);
 	if (ud == NULL) {
 		return HUBBUB_NOMEM;
 	}
-	ud->refcount = 1;
-	ud->__f = __FILE__;
-	ud->__ln= __LINE__;
-	ud->layid = lay_item(c->layout_ctx);
 	n->_private = (void *) ud;
 
 	*result = (void *) n;
@@ -952,15 +838,8 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 			// 如果 xmlCopyNode 没有拷贝 _private，则需要手动拷贝
 			userdata *orig_private = (userdata*)((xmlNode *) child)->_private;
 			if (orig_private != NULL) {
-				userdata *new_private = MemAlloc(sizeof(userdata));
-				if (new_private != NULL) {
-					// 只复制必要的字段，不复制 layid，因为需要重新分配
-					new_private->refcount = 1;
-					new_private->__f = orig_private->__f;
-					new_private->__ln = orig_private->__ln;
-					new_private->layid = orig_private->layid;
-					chld->_private = new_private;
-				}
+				chld->_private = malloc(sizeof(userdata));
+				memcpy(chld->_private,orig_private,sizeof(userdata));
 			}
 	   	}
 		*result = xmlAddChild(p, chld);
@@ -1030,16 +909,10 @@ hubbub_error insert_before(void *ctx, void *parent, void *child, void *ref_child
 			// 如果 xmlCopyNode 没有拷贝 _private，则需要手动拷贝
 			userdata *orig_private = (userdata*)((xmlNode *) child)->_private;
 			if (orig_private != NULL) {
-				userdata *new_private = MemAlloc(sizeof(userdata));
-				if (new_private != NULL) {
-					new_private->refcount = 1;
-					new_private->__f = orig_private->__f;
-					new_private->__ln = orig_private->__ln;
-					new_private->layid = orig_private->layid;
-					chld->_private = new_private;
-				}
+				chld->_private = malloc(sizeof(userdata));
+				memcpy(chld->_private,orig_private,sizeof(userdata));
 			}
-		  	}
+		}
 
 		assert(*result != (void *) chld);
 	} else {
@@ -1405,6 +1278,501 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 	}
 }
 
-void html_render_frame(){
+// 全局变量定义
+static context *g_html_render_context = NULL;
+static int g_html_frame_count = 0;
+static bool g_html_render_enabled = true;
 
+// HTML渲染模式枚举
+typedef enum {
+    HTML_RENDER_MODE_STATIC,    // 静态模式（默认）
+    HTML_RENDER_MODE_ANIMATED,  // 动画模式
+    HTML_RENDER_MODE_INTERACTIVE // 交互模式
+} html_render_mode_t;
+
+static html_render_mode_t g_html_render_mode = HTML_RENDER_MODE_STATIC;
+
+// 渲染矩形边框
+void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, COLOR32 color) {
+    if (width <= 0 || height <= 0) return;
+    
+    // 归一化坐标
+    RECT screen = {
+        x * 0.8f,  // 转换为0-1范围
+        y * 0.6f,  // 转换为0-1范围
+        width * 0.8f,
+        height * 0.6f
+    };
+    
+    R_DrawWireRect(&screen, color);
+}
+
+// 渲染填充矩形
+void render_rect_fill(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, COLOR32 color) {
+    if (width <= 0 || height <= 0) return;
+    
+    // 归一化坐标
+    RECT screen = {
+        x * 0.8f,  // 转换为0-1范围
+        y * 0.6f,  // 转换为0-1范围
+        width * 0.8f,
+        height * 0.6f
+    };
+    
+    RECT uv = {0, 0, 1, 1};
+    DRAWIMAGE drawImg = {
+        .texture = tr.texture[TEX_WHITE],
+        .screen = screen,
+        .uv = uv,
+        .color = color,
+        .rotate = false,
+        .shader = SHADER_UI,
+        .model_matrix = NULL
+    };
+    R_DrawImageEx(&drawImg);
+}
+
+#include "css.h"
+/**
+ * @brief Get node style using CSS parser
+ */
+LPCSS html_getnodestyle(xmlNode* node)
+{
+    userdata* ud = node->_private;
+    if (!ud) return NULL;
+    
+    /* Check if we already parsed the style */
+    if (ud->parsedStyle) {
+        return ud->parsedStyle;
+    }
+    
+    /* Get inline style attribute */
+    xmlChar* style_str = xmlGetProp(node, BAD_CAST "style");
+    if (!style_str) {
+        style_str = xmlGetNsProp(node, BAD_CAST "style", NULL);
+    }
+    
+    if (style_str) {
+        /* Get element name for context */
+        const char *element_name = (const char*)node->name;
+        if (!element_name) element_name = "div"; /* Default */
+        
+        /* Parse inline style using CSS parser */
+        css_select_results *results = css_parse_inline_style((const char*)style_str, element_name);
+        if (results) {
+            /* Store the parsed style results */
+            ud->parsedStyle = results;
+        }
+        
+        xmlFree(style_str);
+    }
+    
+    return ud->parsedStyle;
+}
+
+extern LPFONT g_default_text_font;
+
+void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_scalar y, COLOR32 default_color)
+{
+    if (!text || strlen(text) == 0) return;
+    
+    DRAWTEXT arg;
+    COLOR32 render_color = default_color;
+    FONT* render_font = g_default_text_font;
+
+	assert(render_font);
+    int font_size = 16; /* Default font size */
+    
+    /* Try to get style from parent element */
+    if (textnode && textnode->parent) {
+        LPCSS style = html_getnodestyle(textnode->parent);
+        
+        if (style) {
+            /* Get color from style */
+            const char *color_str = css_get_property_string(style, CSS_PROP_COLOR);
+            if (color_str && color_str[0] == '#') {
+				// TODO
+                // render_color = (COLOR32)strtoul(color_str + 1, NULL, 16);
+                /* Add alpha channel if missing */
+                // if (strlen(color_str) == 7) render_color |= 0xFF000000;
+            }
+            
+            /* Get font properties */
+            const char *font_family_css = css_get_property_string(style, CSS_PROP_FONT_FAMILY);
+            int new_font_size = css_get_property_int(style, CSS_PROP_FONT_SIZE, font_size);
+            
+            if (font_family_css) {
+                
+                /* Get font from cache or load it */
+                FONT* custom_font = R_FontCacheGet(font_family_css, new_font_size);
+                if (custom_font) {
+                    render_font = custom_font;
+                    font_size = new_font_size;
+                }
+            } else if (new_font_size != font_size) {
+                /* Only size changed, use default font with new size */
+                FONT* sized_font = R_FontCacheGet(DEFAULT_TEXTFONT_NAME, new_font_size);
+                if (sized_font) {
+                    render_font = sized_font;
+                    font_size = new_font_size;
+                }
+            }
+        }
+    }
+    
+    /* Setup draw text arguments */
+    arg.color = render_color;
+    arg.rect = MAKE(RECT, x, y);
+    arg.halign = FONT_JUSTIFYLEFT;
+    arg.wordWrap = 1;
+    arg.text = text;
+    arg.valign = FONT_JUSTIFYBOTTOM;
+    arg.model_matrix = NULL;
+    arg.font = render_font;
+    
+    assert(arg.font);
+    R_DrawUtf8TextEx(&arg);
+}
+
+// 渲染图片
+void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, LPCTEXTURE texture) {
+    if (!texture || width <= 0 || height <= 0) return;
+    
+    // 归一化坐标
+    RECT screen = {
+        x * 0.8f,  // 转换为0-1范围
+        y * 0.6f,  // 转换为0-1范围
+        width * 0.8f,
+        height * 0.6f
+    };
+    
+    RECT uv = {0, 0, 1, 1};
+    DRAWIMAGE drawImg = {
+        .texture = texture,
+        .screen = screen,
+        .uv = uv,
+        .color = COLOR32_WHITE,
+        .rotate = false,
+        .shader = SHADER_UI,
+        .model_matrix = NULL
+    };
+    R_DrawImageEx(&drawImg);
+}
+
+// 渲染HTML元素
+void render_html_element(context *ctx, xmlNode *node, int depth) {
+    if (!ctx || !node) return;
+    
+    lay_id layout_id = GETLAYID(node);
+    if (layout_id == LAY_INVALID_ID) return;
+    
+    // 获取元素布局信息
+    lay_scalar x, y, width, height;
+    lay_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
+    
+    // 根据元素类型进行不同的渲染
+    if (node->type == XML_ELEMENT_NODE) {
+        const char *element_name = node->name ? (char*)node->name : "unknown";
+        
+        // 根据元素类型进行渲染
+        if (strcmp(element_name, "div") == 0) {
+            // 渲染div边框（调试用）
+            render_rect_border(x, y, width, height, (COLOR32){255, 0, 0, 128}); // 红色半透明边框
+        } else if (strcmp(element_name, "p") == 0) {
+            // 渲染段落边框（调试用）
+            render_rect_border(x, y, width, height, (COLOR32){0, 255, 0, 128}); // 绿色半透明边框
+        } else if (strcmp(element_name, "h1") == 0 || strcmp(element_name, "h2") == 0 ||
+                   strcmp(element_name, "h3") == 0 || strcmp(element_name, "h4") == 0 ||
+                   strcmp(element_name, "h5") == 0 || strcmp(element_name, "h6") == 0) {
+            // 渲染标题边框（调试用）
+            render_rect_border(x, y, width, height, (COLOR32){0, 0, 255, 128}); // 蓝色半透明边框
+        } else if (strcmp(element_name, "img") == 0) {
+            // 渲染图片占位符
+            render_rect_fill(x, y, width, height, (COLOR32){200, 200, 200, 255}); // 灰色背景
+            render_rect_border(x, y, width, height, (COLOR32){100, 100, 100, 255}); // 深灰色边框
+            html_render_text(node,"[IMAGE]",x + 5, y + 5,  (COLOR32){100, 100, 100, 255}); // 图片标记
+        } else if (strcmp(element_name, "input") == 0 ||
+                   strcmp(element_name, "textarea") == 0 ||
+                   strcmp(element_name, "select") == 0) {
+            // 渲染表单控件
+            render_rect_fill(x, y, width, height, (COLOR32){240, 240, 240, 255}); // 浅灰色背景
+            render_rect_border(x, y, width, height, (COLOR32){128, 128, 128, 255}); // 灰色边框
+            html_render_text(node,"[FORM]", x + 5, y + 5, (COLOR32){64, 64, 64, 255}); // 表单标记
+        } else if (strcmp(element_name, "table") == 0) {
+            // 渲染表格边框
+            render_rect_border(x, y, width, height, (COLOR32){128, 0, 128, 128}); // 紫色半透明边框
+        } else if (strcmp(element_name, "ul") == 0 || strcmp(element_name, "ol") == 0) {
+            // 渲染列表边框
+            render_rect_border(x, y, width, height, (COLOR32){255, 165, 0, 128}); // 橙色半透明边框
+        }
+        
+        // 递归渲染子元素
+        xmlNode *child = node->children;
+        while (child != NULL) {
+            render_html_element(ctx, child, depth + 1);
+            child = child->next;
+        }
+    } else if (node->type == XML_TEXT_NODE) {
+        // 文本节点 - 渲染文本
+        const char *text_content = node->content ? (char*)node->content : "";
+        if (strlen(text_content) > 0) {
+            // 清理文本内容（去除前后空白和换行符）
+            char *clean_text = strdup(text_content);
+            if (clean_text) {
+                // 去除前导空白
+                char *start = clean_text;
+                while (*start && isspace(*start)) start++;
+                
+                // 去除尾部空白
+                char *end = clean_text + strlen(clean_text) - 1;
+                while (end > start && isspace(*end)) end--;
+                *(end + 1) = '\0';
+                
+                // 如果文本不为空，则渲染
+                if (strlen(start) > 0) {
+                    html_render_text(node, start,x + 5, y + 5,  (COLOR32){0, 0, 0, 255}); // 黑色文本
+                }
+                
+                free(clean_text);
+            }
+        }
+    }
+}
+
+// 渲染HTML文档信息面板
+void render_html_info_panel(context *ctx) {
+    if (!ctx) return;
+    
+    // 在右上角渲染信息面板
+    size2_t window = R_GetWindowSize();
+    lay_scalar panel_x = window.width - 300;
+    lay_scalar panel_y = 10;
+    lay_scalar panel_width = 290;
+    lay_scalar panel_height = 120;
+    
+    // 渲染面板背景
+    render_rect_fill(panel_x, panel_y, panel_width, panel_height, (COLOR32){0, 0, 0, 180}); // 半透明黑色背景
+    
+    // 渲染面板边框
+    render_rect_border(panel_x, panel_y, panel_width, panel_height, (COLOR32){255, 255, 255, 255}); // 白色边框
+    
+    // 渲染信息文本
+    char info_text[256];
+    snprintf(info_text, sizeof(info_text), "HTML Renderer - Frame: %d", g_html_frame_count);
+    R_DrawUtf8Text(info_text,panel_x + 10, panel_y + 10,  (COLOR32){255, 255, 255, 255}); // 白色文本
+    
+    const char *mode_str = "STATIC";
+    if (g_html_render_mode == HTML_RENDER_MODE_ANIMATED) mode_str = "ANIMATED";
+    else if (g_html_render_mode == HTML_RENDER_MODE_INTERACTIVE) mode_str = "INTERACTIVE";
+    
+    snprintf(info_text, sizeof(info_text), "Mode: %s", mode_str);
+    R_DrawUtf8Text( info_text,panel_x + 10, panel_y + 30, (COLOR32){255, 255, 255, 255});
+    
+    snprintf(info_text, sizeof(info_text), "Layout Items: %d", lay_items_count(ctx->layout_ctx));
+    R_DrawUtf8Text(info_text,panel_x + 10, panel_y + 50,  (COLOR32){255, 255, 255, 255});
+    
+    snprintf(info_text, sizeof(info_text), "Status: %s", g_html_render_enabled ? "Enabled" : "Disabled");
+    R_DrawUtf8Text(info_text, panel_x + 10, panel_y + 70, (COLOR32){255, 255, 255, 255});
+    
+    // 渲染控制说明
+    R_DrawUtf8Text("Press 1/2/3 to change mode",panel_x + 10, panel_y + 90,  (COLOR32){200, 200, 200, 255});
+}
+
+// 初始化HTML渲染
+
+int html_init(LPCSTR filename)
+{
+	error_code error;
+	context *c;
+	hubbub_parser_optparams params;
+	FILE *input;
+	uint8_t *buf;
+	size_t len;
+
+	/* Read input file into memory. If we wanted to, we could read into
+	 * a fixed-size buffer and pass each chunk to the parser sequentially.
+	 */
+	input = fopen(filename, "r");
+	if (input == NULL) {
+		fprintf(stderr, "Failed opening %s\n", filename);
+		return 1;
+	}
+
+	fseek(input, 0, SEEK_END);
+	len = ftell(input);
+	fseek(input, 0, SEEK_SET);
+
+	buf = malloc(len);
+	if (buf == NULL) {
+		fclose(input);
+		fprintf(stderr, "No memory for buf\n");
+		return 1;
+	}
+
+	fread(buf, 1, len, input);
+
+	/* Create our parsing context */
+	error = create_context(NULL, &c);
+	if (error != OK) {
+		free(buf);
+		fclose(input);
+		fprintf(stderr, "Failed creating parsing context\n");
+		return 1;
+	}
+
+	/* Attempt to parse the document */
+	error = parse_chunk(c, buf, len);
+	assert(error == OK || error == ENCODINGCHANGE);
+	if (error == ENCODINGCHANGE) {
+		/* During parsing, we detected that the charset of the 
+		 * input data was different from what was auto-detected
+		 * (see the change_encoding callback for more details).
+		 * Therefore, we must destroy the current parser and create
+		 * a new one using the newly-detected charset. Then we
+		 * reparse the data using the new parser. 
+		 *
+		 * change_encoding() will have put the new charset into
+		 * c->encoding.
+		 */
+		context *c2;
+
+		error = create_context(c->encoding, &c2);
+		if (error != OK) {
+			destroy_context(c2);
+			free(buf);
+			fclose(input);
+			fprintf(stderr, "Failed recreating context\n");
+			return 1;
+		}
+
+		destroy_context(c);
+
+		c = c2;
+
+		/* Retry the parse */
+		error = parse_chunk(c, buf, len);
+	}
+
+	if (error != OK) {
+		destroy_context(c);
+		free(buf);
+		fclose(input);
+		fprintf(stderr, "Failed parsing document\n");
+		return 1;
+	}
+
+
+	/* Tell hubbub that we've finished */
+	error = parse_completed(c);
+	if (error != OK) {
+		destroy_context(c);
+		free(buf);
+		fclose(input);
+		fprintf(stderr, "Failed parsing document\n");
+		return 1;
+	}
+
+	/* We're done with this */
+	free(buf);
+
+	/* At this point, the DOM tree can be accessed through c->document */
+	/* Let's dump it to stdout */
+	/* In a real application, we'd probably want to grab the document
+	 * from the parsing context, then destroy the context as it's no
+	 * longer of any use */
+	
+	/* Run layout calculations after parsing is complete */
+	printf("Running layout calculation...\n");
+	printf("Layout context count: %d\n", lay_items_count(c->layout_ctx));
+	
+
+	/* Find the html element's layout ID and run layout from there */
+	// lay_run_item(c->layout_ctx, GETLAYID(c->document)); 
+
+	lay_run_context(c->layout_ctx);
+	
+	/* Print layout information */
+	printf("=== Layout Information ===\n");
+	print_layout_info(c->layout_ctx, c->document, c);
+	printf("=========================\n");
+	
+	
+    g_html_render_context = c;
+    g_html_frame_count = 0;
+
+	fclose(input);
+
+	return 0;
+}
+
+int html_destroy(){
+	destroy_context(g_html_render_context);
+}
+
+// 渲染HTML文档背景
+void draw_html_background(context *ctx) {
+    if (!ctx || !ctx->document) return;
+    
+    // 获取窗口大小
+    size2_t window = R_GetWindowSize();
+    
+    // 渲染白色背景
+    render_rect_fill(0, 0, window.width, window.height, (COLOR32){255, 255, 255, 160});
+    
+    // printf("Drawing HTML background: %dx%d\n", window.width, window.height);
+}
+
+// 主要的HTML渲染帧函数
+void html_update_frame() {
+    if (!g_html_render_context || !g_html_render_enabled) {
+        return;
+    }
+    
+    g_html_frame_count++;
+    
+    // 1. 渲染背景
+    draw_html_background(g_html_render_context);
+    
+    // 2. 重新计算布局（如果需要）
+    if (g_html_render_mode == HTML_RENDER_MODE_ANIMATED) {
+        // 在动画模式下，重新计算布局
+        lay_run_context(g_html_render_context->layout_ctx);
+    }
+    
+    // 3. 渲染HTML元素
+    if (g_html_render_context->document) {
+        xmlNode *root = xmlDocGetRootElement(g_html_render_context->document);
+        if (root) {
+            render_html_element(g_html_render_context, root, 0);
+        }
+    }
+    
+    // 4. 渲染信息面板
+    // render_html_info_panel(g_html_render_context);
+    
+    // printf("HTML Render Frame %d completed\n", g_html_frame_count);
+}
+
+// 清理HTML渲染
+void html_render_cleanup() {
+    if (g_html_render_context) {
+        printf("Cleaning up HTML Render...\n");
+        g_html_render_context = NULL;
+        g_html_frame_count = 0;
+        g_html_render_enabled = false;
+    }
+}
+
+// 设置HTML渲染模式
+void html_render_set_mode(html_render_mode_t mode) {
+    g_html_render_mode = mode;
+    printf("HTML Render mode set to: %s\n",
+           mode == HTML_RENDER_MODE_STATIC ? "STATIC" :
+           mode == HTML_RENDER_MODE_ANIMATED ? "ANIMATED" : "INTERACTIVE");
+}
+
+// 启用/禁用HTML渲染
+void html_render_set_enabled(bool enabled) {
+    g_html_render_enabled = enabled;
+    printf("HTML rendering %s\n", enabled ? "enabled" : "disabled");
 }

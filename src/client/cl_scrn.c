@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "client.h"
+#include "common/shared.h"
 #include "g_local.h"
 #include "../canvas2d/canvas2d_test.h"
 
@@ -145,6 +146,22 @@ DRAWTEXT get_drawtext(LPCUIFRAME frame,
                 .font = cl.fonts[label->font],
                 .text = text,
                 .color = frame->color,
+                .halign = label->textalignx,
+                .valign = label->textaligny,
+                .icons = cl.pics,
+                .lineHeight = 1.33,
+                .wordWrap = true,
+                .textWidth = avl_width);
+}
+DRAWTEXT get_drawtext_html(LPCSTR text,
+                      FLOAT avl_width,
+                      COLOR32 color,
+                      uiLabel_t const *label)
+{
+    return MAKE(DRAWTEXT,
+                .font = cl.fonts[label->font],
+                .text = text,
+                .color = color,
                 .halign = label->textalignx,
                 .valign = label->textaligny,
                 .icons = cl.pics,
@@ -657,7 +674,7 @@ void SCR_DrawOverlays(void) {
     }
 }
 
-void html_render_frame();
+void html_update_frame();
 
 void SCR_UpdateScreen(void) {
 
@@ -666,7 +683,7 @@ void SCR_UpdateScreen(void) {
 
     canvas2d_test_render_frame();
 
-    html_render_frame();
+    // html_update_frame();
     
     V_RenderView();
     

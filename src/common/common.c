@@ -122,11 +122,26 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
     FOR_LOOP(i, MAX_ARCHIVES) {
         HANDLE file;
         if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
+            filelock = false;
             return file;
         }
     }
     filelock = false;
     return NULL;
+}
+void* FS_ReadText(LPCSTR filename,DWORD* size){
+    HANDLE file = FS_OpenFile(filename);
+    if(!file){
+        return NULL;
+    }
+    /* get size */
+    *size = SFileGetFileSize(file, NULL);
+    /* load */
+    char* data = MemAlloc(*size+1);
+    data[*size] ='\0';
+    SFileReadFile(file, data, *size, NULL, NULL);
+    FS_CloseFile(file);
+    return data;
 }
 
 bool FS_FileExists(LPCSTR fileName) {

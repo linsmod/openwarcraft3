@@ -114,6 +114,7 @@ void Com_Quit(void);
 void Sys_Quit(void);
 
 HANDLE FS_OpenFile(LPCSTR fileName);
+void* FS_ReadText(LPCSTR fileName,DWORD* size) ;
 void FS_CloseFile(HANDLE file);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);

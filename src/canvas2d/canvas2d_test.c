@@ -141,7 +141,7 @@ void canvas2d_test_render_frame() {
     if (!ctx) return;
 
     // 清除画布
-    canvas2d_clear_rect(ctx, 0, 0, g_canvas2d_test->width, g_canvas2d_test->height);
+    // canvas2d_clear_rect(ctx, 0, 0, g_canvas2d_test->width, g_canvas2d_test->height);
 
     // 添加动画效果
     float time_factor = g_test_frame_count * 0.01f;
@@ -155,8 +155,8 @@ void canvas2d_test_render_frame() {
             (BYTE)(128 + 64 * sin(time_factor + t * 4)),
             255
         };
-        canvas2d_set_fill_style(ctx, bg_color);
-        canvas2d_fill_rect(ctx, 0, y, g_canvas2d_test->width, 1);
+        // canvas2d_set_fill_style(ctx, bg_color);
+        // canvas2d_fill_rect(ctx, 0, y, g_canvas2d_test->width, 1);
     }
 
     // 绘制旋转的圆形

@@ -230,7 +230,7 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
         return;
     }
 
-    R_PrintSysTextEx(text, x, y, ctx->state.fillStyle,&ctx->state.transformMatrix);
+    R_PrintSysText2(text, x, y, ctx->state.fillStyle,&ctx->state.transformMatrix);
 }
 
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y) {
@@ -246,12 +246,12 @@ void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, fl
     for (float dx = -offset; dx <= offset; dx += offset/2) {
         for (float dy = -offset; dy <= offset; dy += offset/2) {
             if (dx == 0 && dy == 0) continue;
-            R_PrintSysTextEx(text, (DWORD)(x + dx), (DWORD)(y + dy), strokeColor,&ctx->state.transformMatrix);
+            R_PrintSysText2(text, (DWORD)(x + dx), (DWORD)(y + dy), strokeColor,&ctx->state.transformMatrix);
         }
     }
     
     // 绘制主体文本
-    R_PrintSysTextEx(text, (DWORD)x, (DWORD)y, 
+    R_PrintSysText2(text, (DWORD)x, (DWORD)y, 
     ctx->state.fillStyle, &ctx->state.transformMatrix);
 }
 

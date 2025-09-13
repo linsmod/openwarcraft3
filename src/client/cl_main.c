@@ -1,6 +1,8 @@
 #include "client.h"
 #include "../canvas2d/canvas2d_test.h"
+#include "common/common.h"
 #include "renderer.h"
+#include "../html/html.h"
 refExport_t re;
 
 struct client_static cls;
@@ -53,6 +55,7 @@ void CL_Init(void) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .FileOpen = FS_OpenFile,
+        .ReadText = FS_ReadText,
         .FileClose = FS_CloseFile,
         .FileExtract = FS_ExtractFile,
         .ReadSheet = FS_ParseSLK,
@@ -116,6 +119,8 @@ void CL_SendCmd(void) {
 void CL_Shutdown(void) {
     // 清理canvas2d测试
     canvas2d_cleanup_test();
+
+    html_destroy();
     
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);

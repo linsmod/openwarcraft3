@@ -21,7 +21,7 @@ HANDLE FS_AddArchive(LPCSTR);
 void Sys_Quit(void) {
     exit(0);
 }
-int html_main(LPCSTR filename);
+int html_init(LPCSTR filename);
 #include "canvas2d/canvas2d.h"
 int main(int argc, LPSTR argv[]) {
     LPCSTR map = NULL;
@@ -42,7 +42,7 @@ int main(int argc, LPSTR argv[]) {
     }
     
     Com_Init();
-    html_main("../html_tests/index.html"); // relative build dir
+    html_init("../html_tests/index.html"); // relative build dir
     SV_Map(map);
     // canvas2d_runtest();
     DWORD startTime = SDL_GetTicks();
