@@ -1,0 +1,745 @@
+#pragma once
+#include "../common/common.h"
+typedef struct Units_NightElfAbilityFunc {
+    union {
+        LPCSTR Order;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Slo2;
+    union {
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+        LPCSTR Requires;
+    } Aimp;
+    union {
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+        LPCSTR Requires;
+    } Amgl;
+    union {
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Aspo;
+    union {
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } Bspo;
+    union {
+        LPCSTR Order;
+        LPCSTR Effectsound;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Ashm;
+    union {
+        LPCSTR Order;
+        LPCSTR Missileart;
+        float MissileSpeed;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+        LPCSTR Requires;
+    } Aesn;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+    } XEsn;
+    union {
+        LPCSTR Order;
+        LPCSTR Specialattach;
+        LPCSTR Specialart;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Aeat;
+    union {
+        LPCSTR Order;
+        LPCSTR Specialart;
+        LPCSTR Casterart;
+        LPCSTR Effectart;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Ambt;
+    union {
+        LPCSTR Effectsoundlooped;
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+    } Awha;
+    union {
+        LPCSTR Effectsoundlooped;
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+    } Awh2;
+    union {
+        LPCSTR Order;
+        LPCSTR Targetart;
+        LPCSTR Specialart;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Adtn;
+    union {
+        LPCSTR Orderoff;
+        LPCSTR Orderon;
+        LPCSTR Order;
+        LPCSTR Targetart;
+        LPCSTR Casterart;
+        LPCSTR Requires;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Awhe;
+    union {
+        LPCSTR Order;
+        LPCSTR Casterattach;
+        LPCSTR Casterart;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Aent;
+    union {
+        LPCSTR Effectsound;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Aenc;
+    union {
+        LPCSTR Unorder;
+        LPCSTR Order;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Aroo;
+    union {
+        LPCSTR Unorder;
+        LPCSTR Order;
+        float Requiresamount;
+        LPCSTR Requires;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Abrf;
+    union {
+        LPCSTR Unorder;
+        LPCSTR Order;
+        LPCSTR Requires;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Arav;
+    union {
+        LPCSTR Orderoff;
+        LPCSTR Orderon;
+        LPCSTR Order;
+        LPCSTR Targetart;
+        LPCSTR Casterart;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Requires;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Aadm;
+    union {
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Amim;
+    union {
+        LPCSTR Requires;
+    } Ault;
+    union {
+        LPCSTR Effectsound;
+        LPCSTR Requires;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Acoa;
+    union {
+        LPCSTR Effectsound;
+        LPCSTR Requires;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Acoh;
+    union {
+        LPCSTR Order;
+        float Missilespeed;
+        LPCSTR Missileart;
+        LPCSTR Requires;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Acor;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } Bcor;
+    union {
+        LPCSTR Order;
+        LPCSTR Targetart;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEmb;
+    union {
+        LPCSTR Unorder;
+        LPCSTR Order;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } AEim;
+    union {
+        LPCSTR Specialartattach;
+        LPCSTR Specialart;
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } BEim;
+    union {
+        LPVECTOR3 Researchbuttonpos;
+        LPCSTR Researchart;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } AEev;
+    union {
+        LPCSTR Order;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEme;
+    union {
+        LPCSTR Order;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEIl;
+    union {
+        LPCSTR Buffart;
+    } BEme;
+    union {
+        LPCSTR Order;
+        LPCSTR Casterart;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEer;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } BEer;
+    union {
+        LPCSTR Order;
+        LPCSTR Specialart;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEfn;
+    union {
+        LPCSTR Buffart;
+    } BEfn;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEah;
+    union {
+        LPCSTR Specialartattach;
+        LPCSTR Specialart;
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } BEah;
+    union {
+        LPCSTR Order;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEtq;
+    union {
+        LPCSTR Targetart;
+    } AEtr;
+    union {
+        LPCSTR Effectsoundlooped;
+        LPCSTR Effectart;
+    } XEtq;
+    union {
+        LPCSTR Order;
+        LPCSTR Missileart;
+        float MissileSpeed;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEst;
+    union {
+        LPCSTR Unorder;
+        LPCSTR Order;
+        float Missilespeed;
+        LPCSTR Missileart;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } AHfa;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPVECTOR3 Researchbuttonpos;
+        LPCSTR Researchart;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } AEar;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } BEar;
+    union {
+        LPCSTR Order;
+        LPCSTR Casterart;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEsf;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+    } AEsd;
+    union {
+        LPCSTR Effectart;
+    } XEsf;
+    union {
+        LPCSTR Order;
+        LPCSTR Casterart;
+        LPVECTOR3 Researchbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Researchart;
+        LPCSTR Art;
+    } AEsb;
+    union {
+        LPCSTR orderoff;
+        LPCSTR orderon;
+        LPCSTR order;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Afae;
+    union {
+        LPCSTR Buffart;
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+    } Bfae;
+    union {
+        LPCSTR order;
+        float Requiresamount;
+        LPCSTR Requires;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Acyc;
+    union {
+        LPCSTR Effectsoundlooped;
+        LPCSTR Targetattach;
+        LPCSTR Effectart;
+        LPCSTR Buffart;
+    } Bcyc;
+    union {
+        LPCSTR order;
+        LPCSTR Requires;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Arej;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR TargetArt;
+        LPCSTR Buffart;
+    } Brej;
+    union {
+        LPCSTR Orderoff;
+        LPCSTR Orderon;
+        LPCSTR Order;
+        LPCSTR Effectsoundlooped;
+        LPCSTR Targetart;
+        LPCSTR Casterart;
+        LPVECTOR3 Unbuttonpos;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Unart;
+        LPCSTR Art;
+    } Aren;
+    union {
+        LPCSTR Casterart;
+        LPVECTOR3 Buttonpos;
+        LPCSTR Art;
+    } Aroa;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } Broa;
+    union {
+        LPCSTR Targetart;
+        float Missilespeed;
+        LPCSTR Missileart;
+    } Alit;
+    union {
+        LPCSTR Targetattach2;
+        LPCSTR Targetattach1;
+        LPCSTR Targetattach;
+        float Targetattachcount;
+        LPCSTR Targetart;
+    } Atol;
+    union {
+        LPCSTR Targetattach;
+        LPCSTR Targetart;
+        LPCSTR Buffart;
+    } Bbar;
+    union {
+        LPCSTR Effectsoundlooped;
+        LPCSTR Targetattach1;
+        LPCSTR Targetattach;
+        float Targetattachcount;
+        LPCSTR TargetArt;
+    } Xfns;
+    union {
+        LPCSTR Effectsoundlooped;
+        LPCSTR Targetattach3;
+        LPCSTR Targetattach2;
+        LPCSTR Targetattach1;
+        LPCSTR Targetattach;
+        float Targetattachcount;
+        LPCSTR TargetArt;
+    } Xfnm;
+    union {
+        LPCSTR Effectsoundlooped;
+        LPCSTR Targetattach5;
+        LPCSTR Targetattach4;
+        LPCSTR Targetattach3;
+        LPCSTR Targetattach2;
+        LPCSTR Targetattach1;
+        LPCSTR Targetattach;
+        float Targetattachcount;
+        LPCSTR TargetArt;
+    } Xfnl;
+} Units_NightElfAbilityFunc;
+
+void Init_Units_NightElfAbilityFunc(Units_NightElfAbilityFunc *config);
+void Shutdown_Units_NightElfAbilityFunc(Units_NightElfAbilityFunc *config);
+
+void Init_Units_NightElfAbilityFunc(Units_NightElfAbilityFunc *config) {
+    config->Slo2.Order = "load"; 
+    config->Slo2.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Slo2.Art = "ReplaceableTextures\\CommandButtons\\BTNLoad.blp"; 
+    config->Aimp.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Aimp.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNImpalingBolt.blp"; 
+    config->Aimp.Requires = "Repb"; 
+    config->Amgl.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->Amgl.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNUpgradeMoonGlaive.blp"; 
+    config->Amgl.Requires = "Remg"; 
+    config->Aspo.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->Aspo.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNSlowPoison.blp"; 
+    config->Bspo.Targetart = "Abilities\\Weapons\\PoisonSting\\PoisonStingTarget.mdl"; 
+    config->Bspo.Buffart = "ReplaceableTextures\\CommandButtons\\BTNEnvenomedSpear.blp"; 
+    config->Ashm.Order = "ambush"; 
+    config->Ashm.Effectsound = "ShadowMeld"; 
+    config->Ashm.Buttonpos = &MAKE(VECTOR3,2,1); 
+    config->Ashm.Art = "ReplaceableTextures\\CommandButtons\\BTNAmbush.blp"; 
+    config->Aesn.Order = "sentinel"; 
+    config->Aesn.Missileart = "Units\\NightElf\\Owl\\Owl.mdl"; 
+    config->Aesn.MissileSpeed = 1500; 
+    config->Aesn.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Aesn.Art = "ReplaceableTextures\\CommandButtons\\BTNSentinel.blp"; 
+    config->Aesn.Requires = "Resc"; 
+    config->XEsn.Targetattach = "overhead"; 
+    config->XEsn.Targetart = "Units\\NightElf\\Owl\\Owl.mdl"; 
+    config->Aeat.Order = "eattree"; 
+    config->Aeat.Specialattach = "eattree"; 
+    config->Aeat.Specialart = "Abilities\\Spells\\NightElf\\EatTree\\EatTreeSprite.mdl"; 
+    config->Aeat.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Aeat.Art = "ReplaceableTextures\\CommandButtons\\BTNEatTree.blp"; 
+    config->Ambt.Order = "recharge"; 
+    config->Ambt.Specialart = "Abilities\\Spells\\Human\\Heal\\HealTarget.mdl"; 
+    config->Ambt.Casterart = "Abilities\\Spells\\NightElf\\MoonWell\\MoonWellCasterArt.mdl"; 
+    config->Ambt.Effectart = "Abilities\\Spells\\NightElf\\MoonWell\\MoonWellTarget.mdl,Abilities\\Spells\\NightElf\\MoonWell\\MoonWellTarget.mdl,Abilities\\Spells\\NightElf\\MoonWell\\MoonWellTarget.mdl,Abilities\\Spells\\NightElf\\MoonWell\\MoonWellTarget.mdl,Abilities\\Spells\\NightElf\\MoonWell\\CorruptedMoonWellTarget.mdl"; 
+    config->Ambt.Buttonpos = &MAKE(VECTOR3,0,0); 
+    config->Ambt.Unart = "ReplaceableTextures\\CommandButtons\\BTNManaRechargeOff.blp"; 
+    config->Ambt.Art = "ReplaceableTextures\\CommandButtons\\BTNManaRechargeOn.blp"; 
+    config->Awha.Effectsoundlooped = "WispHarvestLoop"; 
+    config->Awha.Targetattach = "origin"; 
+    config->Awha.Targetart = "Abilities\\Spells\\NightElf\\TargetArtLumber\\TargetArtLumber.mdl"; 
+    config->Awh2.Effectsoundlooped = "WispHarvestLoop"; 
+    config->Awh2.Targetattach = "origin"; 
+    config->Awh2.Targetart = "Abilities\\Spells\\NightElf\\TargetArtLumber\\TargetArtLumber.mdl"; 
+    config->Adtn.Order = "detonate"; 
+    config->Adtn.Targetart = "Abilities\\Spells\\Human\\DispelMagic\\DispelMagicTarget.mdl"; 
+    config->Adtn.Specialart = "Units\\NightElf\\Wisp\\WispExplode.mdl"; 
+    config->Adtn.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->Adtn.Art = "ReplaceableTextures\\CommandButtons\\BTNWispSplode.blp"; 
+    config->Awhe.Orderoff = "wisphealoff"; 
+    config->Awhe.Orderon = "wisphealon"; 
+    config->Awhe.Order = "wispheal"; 
+    config->Awhe.Targetart = "Abilities\\Spells\\Human\\Heal\\HealTarget.mdl"; 
+    config->Awhe.Casterart = ""; 
+    config->Awhe.Requires = "Rewh"; 
+    config->Awhe.Unbuttonpos = &MAKE(VECTOR3,2,2); 
+    config->Awhe.Buttonpos = &MAKE(VECTOR3,2,2); 
+    config->Awhe.Unart = "ReplaceableTextures\\CommandButtons\\BTNWispHealOff.blp"; 
+    config->Awhe.Art = "ReplaceableTextures\\CommandButtons\\BTNWispHealOn.blp"; 
+    config->Aent.Order = "entangle"; 
+    config->Aent.Casterattach = "origin"; 
+    config->Aent.Casterart = "Abilities\\Spells\\NightElf\\EntangleMine\\Roots.mdl"; 
+    config->Aent.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->Aent.Art = "ReplaceableTextures\\CommandButtons\\BTNGoldMine.blp"; 
+    config->Aenc.Effectsound = "WispLoad"; 
+    config->Aenc.Unbuttonpos = &MAKE(VECTOR3,0,2); 
+    config->Aenc.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->Aenc.Unart = "ReplaceableTextures\\CommandButtons\\BTNUnload.blp"; 
+    config->Aenc.Art = "ReplaceableTextures\\CommandButtons\\BTNLoad.blp"; 
+    config->Aroo.Unorder = "unroot"; 
+    config->Aroo.Order = "root"; 
+    config->Aroo.Unbuttonpos = &MAKE(VECTOR3,3,2); 
+    config->Aroo.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->Aroo.Unart = "ReplaceableTextures\\CommandButtons\\BTNUproot.blp"; 
+    config->Aroo.Art = "ReplaceableTextures\\CommandButtons\\BTNRoot.blp"; 
+    config->Abrf.Unorder = "unbearform"; 
+    config->Abrf.Order = "bearform"; 
+    config->Abrf.Requiresamount = 2; 
+    config->Abrf.Requires = "Redc"; 
+    config->Abrf.Unbuttonpos = &MAKE(VECTOR3,3,2); 
+    config->Abrf.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->Abrf.Unart = "ReplaceableTextures\\CommandButtons\\BTNDruidOfTheClaw.blp"; 
+    config->Abrf.Art = "ReplaceableTextures\\CommandButtons\\BTNBearForm.blp"; 
+    config->Arav.Unorder = "unravenform"; 
+    config->Arav.Order = "ravenform"; 
+    config->Arav.Requires = "Redt"; 
+    config->Arav.Unbuttonpos = &MAKE(VECTOR3,3,2); 
+    config->Arav.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->Arav.Unart = "ReplaceableTextures\\CommandButtons\\BTNDruidOfTheTalon.blp"; 
+    config->Arav.Art = "ReplaceableTextures\\CommandButtons\\BTNRavenForm.blp"; 
+    config->Aadm.Orderoff = "autodispeloff"; 
+    config->Aadm.Orderon = "autodispelon"; 
+    config->Aadm.Order = "autodispel"; 
+    config->Aadm.Targetart = "Abilities\\Spells\\Human\\DispelMagic\\DispelMagicTarget.mdl"; 
+    config->Aadm.Casterart = ""; 
+    config->Aadm.Unbuttonpos = &MAKE(VECTOR3,0,2); 
+    config->Aadm.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Aadm.Requires = "Resi"; 
+    config->Aadm.Unart = "ReplaceableTextures\\CommandButtons\\BTNDryadDispelMagicOff.blp"; 
+    config->Aadm.Art = "ReplaceableTextures\\CommandButtons\\BTNDryadDispelMagicOn.blp"; 
+    config->Amim.Buttonpos = &MAKE(VECTOR3,2,2); 
+    config->Amim.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNMagicImmunity.blp"; 
+    config->Ault.Requires = "Reuv"; 
+    config->Acoa.Effectsound = "HippogryphTaming"; 
+    config->Acoa.Requires = "Reht"; 
+    config->Acoa.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Acoa.Art = "ReplaceableTextures\\CommandButtons\\BTNHippogriffRider.blp"; 
+    config->Acoh.Effectsound = "HippogryphTaming"; 
+    config->Acoh.Requires = "Reht"; 
+    config->Acoh.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Acoh.Art = "ReplaceableTextures\\CommandButtons\\BTNHippogriffRider.blp"; 
+    config->Acor.Order = "corrosivebreath"; 
+    config->Acor.Missilespeed = 1000; 
+    config->Acor.Missileart = "Abilities\\Spells\\NightElf\\CorrosiveBreath\\CorrosiveBreathMissile.mdl"; 
+    config->Acor.Requires = "Recb"; 
+    config->Acor.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Acor.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNCorrosiveBreath.blp"; 
+    config->Bcor.Targetattach = ""; 
+    config->Bcor.Targetart = "Abilities\\Spells\\NightElf\\CorrosiveBreath\\ChimaeraAcidTargetArt.mdl"; 
+    config->Bcor.Buffart = "ReplaceableTextures\\CommandButtons\\BTNCorrosiveBreath.blp"; 
+    config->AEmb.Order = "manaburn"; 
+    config->AEmb.Targetart = "Abilities\\Spells\\NightElf\\ManaBurn\\ManaBurnTarget.mdl"; 
+    config->AEmb.Researchbuttonpos = &MAKE(VECTOR3,0,0); 
+    config->AEmb.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->AEmb.Researchart = "ReplaceableTextures\\CommandButtons\\BTNManaBurn.blp"; 
+    config->AEmb.Art = "ReplaceableTextures\\CommandButtons\\BTNManaBurn.blp"; 
+    config->AEim.Unorder = "unimmolation"; 
+    config->AEim.Order = "immolation"; 
+    config->AEim.Researchbuttonpos = &MAKE(VECTOR3,1,0); 
+    config->AEim.Unbuttonpos = &MAKE(VECTOR3,1,2); 
+    config->AEim.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->AEim.Researchart = "ReplaceableTextures\\CommandButtons\\BTNImmolationOn.blp"; 
+    config->AEim.Unart = "ReplaceableTextures\\CommandButtons\\BTNImmolationOff.blp"; 
+    config->AEim.Art = "ReplaceableTextures\\CommandButtons\\BTNImmolationOn.blp"; 
+    config->BEim.Specialartattach = "head"; 
+    config->BEim.Specialart = "Abilities\\Spells\\NightElf\\Immolation\\ImmolationDamage.mdl"; 
+    config->BEim.Targetart = "Abilities\\Spells\\NightElf\\Immolation\\ImmolationTarget.mdl"; 
+    config->BEim.Buffart = "ReplaceableTextures\\CommandButtons\\BTNImmolationOn.blp"; 
+    config->AEev.Researchbuttonpos = &MAKE(VECTOR3,2,0); 
+    config->AEev.Researchart = "ReplaceableTextures\\CommandButtons\\BTNEvasion.blp"; 
+    config->AEev.Buttonpos = &MAKE(VECTOR3,2,2); 
+    config->AEev.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNEvasion.blp"; 
+    config->AEme.Order = "metamorphosis"; 
+    config->AEme.Researchbuttonpos = &MAKE(VECTOR3,3,0); 
+    config->AEme.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->AEme.Researchart = "ReplaceableTextures\\CommandButtons\\BTNMetamorphosis.blp"; 
+    config->AEme.Art = "ReplaceableTextures\\CommandButtons\\BTNMetamorphosis.blp"; 
+    config->AEIl.Order = "metamorphosis"; 
+    config->AEIl.Researchbuttonpos = &MAKE(VECTOR3,3,0); 
+    config->AEIl.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->AEIl.Researchart = "ReplaceableTextures\\CommandButtons\\BTNMetamorphosis.blp"; 
+    config->AEIl.Art = "ReplaceableTextures\\CommandButtons\\BTNMetamorphosis.blp"; 
+    config->BEme.Buffart = "ReplaceableTextures\\CommandButtons\\BTNMetamorphosis.blp"; 
+    config->AEer.Order = "entanglingroots"; 
+    config->AEer.Casterart = ""; 
+    config->AEer.Researchbuttonpos = &MAKE(VECTOR3,0,0); 
+    config->AEer.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->AEer.Researchart = "ReplaceableTextures\\CommandButtons\\BTNEntanglingRoots.blp"; 
+    config->AEer.Art = "ReplaceableTextures\\CommandButtons\\BTNEntanglingRoots.blp"; 
+    config->BEer.Targetattach = "origin"; 
+    config->BEer.Targetart = "Abilities\\Spells\\NightElf\\EntanglingRoots\\EntanglingRootsTarget.mdl"; 
+    config->BEer.Buffart = "ReplaceableTextures\\CommandButtons\\BTNEntanglingRoots.blp"; 
+    config->AEfn.Order = "forceofnature"; 
+    config->AEfn.Specialart = ""; 
+    config->AEfn.Researchbuttonpos = &MAKE(VECTOR3,1,0); 
+    config->AEfn.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->AEfn.Researchart = "ReplaceableTextures\\CommandButtons\\BTNEnt.blp"; 
+    config->AEfn.Art = "ReplaceableTextures\\CommandButtons\\BTNEnt.blp"; 
+    config->BEfn.Buffart = "ReplaceableTextures\\CommandButtons\\BTNEnt.blp"; 
+    config->AEah.Targetattach = "origin"; 
+    config->AEah.Targetart = "Abilities\\Spells\\NightElf\\ThornsAura\\ThornsAura.mdl"; 
+    config->AEah.Researchbuttonpos = &MAKE(VECTOR3,2,0); 
+    config->AEah.Buttonpos = &MAKE(VECTOR3,2,2); 
+    config->AEah.Researchart = "ReplaceableTextures\\CommandButtons\\BTNThorns.blp"; 
+    config->AEah.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNThorns.blp"; 
+    config->BEah.Specialartattach = "head"; 
+    config->BEah.Specialart = "Abilities\\Spells\\NightElf\\ThornsAura\\ThornsAuraDamage.mdl"; 
+    config->BEah.Targetattach = "origin"; 
+    config->BEah.Targetart = "Abilities\\Spells\\Other\\GeneralAuraTarget\\GeneralAuraTarget.mdl"; 
+    config->BEah.Buffart = "ReplaceableTextures\\CommandButtons\\BTNThorns.blp"; 
+    config->AEtq.Order = "tranquility"; 
+    config->AEtq.Researchbuttonpos = &MAKE(VECTOR3,3,0); 
+    config->AEtq.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->AEtq.Researchart = "ReplaceableTextures\\CommandButtons\\BTNTranquility.blp"; 
+    config->AEtq.Art = "ReplaceableTextures\\CommandButtons\\BTNTranquility.blp"; 
+    config->AEtr.Targetart = "Abilities\\Spells\\NightElf\\Tranquility\\TranquilityTarget.mdl"; 
+    config->XEtq.Effectsoundlooped = "TranquilityLoop"; 
+    config->XEtq.Effectart = "Abilities\\Spells\\NightElf\\Tranquility\\Tranquility.mdl"; 
+    config->AEst.Order = "scout"; 
+    config->AEst.Missileart = "Units\\NightElf\\Owl\\Owl.mdl"; 
+    config->AEst.MissileSpeed = 650; 
+    config->AEst.Researchbuttonpos = &MAKE(VECTOR3,0,0); 
+    config->AEst.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->AEst.Researchart = "ReplaceableTextures\\CommandButtons\\BTNScout.blp"; 
+    config->AEst.Art = "ReplaceableTextures\\CommandButtons\\BTNScout.blp"; 
+    config->AHfa.Unorder = "unflamingarrows"; 
+    config->AHfa.Order = "flamingarrows"; 
+    config->AHfa.Missilespeed = 1500; 
+    config->AHfa.Missileart = "Abilities\\Weapons\\SearingArrow\\SearingArrowMissile.mdl"; 
+    config->AHfa.Researchbuttonpos = &MAKE(VECTOR3,1,0); 
+    config->AHfa.Unbuttonpos = &MAKE(VECTOR3,1,2); 
+    config->AHfa.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->AHfa.Researchart = "ReplaceableTextures\\CommandButtons\\BTNSearingArrows.blp"; 
+    config->AHfa.Unart = "ReplaceableTextures\\CommandButtons\\BTNSearingArrowsOff.blp"; 
+    config->AHfa.Art = "ReplaceableTextures\\CommandButtons\\BTNSearingArrowsOn.blp"; 
+    config->AEar.Targetattach = "origin"; 
+    config->AEar.Targetart = "Abilities\\Spells\\NightElf\\TrueshotAura\\TrueshotAura.mdl"; 
+    config->AEar.Researchbuttonpos = &MAKE(VECTOR3,2,0); 
+    config->AEar.Researchart = "ReplaceableTextures\\CommandButtons\\BTNTrueShot.blp"; 
+    config->AEar.Buttonpos = &MAKE(VECTOR3,2,2); 
+    config->AEar.Art = "ReplaceableTextures\\PassiveButtons\\PASBTNTrueShot.blp"; 
+    config->BEar.Targetattach = "origin"; 
+    config->BEar.Targetart = "Abilities\\Spells\\Other\\GeneralAuraTarget\\GeneralAuraTarget.mdl"; 
+    config->BEar.Buffart = "ReplaceableTextures\\CommandButtons\\BTNTrueShot.blp"; 
+    config->AEsf.Order = "starfall"; 
+    config->AEsf.Casterart = ""; 
+    config->AEsf.Researchbuttonpos = &MAKE(VECTOR3,3,0); 
+    config->AEsf.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->AEsf.Researchart = "ReplaceableTextures\\CommandButtons\\BTNStarfall.blp"; 
+    config->AEsf.Art = "ReplaceableTextures\\CommandButtons\\BTNStarfall.blp"; 
+    config->AEsd.Targetattach = "origin"; 
+    config->AEsd.Targetart = "Abilities\\Spells\\NightElf\\Starfall\\StarfallTarget.mdl"; 
+    config->XEsf.Effectart = "Abilities\\Spells\\NightElf\\Starfall\\StarfallCaster.mdl"; 
+    config->AEsb.Order = "starfall"; 
+    config->AEsb.Casterart = ""; 
+    config->AEsb.Researchbuttonpos = &MAKE(VECTOR3,3,0); 
+    config->AEsb.Buttonpos = &MAKE(VECTOR3,3,2); 
+    config->AEsb.Researchart = "ReplaceableTextures\\CommandButtons\\BTNStarfall.blp"; 
+    config->AEsb.Art = "ReplaceableTextures\\CommandButtons\\BTNStarfall.blp"; 
+    config->Afae.orderoff = "faeriefireoff"; 
+    config->Afae.orderon = "faeriefireon"; 
+    config->Afae.order = "faeriefire"; 
+    config->Afae.Unbuttonpos = &MAKE(VECTOR3,0,2); 
+    config->Afae.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Afae.Unart = "ReplaceableTextures\\CommandButtons\\BTNFaerieFireOff.blp"; 
+    config->Afae.Art = "ReplaceableTextures\\CommandButtons\\BTNFaerieFireOn.blp"; 
+    config->Bfae.Buffart = "ReplaceableTextures\\CommandButtons\\BTNFaerieFire.blp"; 
+    config->Bfae.Targetattach = "head"; 
+    config->Bfae.Targetart = "Abilities\\Spells\\NightElf\\FaerieFire\\FaerieFireTarget.mdl"; 
+    config->Acyc.order = "cyclone"; 
+    config->Acyc.Requiresamount = 2; 
+    config->Acyc.Requires = "Redt"; 
+    config->Acyc.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->Acyc.Art = "ReplaceableTextures\\CommandButtons\\BTNCyclone.blp"; 
+    config->Bcyc.Effectsoundlooped = "CycloneLoop"; 
+    config->Bcyc.Targetattach = "sprite,first"; 
+    config->Bcyc.Effectart = "Abilities\\Spells\\NightElf\\Cyclone\\CycloneTarget.mdl"; 
+    config->Bcyc.Buffart = "ReplaceableTextures\\CommandButtons\\BTNCyclone.blp"; 
+    config->Arej.order = "rejuvination"; 
+    config->Arej.Requires = "Redc"; 
+    config->Arej.Buttonpos = &MAKE(VECTOR3,1,2); 
+    config->Arej.Art = "ReplaceableTextures\\CommandButtons\\BTNRejuvenation.blp"; 
+    config->Brej.Targetattach = "chest"; 
+    config->Brej.TargetArt = "Abilities\\Spells\\NightElf\\Rejuvenation\\RejuvenationTarget.mdl"; 
+    config->Brej.Buffart = "ReplaceableTextures\\CommandButtons\\BTNRejuvenation.blp"; 
+    config->Aren.Orderoff = "renewoff"; 
+    config->Aren.Orderon = "renewon"; 
+    config->Aren.Order = "renew"; 
+    config->Aren.Effectsoundlooped = "WispRenewLoop"; 
+    config->Aren.Targetart = ""; 
+    config->Aren.Casterart = ""; 
+    config->Aren.Unbuttonpos = &MAKE(VECTOR3,1,1); 
+    config->Aren.Buttonpos = &MAKE(VECTOR3,1,1); 
+    config->Aren.Unart = "ReplaceableTextures\\CommandButtons\\BTNWispHealOff.blp"; 
+    config->Aren.Art = "ReplaceableTextures\\CommandButtons\\BTNWispHealOn.blp"; 
+    config->Aroa.Casterart = "Abilities\\Spells\\NightElf\\BattleRoar\\RoarCaster.mdl"; 
+    config->Aroa.Buttonpos = &MAKE(VECTOR3,0,2); 
+    config->Aroa.Art = "ReplaceableTextures\\CommandButtons\\BTNBattleRoar.blp"; 
+    config->Broa.Targetattach = "overhead"; 
+    config->Broa.Targetart = "Abilities\\Spells\\NightElf\\BattleRoar\\RoarTarget.mdl"; 
+    config->Broa.Buffart = "ReplaceableTextures\\CommandButtons\\BTNBattleRoar.blp"; 
+    config->Alit.Targetart = "Abilities\\Weapons\\Bolt\\BoltImpact.mdl"; 
+    config->Alit.Missilespeed = 1500; 
+    config->Alit.Missileart = "Abilities\\Weapons\\ChimaeraLightningMissile\\ChimaeraLightningMissile.mdl"; 
+    config->Atol.Targetattach2 = "hand,right"; 
+    config->Atol.Targetattach1 = "hand,left"; 
+    config->Atol.Targetattach = "origin"; 
+    config->Atol.Targetattachcount = 3; 
+    config->Atol.Targetart = "Abilities\\Spells\\NightElf\\TreeofLifeUpgrade\\TreeofLifeUpgradeTargetArt.mdl,Abilities\\Spells\\NightElf\\TreeofLifeUpgrade\\TreeofLifeUpgradeTargetArtHand.mdl,Abilities\\Spells\\NightElf\\TreeofLifeUpgrade\\TreeofLifeUpgradeTargetArtHand.mdl"; 
+    config->Bbar.Targetattach = "chest"; 
+    config->Bbar.Targetart = "Abilities\\Spells\\NightElf\\Barkskin\\BarkSkinTarget.mdl"; 
+    config->Bbar.Buffart = "ReplaceableTextures\\CommandButtons\\BTNBarkskin.blp"; 
+    config->Xfns.Effectsoundlooped = "NightElfFireSmall"; 
+    config->Xfns.Targetattach1 = "sprite,fourth"; 
+    config->Xfns.Targetattach = "sprite,first"; 
+    config->Xfns.Targetattachcount = 2; 
+    config->Xfns.TargetArt = "Environment\\NightElfBuildingFire\\ElfSmallBuildingFire2.mdl,Environment\\NightElfBuildingFire\\ElfSmallBuildingFire1.mdl"; 
+    config->Xfnm.Effectsoundlooped = "NightElfFireMedium"; 
+    config->Xfnm.Targetattach3 = "sprite,fifth"; 
+    config->Xfnm.Targetattach2 = "sprite,fourth"; 
+    config->Xfnm.Targetattach1 = "sprite,second"; 
+    config->Xfnm.Targetattach = "sprite,first"; 
+    config->Xfnm.Targetattachcount = 4; 
+    config->Xfnm.TargetArt = "Environment\\NightElfBuildingFire\\ElfLargeBuildingFire2.mdl,Environment\\NightElfBuildingFire\\ElfSmallBuildingFire1.mdl,Environment\\NightElfBuildingFire\\ElfLargeBuildingFire0.mdl,Environment\\NightElfBuildingFire\\ElfSmallBuildingFire2.mdl"; 
+    config->Xfnl.Effectsoundlooped = "NightElfFireLarge"; 
+    config->Xfnl.Targetattach5 = "sprite,sixth"; 
+    config->Xfnl.Targetattach4 = "sprite,fourth"; 
+    config->Xfnl.Targetattach3 = "sprite,third"; 
+    config->Xfnl.Targetattach2 = "sprite,fifth"; 
+    config->Xfnl.Targetattach1 = "sprite,second"; 
+    config->Xfnl.Targetattach = "sprite,first"; 
+    config->Xfnl.Targetattachcount = 6; 
+    config->Xfnl.TargetArt = "Environment\\NightElfBuildingFire\\ElfLargeBuildingFire1.mdl,Environment\\NightElfBuildingFire\\ElfLargeBuildingFire0.mdl,Environment\\NightElfBuildingFire\\ElfLargeBuildingFire0.mdl,Environment\\NightElfBuildingFire\\ElfSmallBuildingFire1.mdl,Environment\\NightElfBuildingFire\\ElfLargeBuildingFire2.mdl,Environment\\NightElfBuildingFire\\ElfSmallBuildingFire0.mdl"; 
+}
+

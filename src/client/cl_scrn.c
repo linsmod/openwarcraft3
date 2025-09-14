@@ -687,7 +687,7 @@ void SCR_UpdateScreen(void) {
 
     canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
 
-    html_update_frame();
+    // html_update_frame();
 
     CON_DrawConsole();
     

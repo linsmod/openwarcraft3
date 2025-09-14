@@ -11,9 +11,9 @@ struct edict_s *g_edicts;
 
 LPCSTR miscdata_files[] = {
     "UI\\MiscData.txt",
+    "UI\\MiscUI.txt",
     "Units\\MiscData.txt",
     "Units\\MiscGame.txt",
-    "UI\\MiscUI.txt",
     "UI\\SoundInfo\\MiscData.txt",
     "war3mapMisc.txt",
     NULL

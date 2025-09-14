@@ -1,7 +1,9 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h> // atoi()
 
 #include "client.h"
+#include "r_local.h"
 #include "renderer.h"
 
 static struct {
@@ -200,6 +202,9 @@ void CL_PrepRefresh(void) {
             PATHSTR filename = { 0 };
             memcpy(filename, fontspec, split - fontspec);
             DWORD fontsize = atoi(split+1);
+            // assert(fontsize!=0);
+            if(fontsize==0)
+                fontsize = DEFAULT_TEXTFONT_SIZE;
             cl.fonts[i] = re.LoadFont(filename, fontsize);
             printf("LoadFont: %d %s fontSIze=%d\n",i,filename,fontsize);
         } else {

@@ -2,7 +2,7 @@
 
 # 默认构建类型
 BUILD_TYPE=""
-
+rm build -rf
 # 处理命令行参数
 if [ $# -gt 0 ]; then
     case "$1" in

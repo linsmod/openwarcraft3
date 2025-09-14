@@ -118,42 +118,6 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
     }
     return font->sets[idx];
 }
-#define SUBSTR_TO(buf, start, end) do { \
-    int len = (end) - (start); \
-    if (len < 0) len = 0; \
-    if (len >= (int)sizeof(buf)-1) len = (int)sizeof(buf)-1; \
-    memcpy(buf, start, len); \
-    buf[len] = '\0'; \
-} while(0)
-
-#define STR_APPENDLINE(dst, chars) do { \
-    char* _new_ptr = NULL; \
-    size_t _old_len = (dst) ? strlen(dst) : 0; \
-    size_t _add_len = (chars) ? strlen(chars) : 0; \
-    size_t _new_len = _old_len + 1 + _add_len + 1; /* +1: '\n', +1: '\0' */ \
-    \
-    _new_ptr = (char*)realloc((dst), _new_len); \
-    if (_new_ptr == NULL) { \
-        /* realloc 失败，保留原指针（系统未释放） */ \
-        break; \
-    } \
-    (dst) = _new_ptr; /* 更新原指针 */ \
-    if (_old_len > 0) { \
-        (dst)[_old_len] = '\n'; /* 添加换行 */ \
-    } \
-    memcpy((dst) + _old_len + 1, (chars), _add_len); \
-    (dst)[_old_len + 1 + _add_len] = '\0'; /* 确保结尾 */ \
-} while(0)
-
-// 遍历每一行，start 和 end 指向行的开始和 \n 位置
-#define FOR_EACH_LINE(start, end, input) \
-    char *start, *end; \
-    for (char* _pos = (input), *_next = NULL; \
-         (_pos ? ((start) = _pos, \
-            (_next = strchr(_pos, '\n')) ? ((end) = _next) : ((end) = _pos + strlen(_pos)), \
-            1) : 0); \
-         _pos = (_next && *(_next)) ? _next + 1 : NULL \
-        )
 
 // 判断是否为字体文件（不区分大小写）
 static BOOL IsFontFile(LPCSTR filename) {
@@ -479,7 +443,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             FLOAT const h = set->image->height;
             RECT const uv_rect = get_uvrect(g, h, w);
             RECT const screen = get_screenrect(&cursor, g);
-            R_DrawImage(set->image, &screen, &uv_rect, color);
+            R_DrawImage2(set->image, &screen, &uv_rect, color,arg->model_matrix);
         }
         cursor.x += charWidth;
         maxwidth = MAX(maxwidth, cursor.x);
@@ -526,7 +490,7 @@ void R_DrawUtf8Text(LPCSTR string, DWORD x, DWORD y, COLOR32 color){
 
     DRAWTEXT arg;
     arg.color = color;
-    arg.rect = MAKE(RECT,x,y);
+    arg.rect = MAKE(RECT,x,y,0,1);
     arg.halign= FONT_JUSTIFYLEFT;
     arg.wordWrap = 1;
     arg.text = string;
@@ -541,7 +505,7 @@ void R_DrawUtf8Text2(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 tr
     
     DRAWTEXT arg;
     arg.color = color;
-    arg.rect = MAKE(RECT,x,y);
+    arg.rect = MAKE(RECT,x,y,0,1);
     arg.halign= FONT_JUSTIFYLEFT;
     arg.wordWrap = 1;
     arg.text = string;

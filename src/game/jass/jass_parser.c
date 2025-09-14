@@ -65,7 +65,7 @@ void parser_throw(void) {
 
 LPSTR read_identifier(LPPARSER p) {
     if (is_identifier(peek_token(p))) {
-        return strdup(parse_token(p,true));
+        return strdup(parse_token(p));
     } else {
         return NULL;
     }
@@ -170,13 +170,13 @@ void remove_quotes(LPSTR str, char quote) {
 
 LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
     LPTOKEN t = alloc_token(tt,p);
-    t->primary = strdup(parse_token(p,true));
+    t->primary = strdup(parse_token(p));
     return t;
 }
 
 LPTOKEN parse_operator_token(LPPARSER p) {
     UINAME op = { 0 };
-    strcpy(op, parse_token(p,true));
+    strcpy(op, parse_token(p));
     if (eat_token(p, "=")) {
         op[1] = '=';
     }

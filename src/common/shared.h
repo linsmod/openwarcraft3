@@ -3,6 +3,7 @@
 
 //#define DEBUG_PATHFINDING
 
+#include <ctype.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -69,6 +70,44 @@ for (type *property = array; property - array < num; property++)
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
 
 
+// 遍历每一行，start 和 end 指向行的开始和 \n 位置
+#define FOR_EACH_LINE(start, end, input) \
+    char *start, *end; \
+    for (char* _pos = (input), *_next = NULL; \
+         (_pos ? ((start) = _pos, \
+            (_next = strchr(_pos, '\n')) ? ((end) = _next) : ((end) = _pos + strlen(_pos)), \
+            1) : 0); \
+         _pos = (_next && *(_next)) ? _next + 1 : NULL \
+        )
+
+#define SUBSTR_TO(buf, start, end) do { \
+    int len = (end) - (start); \
+    if (len < 0) len = 0; \
+    if (len >= (int)sizeof(buf)-1) len = (int)sizeof(buf)-1; \
+    memcpy(buf, start, len); \
+    buf[len] = '\0'; \
+} while(0)
+
+#define STR_APPENDLINE(dst, chars) do { \
+    char* _new_ptr = NULL; \
+    size_t _old_len = (dst) ? strlen(dst) : 0; \
+    size_t _add_len = (chars) ? strlen(chars) : 0; \
+    size_t _new_len = _old_len + 1 + _add_len + 1; /* +1: '\n', +1: '\0' */ \
+    \
+    _new_ptr = (char*)realloc((dst), _new_len); \
+    if (_new_ptr == NULL) { \
+        /* realloc 失败，保留原指针（系统未释放） */ \
+        break; \
+    } \
+    (dst) = _new_ptr; /* 更新原指针 */ \
+    if (_old_len > 0) { \
+        (dst)[_old_len] = '\n'; /* 添加换行 */ \
+    } \
+    memcpy((dst) + _old_len + 1, (chars), _add_len); \
+    (dst)[_old_len + 1 + _add_len] = '\0'; /* 确保结尾 */ \
+} while(0)
+
+
 // #define DEBUG_JASS
 
 #ifdef DEBUG_JASS
@@ -120,7 +159,14 @@ for (TYPE *it = LIST; it;) { \
 
 #define PARSE_LIST(LIST, ITEM, PARSEFUNC) \
 PARSER parser = { .buffer = LIST, .delimiters = "" }; \
-for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
+for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser)) \
+
+// "a","b","c"
+#define FOR_EACH_STRINGLIST(ITEM, LIST) \
+LPSTR _parserinput = malloc(strlen(LIST)+1); \
+_parserinput[strlen(LIST)]='\0'; \
+if(strlen(LIST)) STR_APPENDLINE(_parserinput, LIST); \
+PARSE_LIST(_parserinput, ITEM, parse_segment)
 
 
 #define FLAG(NAME, X) NAME = (1 << X)
@@ -235,6 +281,11 @@ KNOWN_AS(mapInfo_s, MAPINFO);
 KNOWN_AS(mapPlayer_s, MAPPLAYER);
 KNOWN_AS(playerState_s, PLAYER);
 KNOWN_AS(src_location, SRCLOC);
+KNOWN_AS(strlist, STRINGLIST)
+typedef struct strlist{
+    LPSTR str;
+    LPSTRINGLIST next;
+} strlist;
 
 static const DWORD NONE_PLAYER=-1;
 

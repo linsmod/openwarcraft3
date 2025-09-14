@@ -232,7 +232,8 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
         return;
     }
 
-    R_PrintSysText2(text, x, y, ctx->state.fillStyle,&ctx->state.transformMatrix);
+    // 使用UTF8版本的渲染函数，支持中文显示
+    R_DrawUtf8Text2(text, NORM(x),NORM(y), ctx->state.fillStyle, &ctx->state.transformMatrix);
 }
 
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y) {

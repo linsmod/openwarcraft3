@@ -1,7 +1,13 @@
 #include "../g_local.h"
 
 #define PRINT_POSITION 0.0500, -0.3000
-
+// font references in war3skins.txt
+// MasterFont=Fonts\dfst-m3u.ttf
+// MessageFont=Fonts\dfst-m3u.ttf
+// ChatFont=Fonts\dfst-m3u.ttf
+// EscMenuTextFont=Fonts\dfst-m3u.ttf
+// InfoPanelTextFont=Fonts\dfst-m3u.ttf
+// TextTagFont=Fonts\dfst-m3u.ttf
 void ui_print_text(LPGAMECLIENT client, LPCSTR message) {
     FRAMEDEF text;
     UI_InitFrame(&text, FT_TEXT);
