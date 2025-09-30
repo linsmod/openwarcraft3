@@ -281,11 +281,6 @@ KNOWN_AS(mapInfo_s, MAPINFO);
 KNOWN_AS(mapPlayer_s, MAPPLAYER);
 KNOWN_AS(playerState_s, PLAYER);
 KNOWN_AS(src_location, SRCLOC);
-KNOWN_AS(strlist, STRINGLIST)
-typedef struct strlist{
-    LPSTR str;
-    LPSTRINGLIST next;
-} strlist;
 
 static const DWORD NONE_PLAYER=-1;
 
@@ -441,6 +436,8 @@ typedef enum {
     FT_BUILDQUEUE,
     FT_MULTISELECT,
     FT_TOOLTIPTEXT,
+    FT_CANVAS,
+    FT_HTMLVIWER,
 } FRAMETYPE;
 
 typedef enum {

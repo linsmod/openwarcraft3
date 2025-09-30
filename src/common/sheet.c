@@ -7,6 +7,7 @@
 #include "../common/common.h"
 #include "common/shared.h"
 #include "parser.h"
+#include "../libs/mystr.h"
 
 #define MAX_INI_LINE 1024
 #define MAX_SHEET_COLUMNS 256
@@ -229,6 +230,20 @@ static sheetRow_t *FS_ParseINI_Buffer(LPCSTR buffer) {
   }
   return current_row != start ? start : NULL;
 }
+#include "../ini/ini_parser.h"
+static sheetRow_t *FS_ParseINI_Buffer2(LPCSTR fileName, LPCSTR buffer) {
+  LPCSTR p = skipBOM(buffer);
+  LPSRCLOC location= MemAlloc(sizeof(SRCLOC));
+    location->file = fileName;
+    location->line = 1;
+    location->column = 1;
+  LPPARSER parser= &MAKE(PARSER, 
+        .buffer = p, 
+        .delimiters = "[]=,;",
+        .location = location);
+  INI_ParseTokens(parser);
+  return  NULL;
+}
 static void FS_GenHeaderINI(LPCSTR filename, sheetRow_t *config) {
   char structname[256] = {0};
   const char *p = filename;
@@ -288,6 +303,44 @@ static void FS_GenHeaderINI(LPCSTR filename, sheetRow_t *config) {
             }
             space[0]='\0';
           }
+          if (value[0] == '"') {
+            int n = 0;
+            char items[128][512] = {0};
+            LPCSTR endpos = 0;
+            PARSE_LIST(value, item, parse_segment2) {
+              strncpy(items[n],item,strlen(item));
+              n++;
+            }
+            if(n>1){
+              n=3*n; // "xxxx",
+            }
+            char* comment = strchr(value+n, '/');
+            
+            fprintf(file, "    config->%s.%s = ", row->name, field->name);
+            if(n>1){
+              fputc('{', file);
+            }
+            FOR_LOOP(i, 128){
+              if(items[i][0]=='\0') break;
+              if(i>0)
+                fputc(',', file);
+              for (const char* s = items[i]; *s; s++) {
+                if(*s=='\0'){
+                  break;
+                }
+                if (*s == '\\') {
+                  fputc('\\', file);
+                }
+                fputc(*s, file);
+              }
+            }
+            if(n>1){
+              fputc('}', file);
+            }
+            fprintf(file, ";");
+            fprintf(file, " %s\n", comment?comment:"");
+          }
+
           if(strlen(comment))
             fprintf(file, "        %s\n", comment);
           
@@ -336,7 +389,7 @@ static void FS_GenHeaderINI(LPCSTR filename, sheetRow_t *config) {
         // else if(strstr(value, "\",\"")){
         if (value[0] == '"') {
           int n = 0;
-          char items[128][512];
+          char items[128][512] = {0};
           LPCSTR endpos = 0;
           PARSE_LIST(value, item, parse_segment2) {
             strncpy(items[n],item,strlen(item));
@@ -352,18 +405,25 @@ static void FS_GenHeaderINI(LPCSTR filename, sheetRow_t *config) {
             fputc('{', file);
           }
           FOR_LOOP(i, 128){
+            if(items[i][0]=='\0') break;
+            if(i>0)
+              fputc(',', file);
             for (const char* s = items[i]; *s; s++) {
+              if(*s=='\0'){
+                break;
+              }
               if (*s == '\\') {
                 fputc('\\', file);
               }
               fputc(*s, file);
             }
+            
           }
           if(n>1){
             fputc('}', file);
           }
           fprintf(file, ";");
-          fprintf(file, " %s\n", comment);
+          fprintf(file, " %s\n", comment?comment:"");
         }
         else {
             // number maybe
@@ -434,11 +494,12 @@ sheetRow_t *FS_ParseINI(LPCSTR fileName) {
   }
   //    printf("%")
   sheetRow_t *config = FS_ParseINI_Buffer(buffer);
-  if (!config) {
-    fprintf(stderr, "Failed to parse %s\n", fileName);
-  } else {
-    FS_GenHeaderINI(fileName, config);
-  }
+  // FS_ParseINI_Buffer2(fileName, buffer); // WIP, has bug
+  // if (!config) {
+  //   fprintf(stderr, "Failed to parse %s\n", fileName);
+  // } else {
+  //   FS_GenHeaderINI(fileName, config);
+  // }
   MemFree(buffer);
   return config;
 }

@@ -138,7 +138,7 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
 }
 
 DRAWTEXT get_drawtext(LPCUIFRAME frame,
-                      FLOAT avl_width,
+                      FLOAT avl_width,//0.550000012 //0.800000012 //0.0599999987
                       LPCSTR text,
                       uiLabel_t const *label)
 {
@@ -153,9 +153,9 @@ DRAWTEXT get_drawtext(LPCUIFRAME frame,
                 .wordWrap = true,
                 .textWidth = avl_width);
 }
-DRAWTEXT get_drawtext_html(LPCSTR text,
+DRAWTEXT get_drawtext_html(COLOR32 color,
                       FLOAT avl_width,
-                      COLOR32 color,
+                      LPCSTR text,
                       uiLabel_t const *label)
 {
     return MAKE(DRAWTEXT,
@@ -477,12 +477,26 @@ void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
     re.DrawText(&drawtext);
 }
 
+void layout_text_html(const COLOR32 color, LPCRECT screen, LPCSTR text,uiLabel_t* label) {
+    DRAWTEXT drawtext = get_drawtext_html(color, screen->w, text, label);
+    drawtext.rect = *screen;
+    drawtext.wordWrap = true;
+    re.DrawText(&drawtext);
+}
+
 void SCR_DrawString(LPCUIFRAME frame, LPCRECT screen) {
     uiLabel_t const *label = frame->buffer.data;
     RECT scr = *screen;
     scr.x += label->offsetx;
     scr.y += label->offsety;
     layout_text(frame, &scr, SCR_GetStringValue(frame));
+}
+
+void SCR_DrawText(const COLOR32 color, LPCRECT screen,LPCSTR text,uiLabel_t* label) {
+    RECT scr = *screen;
+    scr.x += label->offsetx;
+    scr.y += label->offsety;
+    layout_text_html(color, &scr,text, label);
 }
 
 void SCR_DrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
@@ -685,7 +699,7 @@ void SCR_UpdateScreen(void) {
     
     SCR_DrawOverlays();  // 再渲染UI元素
 
-    canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
+    // canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
 
     // html_update_frame();
 

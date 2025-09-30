@@ -1,5 +1,5 @@
 #include "s_skills.h"
-
+#include "common/net.h"
 void move_walk(LPEDICT ent);
 
 static void ai_walk(LPEDICT ent) {

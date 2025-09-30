@@ -1,9 +1,14 @@
+#include "parser.h"
 #include "common/shared.h"
 #include "g_local.h"
+#include "libs/mystr.h"
+#include <string.h>
 #define MAX_SEGMENT_SIZE 1024
 
 BOOL eat_token(LPPARSER p, LPCSTR value) {
     LPCSTR tok = peek_token(p);
+    if(!tok)
+        return false;
     if (!strcmp(tok, value)) {
         parse_token(p);
         return true;
@@ -11,11 +16,18 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
         return false;
     }
 }
+
+void skipWs(LPPARSER p){
+    while (isspace(*p->buffer))
+            ++p->buffer;
+}
+
 void setln(LPPARSER p, LPCSTR start) {
     if (!p || !p->buffer || !start) return;
     
+    skipWs(p);
     // 直接遍历从 buffer 到 start 的字符
-    const char* current = start;
+    const char* current = start+1;
     const char* end = p->buffer;
     
     while (current < end && *current != '\0') {
@@ -28,10 +40,38 @@ void setln(LPPARSER p, LPCSTR start) {
         current++;
     }
 }
+
+LPCSTR read_inlinecomment(LPPARSER p) {
+    LPCSTR start = p->buffer;
+    size_t segmentLength = 0;
+    if (*p->buffer == '/' && *(p->buffer+1) == '/') {
+        p->buffer+=2;
+        mstr_t* str = mstr_new_with_capacity(MAX_SEGMENT_SIZE);
+        while (*p->buffer!='\n' && *p->buffer!='\0') {
+            mstr_append_char(str, *(p->buffer++));
+        }
+        LPCSTR ret = mstr_cstr(str);
+        mstr_free(str);
+        setln(p, start);
+        return ret;
+    }
+    return NULL;
+}
+LPCSTR parser_sline(LPPARSER p){
+    mstr_t* at =mstr_new_from_cstr(p->location->file);
+    mstr_append(at, ":%d:%d", p->location->line,p->location->column);
+    return mstr_cstr_dupfree(at);
+}
+LPCSTR parse_token_dup(LPPARSER p) {
+    LPCSTR tok = parse_token(p);
+    return tok?strdup(tok):NULL;
+}
 LPCSTR parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
     LPCSTR start = p->buffer;
-    while (isspace(*p->buffer)) ++p->buffer;
+    if(!p->buffer || !*p->buffer)
+        return "";
+    skipWs(p);
     if (*p->buffer == '\"') {
         LPCSTR closingQuote = strchr(p->buffer+1, '"');
         size_t stringLength = closingQuote-p->buffer+1;
@@ -68,14 +108,17 @@ LPCSTR peek_token(LPPARSER p) {
     LPCSTR token = parse_token(&tmp);
     return token;
 }
-
+BOOL peek_token_is(LPPARSER p,LPCSTR str) {
+    PARSER tmp = *p;
+    LPCSTR token = parse_token(&tmp);
+    return token && !strcmp(str,token);
+}
 LPCSTR parse_segment(LPPARSER p) {
     static char segment[MAX_SEGMENT_SIZE];
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
         return NULL;
-    while (isspace(*p->buffer))
-        ++p->buffer;
+    skipWs(p);
     LPCSTR start = p->buffer;
     if (*p->buffer == '\"') {
         ++start;

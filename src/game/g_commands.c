@@ -1,5 +1,5 @@
 #include "g_local.h"
-
+#include "common/net.h"
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
 
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {

@@ -57,6 +57,7 @@ file(GLOB SOURCES
     "src/client/*.c"
     "src/server/*.c"
     "src/html/*.c"
+    "src/libs/*.c"
 )
 
 file(GLOB_RECURSE HEADERS 

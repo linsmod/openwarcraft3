@@ -1,5 +1,5 @@
 #include "s_skills.h"
-
+#include "common/net.h"
 void build_walk(LPEDICT ent);
 void build_build(LPEDICT ent);
 void repair_build(LPEDICT ent, LPEDICT building);

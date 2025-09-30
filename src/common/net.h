@@ -7,6 +7,47 @@ typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;
 typedef struct entityState_s entityState_t;
 
+
+// server to client
+enum svc_ops {
+    svc_bad,
+// these ops are known to the game dll
+//    svc_muzzleflash,
+//    svc_muzzleflash2,
+    svc_temp_entity,
+    svc_layout,
+    svc_playerinfo,
+    svc_cursor,
+
+// the rest are private to the client and server
+//    svc_nop,
+//    svc_disconnect,
+//    svc_reconnect,
+//    svc_sound,                    // <see code>
+//    svc_print,                    // [byte] id [string] null terminated string
+//    svc_stufftext,                // [string] stuffed into client's console buffer, should be \n terminated
+//    svc_serverdata,                // [long] protocol ...
+    svc_configstring,            // [short] [string]
+    svc_spawnbaseline,
+//    svc_centerprint,            // [string] to put in center of the screen
+//    svc_download,                // [short] size [size bytes]
+//    svc_playerinfo,                // variable
+    svc_packetentities,            // [...]
+//    svc_deltapacketentities,    // [...]
+    svc_frame,
+    svc_mirror
+};
+
+// client to server
+enum clc_ops {
+    clc_bad,
+//    clc_nop,
+    clc_move,
+//    clc_userinfo,            // [[userinfo string]
+    clc_stringcmd            // [string] message
+};
+
+
 typedef enum {
     NA_LOOPBACK,
     NA_BROADCAST,

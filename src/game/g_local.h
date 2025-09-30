@@ -62,17 +62,9 @@ enum {
     LAYER_INFOPANEL,
     LAYER_INVENTORY,
     LAYER_MESSAGE,
+    LAYER_WEBVIEW,
     LAYER_QUESTDIALOG,
 };
-
-#define svc_bad 0
-// these ops are known to the game dll
-//    svc_muzzleflash,
-//    svc_muzzleflash2,
-#define svc_temp_entity 1
-#define svc_layout 2
-#define svc_playerinfo 3
-#define svc_cursor 4
 
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
 KNOWN_AS(jass_s, JASS);
