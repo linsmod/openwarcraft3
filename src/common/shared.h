@@ -472,6 +472,9 @@ typedef enum {
     FONT_JUSTIFYBOTTOM,
 } uiFontJustificationV_t;
 
+#define NORM(v) v*1.0/1000.0
+
+
 #define UI_FRAMEPOINT_SCALE 32767.0
 #define UI_PARENT 255
 

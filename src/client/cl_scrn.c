@@ -1,7 +1,9 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "client.h"
+#include "common/common.h"
 #include "common/shared.h"
 #include "g_local.h"
 #include "../canvas2d/canvas2d_test.h"
@@ -153,17 +155,24 @@ DRAWTEXT get_drawtext(LPCUIFRAME frame,
                 .wordWrap = true,
                 .textWidth = avl_width);
 }
-DRAWTEXT get_drawtext_html(COLOR32 color,
-                      FLOAT avl_width,
-                      LPCSTR text,
-                      uiLabel_t const *label)
+DRAWTEXT get_drawtext_html(
+                LPFONT font,
+                COLOR32 color,
+                FLOAT avl_width,
+                LPCSTR text,
+                uiFontJustificationH_t alignh,
+                uiFontJustificationV_t alignv)
 {
+    uiLabel_t label;
+    if(label.textalignx==FONT_JUSTIFYRIGHT){
+     size_t s = sizeof(uiFontJustificationH_t);
+     }
     return MAKE(DRAWTEXT,
-                .font = cl.fonts[label->font],
+                .font = font,
                 .text = text,
                 .color = color,
-                .halign = label->textalignx,
-                .valign = label->textaligny,
+                .halign = label.textalignx,
+                .valign = FONT_JUSTIFYMIDDLE,
                 .icons = cl.pics,
                 .lineHeight = 1.33,
                 .wordWrap = true,
@@ -478,7 +487,9 @@ void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
 }
 
 void layout_text_html(const COLOR32 color, LPCRECT screen, LPCSTR text,uiLabel_t* label) {
-    DRAWTEXT drawtext = get_drawtext_html(color, screen->w, text, label);
+    DRAWTEXT drawtext = get_drawtext_html(NULL,
+        color, 
+        screen->w, text, FONT_JUSTIFYLEFT,FONT_JUSTIFYBOTTOM);
     drawtext.rect = *screen;
     drawtext.wordWrap = true;
     re.DrawText(&drawtext);
@@ -699,9 +710,9 @@ void SCR_UpdateScreen(void) {
     
     SCR_DrawOverlays();  // 再渲染UI元素
 
-    // canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
+    canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
 
-    // html_update_frame();
+    html_update_frame();
 
     CON_DrawConsole();
     

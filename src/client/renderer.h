@@ -139,5 +139,12 @@ typedef struct {
 } refExport_t;
 
 refExport_t R_GetAPI(refImport_t imp);
+DRAWTEXT get_drawtext_html(
+                LPFONT font,
+                COLOR32 color,
+                FLOAT avl_width,
+                LPCSTR text,
+                uiFontJustificationH_t alignh,
+                uiFontJustificationV_t alignv);
 
 #endif

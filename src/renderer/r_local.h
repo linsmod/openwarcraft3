@@ -1,6 +1,8 @@
 #ifndef r_local_h
 #define r_local_h
 
+#include "cmath3/types/rect.h"
+#include "common/shared.h"
 #include <SDL2/SDL.h>
 #include <StormLib.h>
 
@@ -228,8 +230,8 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size);
 void R_ReleaseFont(LPFONT font);
 VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawUtf8TextEx(LPCDRAWTEXT drawText);
-void R_DrawUtf8Text(LPCSTR string, DWORD x, DWORD y, COLOR32 color);
-void R_DrawUtf8Text2(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 transform);
+void R_DrawUtf8Text(LPCSTR string, FLOAT x, FLOAT y, COLOR32 color);
+void R_DrawUtf8Text2(LPCSTR string, RECT box, COLOR32 color,LPFONT font,LPMATRIX4 transform);
 
 // r_image.c
 LPRENDERTARGET R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);

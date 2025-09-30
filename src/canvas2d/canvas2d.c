@@ -1,15 +1,16 @@
 // canvas2d.c
 #include "canvas2d.h"
+#include "client/renderer.h"
 #include "cmath3/types/rect.h"
 #include "r_local.h"
 #include "../common/shared.h"
 #include <StormPort.h>
 #include <math.h>
+#include <unistd.h>
 
 // 使用引擎的内存管理函数
 #define MemAlloc(size) malloc(size)
 #define MemFree(ptr) free(ptr)
-#define NORM(v) v*1.0/1000.0
 
 RECT* NormRect(RECT* rect){
     rect->x = NORM(rect->x);
@@ -232,8 +233,17 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
         return;
     }
 
+    // DRAWTEXT drawtext =  get_drawtext_html(NULL, ctx->state.fillStyle,1,text,
+    //     FONT_JUSTIFYLEFT,
+    //     FONT_JUSTIFYTOP
+    // );
+    // drawtext.rect = (RECT){NORM(x), NORM(y), 0.2, 0.2};
+    // drawtext.model_matrix = &ctx->state.transformMatrix;
+    // R_DrawUtf8TextEx(&drawtext);
+
     // 使用UTF8版本的渲染函数，支持中文显示
-    R_DrawUtf8Text2(text, NORM(x),NORM(y), ctx->state.fillStyle, &ctx->state.transformMatrix);
+    RECT box = (RECT){NORM(x), NORM(y), 1-NORM(x), 1-NORM(y)};
+    R_DrawUtf8Text2(text, box, ctx->state.fillStyle,NULL, &ctx->state.transformMatrix);
 }
 
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y) {

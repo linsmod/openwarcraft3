@@ -1,3 +1,4 @@
+#include "cmath3/types/rect.h"
 #include "common/common.h"
 #include "common/shared.h"
 #include "common/zhash.h"
@@ -9,10 +10,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <wchar.h>
 #define MAX_GLYPHSET 256
 #define FONT_SCALE 2
 #define INV_SCALE(x) ((x) / (FONT_SCALE * 1000.f))
 
+LPFONT g_default_text_font;
 typedef struct {
     LPTEXTURE image;
     stbtt_bakedchar glyphs[MAX_GLYPHSET];
@@ -369,7 +372,11 @@ static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
 }
 
 static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
-    if (!arg->font) {
+    LPFONT font = g_default_text_font;
+    if (arg->font) {
+        font = arg->font;
+    }
+    if(!font){
         return MAKE(VECTOR2, 0, 0);
     }
     VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
@@ -377,7 +384,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     VECTOR2 cursor = pos;
     FLOAT maxwidth = 0;
     // FLOAT linesize = 0.5 * arg->font->size / 1000.f;
-    FLOAT linesize = R_GetFontHeight((LPFONT)arg->font);
+    FLOAT linesize = R_GetFontHeight(font);
     for (LPCSTR p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
@@ -431,7 +438,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
        
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
-        glyphSet_t *set = R_GetGlyphSet((LPFONT)arg->font, codepoint);
+        glyphSet_t *set = R_GetGlyphSet(font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         FLOAT charWidth = INV_SCALE(g->xadvance);
         if (arg->wordWrap && ((cursor.x + charWidth) - (pos.x + arg->textWidth))> 0.001) {
@@ -448,7 +455,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         cursor.x += charWidth;
         maxwidth = MAX(maxwidth, cursor.x);
     }
-    return MAKE(VECTOR2, maxwidth, cursor.y + R_GetFontHeight((LPFONT)arg->font));
+    return MAKE(VECTOR2, maxwidth, cursor.y + R_GetFontHeight(font));
 }
 
 
@@ -457,8 +464,6 @@ void R_DrawUtf8TextEx(LPCDRAWTEXT arg) {
     
 //    R_DrawWireRect(&arg->rect, MAKE(COLOR32, 255, 0, 255, 255));
 }
-
-LPFONT g_default_text_font;
 
 
 
@@ -485,34 +490,36 @@ void R_ReleaseDefaultFonts() {
     }
 }
 
-void R_DrawUtf8Text(LPCSTR string, DWORD x, DWORD y, COLOR32 color){
-    assert(g_default_text_font);
 
-    DRAWTEXT arg;
-    arg.color = color;
-    arg.rect = MAKE(RECT,x,y,0,1);
-    arg.halign= FONT_JUSTIFYLEFT;
-    arg.wordWrap = 1;
-    arg.text = string;
-    arg.valign = FONT_JUSTIFYBOTTOM;
-    arg.model_matrix = NULL;
-    arg.font = g_default_text_font;
-    process_text(&arg, true);
+DRAWTEXT get_drawtext_html(
+                LPFONT font,
+                COLOR32 color,
+                FLOAT avl_width,
+                LPCSTR text,
+                uiFontJustificationH_t alignh,
+                uiFontJustificationV_t alignv);
+void R_DrawUtf8Text2(LPCSTR text, RECT box, COLOR32 color,LPFONT font, LPMATRIX4 transform){
+    DRAWTEXT drawtext =  get_drawtext_html(NULL, color,1,text,
+        FONT_JUSTIFYLEFT,
+        FONT_JUSTIFYTOP
+    );
+    drawtext.rect = box;
+    drawtext.font =font;
+    drawtext.model_matrix = transform;
+    process_text(&drawtext, true);
 }
 
-void R_DrawUtf8Text2(LPCSTR string, DWORD x, DWORD y, COLOR32 color,LPMATRIX4 transform){
+void R_DrawUtf8Text(LPCSTR text, FLOAT x, FLOAT y, COLOR32 color){
     assert(g_default_text_font);
-    
-    DRAWTEXT arg;
-    arg.color = color;
-    arg.rect = MAKE(RECT,x,y,0,1);
-    arg.halign= FONT_JUSTIFYLEFT;
-    arg.wordWrap = 1;
-    arg.text = string;
-    arg.valign = FONT_JUSTIFYBOTTOM;
-    arg.model_matrix = transform;
-    arg.font = g_default_text_font;
-    process_text(&arg, true);
+
+    RECT box = MAKE(RECT,x,y,1-x,1-y);
+    DRAWTEXT drawtext =  get_drawtext_html(NULL, color,1,text,
+        FONT_JUSTIFYLEFT,
+        FONT_JUSTIFYTOP
+    );
+    drawtext.rect = box;
+    drawtext.model_matrix = NULL;
+    process_text(&drawtext, true);
 }
 
 VECTOR2 R_GetTextSize(LPCDRAWTEXT arg) {

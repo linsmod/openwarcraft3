@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unicode/ucnv.h>
+#include <unistd.h>
 #include <wchar.h>
 #define _GNU_SOURCE /* for strndup */
 #include <assert.h>
@@ -1371,12 +1372,10 @@ LPCSS html_getnodestyle(xmlNode* node)
 }
 
 extern LPFONT g_default_text_font;
-
 void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_scalar y, COLOR32 default_color)
 {
     if (!text || strlen(text) == 0) return;
     
-    DRAWTEXT arg;
     COLOR32 render_color = default_color;
     FONT* render_font = g_default_text_font;
 
@@ -1419,19 +1418,10 @@ void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_sca
             }
         }
     }
-    
-    /* Setup draw text arguments */
-    arg.color = render_color;
-    arg.rect = MAKE(RECT, x, y);
-    arg.halign = FONT_JUSTIFYLEFT;
-    arg.wordWrap = 1;
-    arg.text = text;
-    arg.valign = FONT_JUSTIFYBOTTOM;
-    arg.model_matrix = NULL;
-    arg.font = render_font;
-    
-    assert(arg.font);
-    R_DrawUtf8TextEx(&arg);
+
+	// layout_text_html(render_color,arg.rect,)
+    RECT box = MAKE(RECT, NORM(x), NORM(y),1,1);
+    R_DrawUtf8Text2(text,box,render_color,render_font,NULL);
 }
 
 // 渲染图片
