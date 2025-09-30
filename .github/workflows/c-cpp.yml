@@ -23,7 +23,7 @@ jobs:
             libstorm-dev
 
       - name: build
-        run: make
+        run: ./build.sh
 
       # - name: test
       #   run: make check
