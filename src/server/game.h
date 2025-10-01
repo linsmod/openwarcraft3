@@ -6,7 +6,7 @@
 #define SVF_NOCLIENT 0x00000001    // don't send entity to clients, even if it has effects
 #define SVF_DEADMONSTER 0x00000002    // treat as CONTENTS_DEADMONSTER for collision
 #define SVF_MONSTER 0x00000004    // treat as CONTENTS_MONSTER for collision
-
+#define PLAYER_NONE ((DWORD)-1)
 KNOWN_AS(client_s, GAMECLIENT);
 KNOWN_AS(edict_s, EDICT);
 KNOWN_AS(link_s, LINK);
