@@ -5,19 +5,18 @@
  *  gcc -g -W -Wall -o example1 example1.c `pkg-config --cflags --libs libcss`
  */
 
-#include <assert.h>
-#include <libcss/types.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+/* HTML/CSS integration headers */
+#include "common/shared.h"
+#include <libcss/properties.h>
+#include <libcss/types.h>
 
 /* The entire API is available through this header. */
 #include <libcss/libcss.h>
-
-/* HTML/CSS integration headers */
-#include "common/shared.h"
 #include <libxml/tree.h>
 #include <libxml/HTMLtree.h>
-
 /* Forward declaration */
 typedef struct context context;
 
@@ -128,7 +127,6 @@ static css_unit_ctx unit_len_ctx = {
 	.pw                = NULL, /* We're not implementing measure callback */
 	.measure           = NULL, /* We're not implementing measure callback */
 };
-
 /* Table of function pointers for the LibCSS Select API. */
 static css_select_handler select_handler = {
 	CSS_SELECT_HANDLER_VERSION_1,
@@ -996,6 +994,63 @@ const char* css_get_property_string(css_select_results *results, uint32_t proper
             }
             return NULL;
         }
+		case CSS_PROP_BORDER_TOP_WIDTH:
+		case CSS_PROP_BORDER_RIGHT_WIDTH:
+		case CSS_PROP_BORDER_BOTTOM_WIDTH:
+		case CSS_PROP_BORDER_LEFT_WIDTH:{
+            /* Get border width */
+            css_fixed width;
+            css_unit unit;
+            uint8_t border_width = css_computed_border_top_width(style, &width, &unit);
+            if (border_width == CSS_BORDER_WIDTH_WIDTH) {
+                static char width_str[16];
+                int px_width = FIXTOINT(width);
+                snprintf(width_str, sizeof(width_str), "%dpx", px_width);
+                return width_str;
+            }
+            return "1px"; /* Default */
+        }
+		case CSS_PROP_BORDER_TOP_STYLE:
+		case CSS_PROP_BORDER_RIGHT_STYLE:
+		case CSS_PROP_BORDER_BOTTOM_STYLE:
+		case CSS_PROP_BORDER_LEFT_STYLE: {
+            /* Get border style */
+            uint8_t border_style = css_computed_border_top_style(style);
+            switch (border_style) {
+                case CSS_BORDER_STYLE_SOLID: return "solid";
+                case CSS_BORDER_STYLE_DASHED: return "dashed";
+                case CSS_BORDER_STYLE_DOTTED: return "dotted";
+                case CSS_BORDER_STYLE_DOUBLE: return "double";
+                default: return "solid";
+            }
+        }
+		case CSS_PROP_BORDER_TOP_COLOR:
+		case CSS_PROP_BORDER_RIGHT_COLOR:
+		case CSS_PROP_BORDER_BOTTOM_COLOR:
+		case CSS_PROP_BORDER_LEFT_COLOR:{
+            /* Get border color */
+            css_color color;
+            uint8_t color_type = css_computed_border_top_color(style, &color);
+            if (color_type == CSS_COLOR_COLOR) {
+                static char color_str[8];
+                snprintf(color_str, sizeof(color_str), "#%06x", color);
+                return color_str;
+            }
+            return "#000000"; /* Default black */
+        }
+        // case CSS_PROP_BORDER: {
+        //     /* Get shorthand border property */
+        //     static char border_str[64];
+        //     const char *width = css_get_property_string(results, CSS_PROP_BORDER_WIDTH);
+        //     const char *style = css_get_property_string(results, CSS_PROP_BORDER_STYLE);
+        //     const char *color = css_get_property_string(results, CSS_PROP_BORDER_COLOR);
+            
+        //     if (width && style && color) {
+        //         snprintf(border_str, sizeof(border_str), "%s %s %s", width, style, color);
+        //         return border_str;
+        //     }
+        //     return "1px solid #000000"; /* Default */
+        // }
         default:
             return NULL;
     }
