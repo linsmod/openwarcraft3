@@ -1376,7 +1376,7 @@ void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_sca
 {
     if (!text || strlen(text) == 0) return;
     
-    COLOR32 render_color = default_color;
+    COLOR32 render_color = COLOR32_WHITE;
     FONT* render_font = g_default_text_font;
 
 	assert(render_font);
@@ -1721,7 +1721,7 @@ void html_update_frame() {
     g_html_frame_count++;
     
     // 1. 渲染背景
-    // draw_html_background(g_html_render_context);
+    draw_html_background(g_html_render_context);
     
     // 2. 重新计算布局（如果需要）
     if (g_html_render_mode == HTML_RENDER_MODE_ANIMATED) {
@@ -1738,7 +1738,7 @@ void html_update_frame() {
     }
     
     // 4. 渲染信息面板
-    // render_html_info_panel(g_html_render_context);
+    render_html_info_panel(g_html_render_context);
     
     // printf("HTML Render Frame %d completed\n", g_html_frame_count);
 }

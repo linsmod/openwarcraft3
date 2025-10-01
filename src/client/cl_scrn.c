@@ -163,16 +163,12 @@ DRAWTEXT get_drawtext_html(
                 uiFontJustificationH_t alignh,
                 uiFontJustificationV_t alignv)
 {
-    uiLabel_t label;
-    if(label.textalignx==FONT_JUSTIFYRIGHT){
-     size_t s = sizeof(uiFontJustificationH_t);
-     }
     return MAKE(DRAWTEXT,
                 .font = font,
                 .text = text,
                 .color = color,
-                .halign = label.textalignx,
-                .valign = FONT_JUSTIFYMIDDLE,
+                .halign = alignh,
+                .valign = alignv,
                 .icons = cl.pics,
                 .lineHeight = 1.33,
                 .wordWrap = true,
@@ -710,7 +706,7 @@ void SCR_UpdateScreen(void) {
     
     SCR_DrawOverlays();  // 再渲染UI元素
 
-    canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
+    // canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
 
     html_update_frame();
 

@@ -374,7 +374,7 @@ static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
 static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     LPFONT font = g_default_text_font;
     if (arg->font) {
-        font = arg->font;
+        font = (LPFONT)arg->font;
     }
     if(!font){
         return MAKE(VECTOR2, 0, 0);
@@ -498,12 +498,14 @@ DRAWTEXT get_drawtext_html(
                 LPCSTR text,
                 uiFontJustificationH_t alignh,
                 uiFontJustificationV_t alignv);
-void R_DrawUtf8Text2(LPCSTR text, RECT box, COLOR32 color,LPFONT font, LPMATRIX4 transform){
-    DRAWTEXT drawtext =  get_drawtext_html(NULL, color,1,text,
+void R_DrawUtf8Text2(LPCSTR text, RECT rect, COLOR32 color,LPFONT font, LPMATRIX4 transform){
+     assert(rect.x<1 && rect.y<1);
+    DRAWTEXT drawtext =  get_drawtext_html(NULL, color,rect.w,text,
         FONT_JUSTIFYLEFT,
         FONT_JUSTIFYTOP
     );
-    drawtext.rect = box;
+    drawtext.wordWrap = 0;
+    drawtext.rect = rect;
     drawtext.font =font;
     drawtext.model_matrix = transform;
     process_text(&drawtext, true);
@@ -512,12 +514,17 @@ void R_DrawUtf8Text2(LPCSTR text, RECT box, COLOR32 color,LPFONT font, LPMATRIX4
 void R_DrawUtf8Text(LPCSTR text, FLOAT x, FLOAT y, COLOR32 color){
     assert(g_default_text_font);
 
-    RECT box = MAKE(RECT,x,y,1-x,1-y);
-    DRAWTEXT drawtext =  get_drawtext_html(NULL, color,1,text,
+    RECT rect = MAKE(RECT,x,y,1,1);
+    if(rect.x<1 || rect.y<1){
+        rect.x = NORM(x);
+        rect.y= NORM(y);
+    }
+    DRAWTEXT drawtext =  get_drawtext_html(NULL, color,rect.w,text,
         FONT_JUSTIFYLEFT,
         FONT_JUSTIFYTOP
     );
-    drawtext.rect = box;
+    drawtext.wordWrap =0;
+    drawtext.rect = rect;
     drawtext.model_matrix = NULL;
     process_text(&drawtext, true);
 }

@@ -242,7 +242,7 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
     // R_DrawUtf8TextEx(&drawtext);
 
     // 使用UTF8版本的渲染函数，支持中文显示
-    RECT box = (RECT){NORM(x), NORM(y), 1-NORM(x), 1-NORM(y)};
+    RECT box = (RECT){NORM(x), NORM(y), 1, 1};
     R_DrawUtf8Text2(text, box, ctx->state.fillStyle,NULL, &ctx->state.transformMatrix);
 }
 
@@ -259,13 +259,14 @@ void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, fl
     for (float dx = -offset; dx <= offset; dx += offset/2) {
         for (float dy = -offset; dy <= offset; dy += offset/2) {
             if (dx == 0 && dy == 0) continue;
-            R_PrintSysText2(text, (DWORD)(x + dx), (DWORD)(y + dy), strokeColor,&ctx->state.transformMatrix);
+            RECT rect = MAKE(RECT,NORM(x + dx),NORM(y + dy),1-NORM(x + dx),1-NORM(x + dx));
+            R_DrawUtf8Text2(text, rect, strokeColor,NULL,&ctx->state.transformMatrix);
         }
     }
-    
+    RECT rect = MAKE(RECT,NORM(x) ,NORM(y) ,1-NORM(x),1-NORM(y));
     // 绘制主体文本
-    R_PrintSysText2(text, (DWORD)x, (DWORD)y, 
-    ctx->state.fillStyle, &ctx->state.transformMatrix);
+    R_DrawUtf8Text2(text, rect,
+    ctx->state.fillStyle,NULL, &ctx->state.transformMatrix);
 }
 
 // 图像绘制
