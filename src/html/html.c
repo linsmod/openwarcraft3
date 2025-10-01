@@ -1494,6 +1494,12 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         } else if (strcmp(element_name, "ul") == 0 || strcmp(element_name, "ol") == 0) {
             // 渲染列表边框
             render_rect_border(x, y, width, height, (COLOR32){255, 165, 0, 128}); // 橙色半透明边框
+        } else if (strcmp(element_name, "style") == 0) {
+            // <style>标签 - 不渲染内容，只渲染占位符（可选）
+            // render_rect_border(x, y, width, height, (COLOR32){255, 255, 0, 128}); // 黄色半透明边框
+            // html_render_text(node,"[STYLE]", x + 5, y + 5, (COLOR32){128, 128, 0, 255}); // 样式标记
+            // 直接返回，不渲染子元素（CSS内容）
+            return;
         }
         
         // 递归渲染子元素
@@ -1506,6 +1512,12 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         // 文本节点 - 渲染文本
         const char *text_content = node->content ? (char*)node->content : "";
         if (strlen(text_content) > 0) {
+            // 检查是否是style标签内的文本（避免渲染CSS内容）
+            xmlNode *parent = node->parent;
+            if (parent && parent->name && strcmp((char*)parent->name, "style") == 0) {
+                return; // 不渲染style标签内的文本
+            }
+            
             // 清理文本内容（去除前后空白和换行符）
             char *clean_text = strdup(text_content);
             if (clean_text) {
