@@ -42,7 +42,7 @@ int main(int argc, LPSTR argv[]) {
     }
     
     Com_Init();
-    html_init("../html_tests/index.html"); // relative build dir
+    html_init("../html_tests/test_enhanced_css.html"); // relative build dir
     SV_Map(map);
     // canvas2d_runtest();
     DWORD startTime = SDL_GetTicks();

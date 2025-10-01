@@ -1205,7 +1205,9 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 	
 	if (layout_id == LAY_INVALID_ID) return;
 	
-	/* Parse simple CSS (here we need to implement CSS parser, the following is pseudo code) */
+	/* Enhanced CSS parsing with support for more properties */
+	
+	/* Display and Flexbox */
 	if (strstr(css, "display: flex")) {
 		if (strstr(css, "flex-direction: row")) {
 			lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
@@ -1214,6 +1216,7 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		}
 	}
 	
+	/* Width and Height */
 	if (strstr(css, "width:")) {
 		int width = extract_number(css, "width:");
 		lay_set_size_xy(c->layout_ctx, layout_id, width,
@@ -1226,12 +1229,152 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		               lay_get_size(c->layout_ctx, layout_id)[0], height);
 	}
 	
+	/* Enhanced Margin parsing - supports both simple and compound values */
 	if (strstr(css, "margin:")) {
-		int margin = extract_number(css, "margin:");
-		lay_set_margins_ltrb(c->layout_ctx, layout_id,
-		                    margin, margin, margin, margin);
+		const char *margin_start = strstr(css, "margin:");
+		margin_start += 7; /* Skip "margin:" */
+		
+		/* Skip whitespace */
+		while (*margin_start && (*margin_start == ' ' || *margin_start == ':')) {
+			margin_start++;
+		}
+		
+		/* Parse margin values */
+		char margin_str[32];
+		int i = 0;
+		while (*margin_start && (*margin_start != ';' && *margin_start != '}') && i < sizeof(margin_str) - 1) {
+			margin_str[i++] = *margin_start++;
+		}
+		margin_str[i] = '\0';
+		
+		/* Parse different margin formats */
+		int top, right, bottom, left;
+		
+		if (strstr(margin_str, "px")) {
+			/* Single value: margin: 10px */
+			if (sscanf(margin_str, "%dpx", &top) == 1) {
+				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, top, top, top);
+			}
+			/* Two values: margin: 10px 5px */
+			else if (sscanf(margin_str, "%dpx %dpx", &top, &right) == 2) {
+				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, right, top, right);
+			}
+			/* Three values: margin: 10px 5px 2px */
+			else if (sscanf(margin_str, "%dpx %dpx %dpx", &top, &right, &bottom) == 3) {
+				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, right, bottom, right);
+			}
+			/* Four values: margin: 10px 5px 2px 8px */
+			else if (sscanf(margin_str, "%dpx %dpx %dpx %dpx", &top, &right, &bottom, &left) == 4) {
+				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, right, bottom, left);
+			}
+		} else {
+			/* Try to parse as plain number */
+			int margin_val;
+			if (sscanf(margin_str, "%d", &margin_val) == 1) {
+				lay_set_margins_ltrb(c->layout_ctx, layout_id, margin_val, margin_val, margin_val, margin_val);
+			}
+		}
+	}
+	
+	/* Individual margin properties */
+	if (strstr(css, "margin-top:")) {
+		int top = extract_number(css, "margin-top:");
+		lay_scalar l, t, r, b;
+		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, l, top, r, b);
+	}
+	
+	if (strstr(css, "margin-right:")) {
+		int right = extract_number(css, "margin-right:");
+		lay_scalar l, t, r, b;
+		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, l, t, right, b);
+	}
+	
+	if (strstr(css, "margin-bottom:")) {
+		int bottom = extract_number(css, "margin-bottom:");
+		lay_scalar l, t, r, b;
+		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, l, t, r, bottom);
+	}
+	
+	if (strstr(css, "margin-left:")) {
+		int left = extract_number(css, "margin-left:");
+		lay_scalar l, t, r, b;
+		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		lay_set_margins_ltrb(c->layout_ctx, layout_id, left, t, r, b);
+	}
+	
+	/* Padding support - new feature */
+	if (strstr(css, "padding:")) {
+		const char *padding_start = strstr(css, "padding:");
+		padding_start += 8; /* Skip "padding:" */
+		
+		/* Skip whitespace */
+		while (*padding_start && (*padding_start == ' ' || *padding_start == ':')) {
+			padding_start++;
+		}
+		
+		/* Parse padding values */
+		char padding_str[32];
+		int i = 0;
+		while (*padding_start && (*padding_start != ';' && *padding_start != '}') && i < sizeof(padding_str) - 1) {
+			padding_str[i++] = *padding_start++;
+		}
+		padding_str[i] = '\0';
+		
+		/* Since layout system doesn't have direct padding support,
+		   we'll simulate it by adjusting margins and element size */
+		int top, right, bottom, left;
+		
+		if (strstr(padding_str, "px")) {
+			/* Single value: padding: 10px */
+			if (sscanf(padding_str, "%dpx", &top) == 1) {
+				/* Simulate padding by increasing element size and adjusting margins */
+				lay_scalar current_width, current_height;
+				lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
+				lay_set_size_xy(c->layout_ctx, layout_id, current_width + top * 2, current_height + top * 2);
+			}
+			/* Two values: padding: 10px 5px */
+			else if (sscanf(padding_str, "%dpx %dpx", &top, &right) == 2) {
+				lay_scalar current_width, current_height;
+				lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
+				lay_set_size_xy(c->layout_ctx, layout_id, current_width + top + right, current_height + top + right);
+			}
+		}
+	}
+	
+	/* Individual padding properties */
+	if (strstr(css, "padding-top:")) {
+		int top = extract_number(css, "padding-top:");
+		/* Simulate padding by increasing element size */
+		lay_scalar current_width, current_height;
+		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
+		lay_set_size_xy(c->layout_ctx, layout_id, current_width, current_height + top);
+	}
+	
+	if (strstr(css, "padding-right:")) {
+		int right = extract_number(css, "padding-right:");
+		lay_scalar current_width, current_height;
+		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
+		lay_set_size_xy(c->layout_ctx, layout_id, current_width + right, current_height);
+	}
+	
+	if (strstr(css, "padding-bottom:")) {
+		int bottom = extract_number(css, "padding-bottom:");
+		lay_scalar current_width, current_height;
+		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
+		lay_set_size_xy(c->layout_ctx, layout_id, current_width, current_height + bottom);
+	}
+	
+	if (strstr(css, "padding-left:")) {
+		int left = extract_number(css, "padding-left:");
+		lay_scalar current_width, current_height;
+		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
+		lay_set_size_xy(c->layout_ctx, layout_id, current_width + left, current_height);
 	}
 }
+
 static int extract_number(const char *css, const char *property)
 {
 	const char *start = strstr(css, property);
@@ -1248,7 +1391,157 @@ static int extract_number(const char *css, const char *property)
 	
 	return num;
 }
+/**
+ * @brief Enhanced CSS number extraction with unit support
+ */
+static int extract_number_with_unit(const char *css, const char *property, const char **end_ptr)
+{
+	const char *start = strstr(css, property);
+	if (!start) return 0;
+	
+	start += strlen(property);
+	while (*start && (*start == ' ' || *start == ':')) start++;
+	
+	int num = 0;
+	while (*start >= '0' && *start <= '9') {
+		num = num * 10 + (*start - '0');
+		start++;
+	}
+	
+	if (end_ptr) *end_ptr = start;
+	return num;
+}
 
+/**
+ * @brief Parse CSS color value
+ */
+static color32_t parse_css_color(const char *color_str)
+{
+	if (!color_str) return (color32_t){255, 255, 255, 255}; /* White */
+	
+	/* Handle hex colors: #RRGGBB or #RGB */
+	if (color_str[0] == '#') {
+		if (strlen(color_str) == 7) {
+			/* #RRGGBB format */
+			unsigned int r, g, b;
+			if (sscanf(color_str + 1, "%02x%02x%02x", &r, &g, &b) == 3) {
+				return (color32_t){(BYTE)r, (BYTE)g, (BYTE)b, 255};
+			}
+		} else if (strlen(color_str) == 4) {
+			/* #RGB format */
+			unsigned int r, g, b;
+			if (sscanf(color_str + 1, "%1x%1x%1x", &r, &g, &b) == 3) {
+				return (color32_t){(BYTE)(r * 17), (BYTE)(g * 17), (BYTE)(b * 17), 255};
+			}
+		}
+	}
+	
+	/* Handle named colors (basic ones) */
+	if (strcmp(color_str, "red") == 0) return (color32_t){255, 0, 0, 255};
+	if (strcmp(color_str, "green") == 0) return (color32_t){0, 255, 0, 255};
+	if (strcmp(color_str, "blue") == 0) return (color32_t){0, 0, 255, 255};
+	if (strcmp(color_str, "white") == 0) return (color32_t){255, 255, 255, 255};
+	if (strcmp(color_str, "black") == 0) return (color32_t){0, 0, 0, 255};
+	if (strcmp(color_str, "yellow") == 0) return (color32_t){255, 255, 0, 255};
+	if (strcmp(color_str, "orange") == 0) return (color32_t){255, 165, 0, 255};
+	if (strcmp(color_str, "purple") == 0) return (color32_t){128, 0, 128, 255};
+	if (strcmp(color_str, "pink") == 0) return (color32_t){255, 192, 203, 255};
+	if (strcmp(color_str, "brown") == 0) return (color32_t){165, 42, 42, 255};
+	if (strcmp(color_str, "gray") == 0) return (color32_t){128, 128, 128, 255};
+	if (strcmp(color_str, "grey") == 0) return (color32_t){128, 128, 128, 255};
+	
+	return (color32_t){255, 255, 255, 255}; /* Default to white */
+}
+
+/**
+ * @brief Enhanced CSS style application with better property support
+ */
+void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
+{
+	lay_id layout_id = GETLAYID(node);
+	
+	if (layout_id == LAY_INVALID_ID) return;
+	
+	/* Enhanced CSS parsing with support for more properties */
+	
+	/* Display and Layout */
+	if (strstr(css, "display: flex")) {
+		if (strstr(css, "flex-direction: row")) {
+			lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
+		} else {
+			lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		}
+	}
+	
+	if (strstr(css, "display: block")) {
+		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+	}
+	
+	if (strstr(css, "display: inline")) {
+		/* Keep default behavior for inline elements */
+	}
+	
+	/* Width and Height with units */
+	if (strstr(css, "width:")) {
+		const char *end_ptr;
+		int width = extract_number_with_unit(css, "width:", &end_ptr);
+		if (end_ptr && strstr(end_ptr, "px")) {
+			/* Use pixel value directly */
+		} else if (end_ptr && strstr(end_ptr, "%")) {
+			/* Percentage - calculate based on parent width */
+			size2_t window = R_GetWindowSize();
+			width = (int)(window.width * width / 100.0);
+		}
+		lay_set_size_xy(c->layout_ctx, layout_id, width,
+		               lay_get_size(c->layout_ctx, layout_id)[1]);
+	}
+	
+	if (strstr(css, "height:")) {
+		const char *end_ptr;
+		int height = extract_number_with_unit(css, "height:", &end_ptr);
+		if (end_ptr && strstr(end_ptr, "px")) {
+			/* Use pixel value directly */
+		} else if (end_ptr && strstr(end_ptr, "%")) {
+			/* Percentage - calculate based on parent height */
+			size2_t window = R_GetWindowSize();
+			height = (int)(window.height * height / 100.0);
+		}
+		lay_set_size_xy(c->layout_ctx, layout_id,
+		               lay_get_size(c->layout_ctx, layout_id)[0], height);
+	}
+	
+	/* Background color support */
+	if (strstr(css, "background-color:")) {
+		const char *color_start = strstr(css, "background-color:");
+		color_start += 16; /* Skip "background-color:" */
+		
+		/* Skip whitespace */
+		while (*color_start && (*color_start == ' ' || *color_start == ':')) {
+			color_start++;
+		}
+		
+		/* Extract color value */
+		char color_str[32];
+		int i = 0;
+		while (*color_start && (*color_start != ';' && *color_start != '}') && i < sizeof(color_str) - 1) {
+			color_str[i++] = *color_start++;
+		}
+		color_str[i] = '\0';
+		
+		/* Parse and apply color */
+		COLOR32 bg_color = parse_css_color(color_str);
+		
+		/* Store color for rendering (this would need to be integrated with the rendering system) */
+		/* For now, we'll just store it in the userdata */
+		if (c) {
+			userdata *ud = (userdata *)node->_private;
+			if (ud) {
+				/* We could extend userdata to store color information */
+				/* For now, this is just a placeholder */
+			}
+		}
+	}
+}
 void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c)
 {
 	xmlNode *root = xmlDocGetRootElement(document);

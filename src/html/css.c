@@ -13,6 +13,14 @@
 /* The entire API is available through this header. */
 #include <libcss/libcss.h>
 
+/* HTML/CSS integration headers */
+#include "common/shared.h"
+#include <libxml/tree.h>
+#include <libxml/HTMLtree.h>
+
+/* Forward declaration */
+typedef struct context context;
+
 
 /* This macro is used to silence compiler warnings about unused function
  * arguments. */
@@ -337,10 +345,75 @@ css_error node_name(void *pw, void *n, css_qname *qname)
 css_error node_classes(void *pw, void *n,
 		lwc_string ***classes, uint32_t *n_classes)
 {
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
 	UNUSED(pw);
-	UNUSED(n);
-	*classes = NULL;
-	*n_classes = 0;
+	
+	if (!node || !node->name) {
+		*classes = NULL;
+		*n_classes = 0;
+		return CSS_OK;
+	}
+	
+	/* Get class attribute from HTML element */
+	xmlChar *class_attr = xmlGetProp(node, BAD_CAST "class");
+	if (!class_attr) {
+		*classes = NULL;
+		*n_classes = 0;
+		return CSS_OK;
+	}
+	
+	/* Parse class string into individual class names */
+	char *class_str = (char *)class_attr;
+	char *token;
+	char *saveptr;
+	uint32_t count = 0;
+	
+	/* Count the number of classes */
+	char *temp_str = strdup(class_str);
+	char *temp_ptr = temp_str;
+	while ((token = strtok_r(temp_ptr, " \t\n\r", &saveptr))) {
+		count++;
+		temp_ptr = NULL;
+	}
+	free(temp_str);
+	
+	if (count == 0) {
+		xmlFree(class_attr);
+		*classes = NULL;
+		*n_classes = 0;
+		return CSS_OK;
+	}
+	
+	/* Allocate memory for class strings */
+	*classes = malloc(count * sizeof(lwc_string *));
+	if (!*classes) {
+		xmlFree(class_attr);
+		return CSS_NOMEM;
+	}
+	
+	/* Parse individual classes */
+	temp_str = strdup(class_str);
+	temp_ptr = temp_str;
+	uint32_t i = 0;
+	while ((token = strtok_r(temp_ptr, " \t\n\r", &saveptr)) && i < count) {
+		lwc_intern_string(token, strlen(token), &(*classes)[i]);
+		if (!(*classes)[i]) {
+			/* Clean up already allocated strings */
+			for (uint32_t j = 0; j < i; j++) {
+				lwc_string_unref((*classes)[j]);
+			}
+			free(*classes);
+			xmlFree(class_attr);
+			return CSS_NOMEM;
+		}
+		i++;
+		temp_ptr = NULL;
+	}
+	
+	*n_classes = count;
+	xmlFree(class_attr);
 	return CSS_OK;
 }
 
