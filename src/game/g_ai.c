@@ -65,9 +65,9 @@ static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];
 static BOOL filter_sight(LPCEDICT ent) {
     if (!(ent->svflags & SVF_MONSTER) || ent->s.player == current_entity->s.player)
         return false;
-    if (level.alliances[ent->s.player][current_entity->s.player] != 0)
+    if (ent->s.player!=PLAYER_NONE&& level.alliances[ent->s.player][current_entity->s.player] != 0)
         return false;
-    if (level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
+    if (ent->s.player!=PLAYER_NONE&&level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;

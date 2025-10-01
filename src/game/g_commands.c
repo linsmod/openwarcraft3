@@ -133,6 +133,9 @@ CLIENTCOMMAND(HideQuests) {
 CLIENTCOMMAND(Zoom) {
     if (argc < 2)
         return;
+
+    if(!clent)
+        return;
     float new_distance = atof(argv[1]);
     LPEDICT ent = clent;
     G_ClientSetCameraDistance(ent, new_distance);
