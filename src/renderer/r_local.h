@@ -159,6 +159,8 @@ struct render_globals {
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
+    size2_t resize;
+    RECT resized;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -202,6 +204,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
 
 size2_t R_GetWindowSize(void);
+FLOAT R_GetScaleFactor(void);
 
 // r_buffer.c
 VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, float z);

@@ -34,7 +34,7 @@ static LPCSTR vs =
 "out vec2 v_texcoord2;\n"
 "out vec3 v_normal;\n"
 "out vec3 v_lightDir;\n"
-"uniform mat4 uBones[256];\n"
+"uniform mat4 uBones[64];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"

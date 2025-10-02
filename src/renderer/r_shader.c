@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include <assert.h>
 
 LPCSTR vs_default =
 "#version 140\n"
@@ -124,46 +125,26 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
 
     GLint status;
     R_Call(glGetShaderiv, vs, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint logLength = 0;
-        glGetShaderiv(vs, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 1) { // There's something to print
-            char *log = malloc(logLength);
-            if (log) {
-                glGetShaderInfoLog(vs, logLength, NULL, log);
-                fprintf(stderr, "Vertex shader compilation failed:\n%s\n", log);
-                free(log);
-            } else {
-                fprintf(stderr, "Vertex shader compilation failed (could not allocate log buffer)\n");
-            }
-        } else {
-            fprintf(stderr, "Vertex shader compilation failed (no log)\n");
-        }
+    if(status == GL_FALSE) {
+        GLint log_length;
+        R_Call(glGetShaderiv, vs, GL_INFO_LOG_LENGTH, &log_length);
+        char* log = malloc(log_length);
+        R_Call(glGetShaderInfoLog, vs, log_length, NULL, log);
+        fprintf(stderr, "Vertex shader compilation failed:\n%s\n", log);
+        free(log);
         return NULL;
     }
+
     length = (int)strlen(fs_default);
     R_Call(glShaderSource, fs, 1, (const GLchar **)&fs_default, &length);
     R_Call(glCompileShader, fs);
 
     R_Call(glGetShaderiv, fs, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint logLength = 0;
-        glGetShaderiv(fs, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 1) { // There's something to print
-            char *log = malloc(logLength);
-            if (log) {
-                glGetShaderInfoLog(fs, logLength, NULL, log);
-                fprintf(stderr, "Vertex shader compilation failed:\n%s\n", log);
-                free(log);
-            } else {
-                fprintf(stderr, "Vertex shader compilation failed (could not allocate log buffer)\n");
-            }
-        } else {
-            fprintf(stderr, "Vertex shader compilation failed (no log)\n");
-        }
+    if(status == GL_FALSE) {
+        fprintf(stderr, "fragment shader compilation failed\n");
         return NULL;
     }
-
+    
     LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
     program->progid = R_Call(glCreateProgram, );
 
@@ -182,9 +163,22 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glBindAttribLocation, program->progid, attrib_particleAxis, "i_axis");
 
     R_Call(glLinkProgram, program->progid);
+    GLint link_status;
+    R_Call(glGetProgramiv, program->progid, GL_LINK_STATUS, &link_status);
+    if (link_status == GL_FALSE) {
+        GLint log_length;
+        R_Call(glGetProgramiv, program->progid, GL_INFO_LOG_LENGTH, &log_length);
+        if (log_length > 1) {
+            char* log = malloc(log_length);
+            R_Call(glGetProgramInfoLog, program->progid, log_length, NULL, log);
+            fprintf(stderr, "Program Link Log:\n%s\n", log);
+            free(log);
+        }
+    }
+    assert(link_status == GL_TRUE);
     R_Call(glUseProgram, program->progid);
     
-#define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = glGetUniformLocation(PROGRAM->progid, #NAME);
+#define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = R_Call(glGetUniformLocation, PROGRAM->progid, #NAME);
 
     R_RegisterUniform(program, uViewProjectionMatrix);
     R_RegisterUniform(program, uModelMatrix);
@@ -198,7 +192,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uUseDiscard);
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
-    
+
     R_Call(glUniform1i, program->uTexture, 0);
     R_Call(glUniform1i, program->uShadowmap, 1);
     R_Call(glUniform1i, program->uFogOfWar, 2);
@@ -207,5 +201,8 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
 }
 
 void R_ReleaseShader(LPSHADER shader) {
-    ri.MemFree(shader);
+    if (shader) {
+        R_Call(glDeleteProgram, shader->progid);
+        ri.MemFree(shader);
+    }
 }

@@ -109,6 +109,7 @@ struct drawImage_s {
 typedef struct {
     void (*Init)(DWORD width, DWORD height);
     void (*Shutdown)(void);
+    void (*ResizeIfNeeded)(void);
     void (*RegisterMap)(LPCSTR mapFileName);
     void (*RenderFrame)(viewDef_t const *viewdef);
     LPTEXTURE (*LoadTexture)(LPCSTR fileName);

@@ -1,12 +1,14 @@
+#include "client/client.h"
 #include "r_local.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
+#include <SDL2/SDL_video.h>
 
 refImport_t ri;
 struct render_globals tr;
 
-SDL_Window *window;
+SDL_Window *window = NULL;
 SDL_GLContext context;
 
 bool is_rendering_lights = false;
@@ -23,10 +25,11 @@ LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
 
 void R_Viewport(LPCRECT viewport) {
-    glViewport(viewport->x * tr.drawableSize.width / 800,
-               viewport->y * tr.drawableSize.height / 600,
-               viewport->w * tr.drawableSize.width / 800,
-               viewport->h * tr.drawableSize.height / 600);
+    size2_t windowSize = R_GetWindowSize();
+    glViewport(viewport->x * windowSize.width,
+               viewport->y * windowSize.height,
+               viewport->w * windowSize.width,
+               viewport->h * windowSize.height);
 }
 
 LPTEXTURE R_AllocateSinglePixelTexture(int color) {
@@ -211,7 +214,10 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    
+    // 设置最小窗口大小
+    SDL_SetWindowMinimumSize(window, 640, 480);
     context = SDL_GL_CreateContext(window);
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
@@ -287,20 +293,22 @@ void R_Shutdown(void) {
 }
 
 void R_SetupViewport(LPCRECT r) {
+    size2_t windowSize = R_GetWindowSize();
     R_Call(glViewport,
-           r->x * tr.drawableSize.width,
-           r->y * tr.drawableSize.height,
-           r->w * tr.drawableSize.width,
-           r->h * tr.drawableSize.height);
+           r->x * windowSize.width,
+           r->y * windowSize.height,
+           r->w * windowSize.width,
+           r->h * windowSize.height);
 }
 
 void R_SetupScissor(LPCRECT r) {
+    size2_t windowSize = R_GetWindowSize();
     R_Call(glEnable, GL_SCISSOR_TEST);
     R_Call(glScissor,
-           r->x * tr.drawableSize.width,
-           r->y * tr.drawableSize.height,
-           r->w * tr.drawableSize.width,
-           r->h * tr.drawableSize.height);
+           r->x * windowSize.width,
+           r->y * windowSize.height,
+           r->w * windowSize.width,
+           r->h * windowSize.height);
 }
 
 void R_RevertSettings(void) {
@@ -351,6 +359,37 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
+void R_ResizeIfNeeded(){
+    int windowWidth, windowHeight;
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+    
+    SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
+    
+    // 计算保持4:3的视口区域（带黑边）
+    float targetAspect = 4.0f / 3.0f;
+    float currentAspect = (float)tr.drawableSize.width / tr.drawableSize.height;
+    if(currentAspect == targetAspect){
+        return;
+    }
+    int viewportX, viewportY, viewportWidth, viewportHeight;
+    
+    if (currentAspect > targetAspect) {
+        // 窗口太宽，左右黑边
+        viewportHeight = tr.drawableSize.height;
+        viewportWidth = (int)(viewportHeight * targetAspect);
+        viewportX = (tr.drawableSize.width - viewportWidth) / 2;
+        viewportY = 0;
+    } else {
+        // 窗口太高，上下黑边
+        viewportWidth = tr.drawableSize.width;
+        viewportHeight = (int)(viewportWidth / targetAspect);
+        viewportX = 0;
+        viewportY = (tr.drawableSize.height - viewportHeight) / 2;
+    }
+    tr.resized = (RECT){viewportX, viewportY, viewportWidth, viewportHeight};
+    // R_Viewport(&tr.resized);
+}
+
 void R_BeginFrame(void) {
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
@@ -363,6 +402,14 @@ void R_BeginFrame(void) {
 void R_EndFrame(void) {
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
+}
+
+FLOAT R_GetScaleFactor(void) {
+    float ddpi, hdpi, vdpi;
+    if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) == 0) {
+        return hdpi / 96.0f;
+    }
+    return 1;
 }
 
 size2_t R_GetWindowSize(void) {
@@ -402,6 +449,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .RenderFrame = R_RenderFrame,
         .Shutdown = R_Shutdown,
         .BeginFrame = R_BeginFrame,
+        .ResizeIfNeeded = R_ResizeIfNeeded,
         .EndFrame = R_EndFrame,
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,

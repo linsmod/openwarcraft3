@@ -1,7 +1,13 @@
 #include "client.h"
+#include "renderer/r_local.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
+#include <SDL2/SDL_video.h>
+
+// 外部声明
+extern SDL_Window *window;
+extern struct render_globals tr;
 
 //struct {
 //    LPCSTR command;
@@ -313,6 +319,28 @@ static void CL_HandleWindowEvent(SDL_Event* event) {
         case SDL_WINDOWEVENT_CLOSE: // 退出游戏
             Com_Quit();
             break;
+        case SDL_WINDOWEVENT_SIZE_CHANGED:
+        case SDL_WINDOWEVENT_RESIZED: // 窗口大小改变
+        {
+            // 保持4:3宽高比
+            int newWidth = event->window.data1;
+            int newHeight = event->window.data2;
+            
+            // 计算保持4:3比例的尺寸
+            float aspectRatio = 4.0f / 3.0f;
+            float currentRatio = (float)newWidth / newHeight;
+            
+            if (currentRatio > aspectRatio) {
+                // 太宽，调整宽度
+                newWidth = (int)(newHeight * aspectRatio);
+            } else {
+                // 太高，调整高度
+                newHeight = (int)(newWidth / aspectRatio);
+            }
+            tr.resize.width = newWidth;
+            tr.resize.height = newHeight;
+            break;
+        }
         default:
             break;
     }
@@ -338,9 +366,14 @@ void IN_SelectDown(void) {
     cl.selection.rect.w = 0;
     cl.selection.rect.h = 0;
 
+    size2_t windowSize = re.GetWindowSize();
+    // 计算相对于标准窗口尺寸的缩放比例
+    float scaleX = 1024.0f / windowSize.width;
+    float scaleY = 768.0f / windowSize.height;
+    
     VECTOR2 m = {
-        mouse.origin.x * 0.8 / WINDOW_WIDTH,
-        mouse.origin.y * 0.6 / WINDOW_HEIGHT
+        mouse.origin.x * scaleX,
+        mouse.origin.y * scaleY
     };
     
     FOR_LOOP(layer_id, MAX_LAYOUT_LAYERS) {
