@@ -8,6 +8,22 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# 设置自定义库路径
+set(CUSTOM_LIB_DIR "/home/wulin/netsurf_libs/projects/inst-x86_64-linux-gnu")
+set(ENV{PKG_CONFIG_PATH} "${CUSTOM_LIB_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+list(APPEND CMAKE_PREFIX_PATH "${CUSTOM_LIB_DIR}")
+list(APPEND CMAKE_LIBRARY_PATH "${CUSTOM_LIB_DIR}/lib")
+list(APPEND CMAKE_INCLUDE_PATH "${CUSTOM_LIB_DIR}/include")
+
+# 查找pkg-config
+find_package(PkgConfig REQUIRED)
+
+# 使用pkgconfig查找netsurf相关库
+pkg_check_modules(HUBBUB REQUIRED libhubbub)
+pkg_check_modules(LIBCSS REQUIRED libcss)
+pkg_check_modules(PARSERUTILS REQUIRED libparserutils)
+pkg_check_modules(WAPCAPLET REQUIRED libwapcaplet)
+
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -17,24 +33,16 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
-# add_compile_options(-Wno-unused-parameter -Wno-sign-compare)
-
 # 根据构建类型设置不同的编译选项
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    # 调试版本设置
     add_compile_definitions(DEBUG _DEBUG)
     add_compile_options(-O0)
-    
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    # 发布版本设置
     add_compile_definitions(NDEBUG)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -DNDEBUG")
-    
 elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    # 带调试信息的发布版本
     add_compile_definitions(NDEBUG)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g -DNDEBUG")
-    
 endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
@@ -78,6 +86,11 @@ include_directories(
     src/server
     src/lib
     ${LIBXML2_INCLUDE_DIR}
+    ${CUSTOM_LIB_DIR}/include
+    ${HUBBUB_INCLUDE_DIRS}
+    ${LIBCSS_INCLUDE_DIRS}
+    ${PARSERUTILS_INCLUDE_DIRS}
+    ${WAPCAPLET_INCLUDE_DIRS}
 )
 
 file(GLOB_RECURSE CMATH3_SRCS "src/cmath3/*.c")
@@ -107,11 +120,20 @@ target_link_libraries(${PROJECT_NAME}
     cmath3
     game
     renderer
-    hubbub
-    css
-    xml2
-    parserutils
-    wapcaplet
+    ${HUBBUB_LIBRARIES}
+    ${LIBCSS_LIBRARIES}
+    ${LIBXML2_LIBRARIES}
+    ${PARSERUTILS_LIBRARIES}
+    ${WAPCAPLET_LIBRARIES}
+)
+
+# 设置链接目录
+target_link_directories(${PROJECT_NAME} PRIVATE
+    ${CUSTOM_LIB_DIR}/lib
+    ${HUBBUB_LIBRARY_DIRS}
+    ${LIBCSS_LIBRARY_DIRS}
+    ${PARSERUTILS_LIBRARY_DIRS}
+    ${WAPCAPLET_LIBRARY_DIRS}
 )
 
 # 设置调试工作目录
@@ -119,13 +141,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data"
 )
 
-# 安装规则 - 同时安装可执行文件和库
+# 安装规则
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION bin
 )
 
 install(TARGETS cmath3 game renderer
     LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin  # Windows上的DLL
-    ARCHIVE DESTINATION lib  # 静态库
+    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION lib
 )
