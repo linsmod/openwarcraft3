@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/bin/openwarcraft3",
             "preLaunchTask": "build-debug",
-            "args": ["-mpq=/work/war3files/War3.mpq","-map=Maps\\\\Campaign\\\\Human02.w3m"],
+            "args": ["-mpq=/home/wulin/Warcraft-III-1.27a/War3.mpq","-map=Maps\\\\Campaign\\\\Human02.w3m"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/",
             "environment": [],
