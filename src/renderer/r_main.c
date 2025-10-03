@@ -216,8 +216,18 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
-    
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    tr.initialSize = (size2_t){width, height};
+    // Scale window for high-DPI display
+    float ddpi, hdpi, vdpi;
+    SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi);
+
+    tr.scaledSize = (size2_t){width * hdpi / 96, height * vdpi / 96};
+    // SDL_SetWindowSize(window, width * hdpi / 96, height * vdpi / 96);
+    printf("Scale Factor: %.2f\n", hdpi / 96);
+
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
+        tr.scaledSize.width, tr.scaledSize.height, 
+        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     
     // 设置最小窗口大小
     SDL_SetWindowMinimumSize(window, 640, 480);
@@ -225,12 +235,7 @@ void R_Init(DWORD width, DWORD height) {
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
 
-    // Scale window for high-DPI display
-    float ddpi, hdpi, vdpi;
-    SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi);
-
-    SDL_SetWindowSize(window, width * hdpi / 96, height * vdpi / 96);
-    printf("Scale Factor: %.2f\n", hdpi / 96);
+    
 
     R_InitDefaultFonts();
     
@@ -421,8 +426,8 @@ FLOAT R_GetScaleFactor(void) {
     }
     return 1;
 }
-size2_t R_GetDrawableSize(void) {
-    return tr.drawableSize;
+size2_t R_GetViewPortSize(void) {
+    return tr.initialSize;
 }
 size2_t R_GetWindowSize(void) {
     int width, height;

@@ -260,7 +260,7 @@ error_code create_context(const char *charset, context **ctx)
 
 	
 
-	size2_t const viewportsize = R_GetDrawableSize();
+	size2_t const viewportsize = R_GetViewPortSize();
 
 	lay_set_size(c->layout_ctx, doc_ud->layid, (lay_vec2){viewportsize.width,viewportsize.height});
 
@@ -1489,7 +1489,7 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			/* Use pixel value directly */
 		} else if (end_ptr && strstr(end_ptr, "%")) {
 			/* Percentage - calculate based on parent width */
-			size2_t vpsize = R_GetDrawableSize();
+			size2_t vpsize = R_GetViewPortSize();
 			width = (int)(vpsize.width * width / 100.0);
 		}
 		lay_set_size_xy(c->layout_ctx, layout_id, width,
@@ -1503,7 +1503,7 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			/* Use pixel value directly */
 		} else if (end_ptr && strstr(end_ptr, "%")) {
 			/* Percentage - calculate based on parent height */
-			size2_t vpsize = R_GetDrawableSize();
+			size2_t vpsize = R_GetViewPortSize();
 			height = (int)(vpsize.height * height / 100.0);
 		}
 		lay_set_size_xy(c->layout_ctx, layout_id,
@@ -1839,7 +1839,7 @@ void render_html_info_panel(context *ctx) {
     if (!ctx) return;
     
     // 在右上角渲染信息面板
-    size2_t vpsize = R_GetDrawableSize();
+    size2_t vpsize = R_GetViewPortSize();
     lay_scalar panel_x = vpsize.width - 300;
     lay_scalar panel_y = 10;
     lay_scalar panel_width = 290;
@@ -2009,7 +2009,7 @@ void draw_html_background(context *ctx) {
     if (!ctx || !ctx->document) return;
     
     // 获取窗口大小
-    size2_t vpsize = R_GetDrawableSize();
+    size2_t vpsize = R_GetViewPortSize();
     
     // 渲染白色背景
     render_rect_fill(0, 0, vpsize.width, vpsize.height, (COLOR32){255, 255, 255, 160});
