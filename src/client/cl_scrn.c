@@ -714,6 +714,8 @@ void html_update_frame();
 
 void SCR_UpdateScreen(void) {
 
+    re.ResizeIfNeeded();
+
     re.BeginFrame();
     
     V_RenderView();  // 先渲染3D场景
@@ -729,6 +731,4 @@ void SCR_UpdateScreen(void) {
 //    if (cl.pics[42]) re.DrawPic(cl.pics[42], 0, 0);
     
     re.EndFrame();
-
-    re.ResizeIfNeeded();
 }

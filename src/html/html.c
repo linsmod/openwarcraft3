@@ -260,9 +260,9 @@ error_code create_context(const char *charset, context **ctx)
 
 	
 
-	size2_t const window = R_GetWindowSize();
+	size2_t const viewportsize = R_GetDrawableSize();
 
-	lay_set_size(c->layout_ctx, doc_ud->layid, (lay_vec2){window.width,window.height});
+	lay_set_size(c->layout_ctx, doc_ud->layid, (lay_vec2){viewportsize.width,viewportsize.height});
 
 	c->document->_private = (void *) doc_ud;
 
@@ -1489,8 +1489,8 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			/* Use pixel value directly */
 		} else if (end_ptr && strstr(end_ptr, "%")) {
 			/* Percentage - calculate based on parent width */
-			size2_t window = R_GetWindowSize();
-			width = (int)(window.width * width / 100.0);
+			size2_t vpsize = R_GetDrawableSize();
+			width = (int)(vpsize.width * width / 100.0);
 		}
 		lay_set_size_xy(c->layout_ctx, layout_id, width,
 		               lay_get_size(c->layout_ctx, layout_id)[1]);
@@ -1503,8 +1503,8 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			/* Use pixel value directly */
 		} else if (end_ptr && strstr(end_ptr, "%")) {
 			/* Percentage - calculate based on parent height */
-			size2_t window = R_GetWindowSize();
-			height = (int)(window.height * height / 100.0);
+			size2_t vpsize = R_GetDrawableSize();
+			height = (int)(vpsize.height * height / 100.0);
 		}
 		lay_set_size_xy(c->layout_ctx, layout_id,
 		               lay_get_size(c->layout_ctx, layout_id)[0], height);
@@ -1839,8 +1839,8 @@ void render_html_info_panel(context *ctx) {
     if (!ctx) return;
     
     // 在右上角渲染信息面板
-    size2_t window = R_GetWindowSize();
-    lay_scalar panel_x = window.width - 300;
+    size2_t vpsize = R_GetDrawableSize();
+    lay_scalar panel_x = vpsize.width - 300;
     lay_scalar panel_y = 10;
     lay_scalar panel_width = 290;
     lay_scalar panel_height = 120;
@@ -2009,12 +2009,12 @@ void draw_html_background(context *ctx) {
     if (!ctx || !ctx->document) return;
     
     // 获取窗口大小
-    size2_t window = R_GetWindowSize();
+    size2_t vpsize = R_GetDrawableSize();
     
     // 渲染白色背景
-    render_rect_fill(0, 0, window.width, window.height, (COLOR32){255, 255, 255, 160});
+    render_rect_fill(0, 0, vpsize.width, vpsize.height, (COLOR32){255, 255, 255, 160});
     
-    // printf("Drawing HTML background: %dx%d\n", window.width, window.height);
+    // printf("Drawing HTML background: %dx%d\n", vpsize.width, vpsize.height);
 }
 
 // 主要的HTML渲染帧函数

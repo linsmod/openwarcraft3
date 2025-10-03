@@ -1,4 +1,6 @@
 #include "client/client.h"
+#include "client/renderer.h"
+#include "common/shared.h"
 #include "r_local.h"
 
 #include <SDL2/SDL.h>
@@ -214,13 +216,21 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     
-    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     
     // 设置最小窗口大小
     SDL_SetWindowMinimumSize(window, 640, 480);
     context = SDL_GL_CreateContext(window);
     
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
+
+    // Scale window for high-DPI display
+    float ddpi, hdpi, vdpi;
+    SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi);
+
+    SDL_SetWindowSize(window, width * hdpi / 96, height * vdpi / 96);
+    printf("Scale Factor: %.2f\n", hdpi / 96);
 
     R_InitDefaultFonts();
     
@@ -360,34 +370,34 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
 }
 
 void R_ResizeIfNeeded(){
-    int windowWidth, windowHeight;
-    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
-    
-    SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
-    
-    // 计算保持4:3的视口区域（带黑边）
-    float targetAspect = 4.0f / 3.0f;
-    float currentAspect = (float)tr.drawableSize.width / tr.drawableSize.height;
-    if(currentAspect == targetAspect){
-        return;
-    }
-    int viewportX, viewportY, viewportWidth, viewportHeight;
-    
-    if (currentAspect > targetAspect) {
-        // 窗口太宽，左右黑边
-        viewportHeight = tr.drawableSize.height;
-        viewportWidth = (int)(viewportHeight * targetAspect);
-        viewportX = (tr.drawableSize.width - viewportWidth) / 2;
-        viewportY = 0;
-    } else {
-        // 窗口太高，上下黑边
-        viewportWidth = tr.drawableSize.width;
-        viewportHeight = (int)(viewportWidth / targetAspect);
-        viewportX = 0;
-        viewportY = (tr.drawableSize.height - viewportHeight) / 2;
-    }
-    tr.resized = (RECT){viewportX, viewportY, viewportWidth, viewportHeight};
-    // R_Viewport(&tr.resized);
+    // if(!window || !context){
+    //     return;
+    // }
+    // if(!tr.windowPosChanged && !tr.windowSizeChanged){
+    //    return;
+    // }
+    // if(tr.windowPosChanged){
+    //     tr.desiredRect.x = tr.windowPos.x;
+    //     tr.desiredRect.y = tr.windowPos.y;
+    //     tr.windowPosChanged = false;
+    // }
+    // if(tr.windowSizeChanged){
+    //     // 计算保持4:3的窗口
+    //     float targetAspect = 4.0f / 3.0f;
+    //     float currentAspect = (float)tr.desiredSize.width / tr.desiredSize.height;
+    //     bool widthChanged = tr.desiredSize.width != tr.desiredRect.w;
+    //     bool heightChanged = tr.desiredSize.height != tr.desiredRect.h;
+    //     if (widthChanged) {
+    //         // 只改变宽度，根据宽度计算高度
+    //         tr.desiredRect.w = tr.desiredSize.width;
+    //         tr.desiredRect.h = (tr.desiredRect.w / targetAspect);
+    //     } else {
+    //         tr.desiredRect.h = tr.desiredSize.height;
+    //         tr.desiredRect.w = (tr.desiredRect.h * targetAspect);
+    //     }
+    //     printf("set desiredSize to %fx%f\n", tr.desiredRect.w, tr.desiredRect.h);
+    //     tr.windowSizeChanged = false;
+    // }
 }
 
 void R_BeginFrame(void) {
@@ -411,7 +421,9 @@ FLOAT R_GetScaleFactor(void) {
     }
     return 1;
 }
-
+size2_t R_GetDrawableSize(void) {
+    return tr.drawableSize;
+}
 size2_t R_GetWindowSize(void) {
     int width, height;
     SDL_GetWindowSize(window, &width, &height);

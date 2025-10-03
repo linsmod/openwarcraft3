@@ -159,8 +159,12 @@ struct render_globals {
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
-    size2_t resize;
-    RECT resized;
+    size2_t desiredSize;
+    BOOL doingAspectedResizing;
+    VECTOR2 windowPos;
+    BOOL windowPosChanged;
+    BOOL windowSizeChanged;
+    RECT desiredRect;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -203,6 +207,7 @@ FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y);
 LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
 
+size2_t R_GetDrawableSize(void);
 size2_t R_GetWindowSize(void);
 FLOAT R_GetScaleFactor(void);
 

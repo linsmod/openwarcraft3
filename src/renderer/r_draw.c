@@ -19,7 +19,7 @@ static VERTEX simp[256 * 6];
     }
     
     DWORD num_vertices = (DWORD)(it - simp);
-    size2_t window = R_GetWindowSize();
+    size2_t window = R_GetDrawableSize();
     MATRIX4 ui_matrix,model_matrix;
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
     
