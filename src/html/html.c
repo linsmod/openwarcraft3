@@ -9,6 +9,7 @@
 
 #include "common/common.h"
 #include "common/shared.h"
+#include "libcss/stylesheet.h"
 #include "libxml/tree.h"
 #include "r_local.h"
 #include <math.h>
@@ -90,6 +91,7 @@ typedef struct userdata{
 	int __ln;
 	LPCSTR __f;
 	LPCSS parsedStyle;
+	LPCSS computedStyle;
 } userdata;
 
 #define ALLOCUDREF(c,ud,rc) \
@@ -1541,6 +1543,45 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			}
 		}
 	}
+	if (strstr(css, "font-size:")) {
+		int font_size = extract_number(css, "font-size:");
+		/* Store font size for rendering (this would need to be integrated with the rendering system) */
+		/* For now, we'll just store it in the userdata */
+		if (c) {
+			userdata *ud = (userdata *)node->_private;
+			if (ud) {
+				/* We could extend userdata to store font size information */
+				/* For now, this is just a placeholder */
+			}
+		}
+	}
+	if (strstr(css, "font-family:")) {
+		const char *font_start = strstr(css, "font-family:");
+		font_start += 12; /* Skip "font-family:" */
+		
+		/* Skip whitespace */
+		while (*font_start && (*font_start == ' ' || *font_start == ':')) {
+			font_start++;
+		}
+		
+		/* Extract font family value */
+		char font_str[64];
+		int i = 0;
+		while (*font_start && (*font_start != ';' && *font_start != '}') && i < sizeof(font_str) - 1) {
+			font_str[i++] = *font_start++;
+		}
+		font_str[i] = '\0';
+		
+		/* Store font family for rendering (this would need to be integrated with the rendering system) */
+		/* For now, we'll just store it in the userdata */
+		if (c) {
+			userdata *ud = (userdata *)node->_private;
+			if (ud) {
+				/* We could extend userdata to store font family information */
+				/* For now, this is just a placeholder */
+			}
+		}
+	}
 }
 void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c)
 {
@@ -1676,38 +1717,40 @@ void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_sca
     int font_size = 16; /* Default font size */
     
     /* Try to get style from parent element */
-    if (textnode && textnode->parent) {
-        LPCSS style = html_getnodestyle(textnode->parent);
+	xmlNode* style_node = textnode;
+	LPCSS style = html_getnodestyle(style_node);
+    while (!style && style_node->parent) {
+		style_node = style_node->parent;
+		style = html_getnodestyle(style_node);
+	}
+    if (style) {
+        /* Get color from style */
+        const char *color_str = css_get_property_string(style, CSS_PROP_COLOR);
+        if (color_str && color_str[0] == '#') {
+			// TODO
+            // render_color = (COLOR32)strtoul(color_str + 1, NULL, 16);
+            /* Add alpha channel if missing */
+            // if (strlen(color_str) == 7) render_color |= 0xFF000000;
+        }
         
-        if (style) {
-            /* Get color from style */
-            const char *color_str = css_get_property_string(style, CSS_PROP_COLOR);
-            if (color_str && color_str[0] == '#') {
-				// TODO
-                // render_color = (COLOR32)strtoul(color_str + 1, NULL, 16);
-                /* Add alpha channel if missing */
-                // if (strlen(color_str) == 7) render_color |= 0xFF000000;
+        /* Get font properties */
+        const char *font_family_css = css_get_property_string(style, CSS_PROP_FONT_FAMILY);
+        int new_font_size = css_get_property_int(style, CSS_PROP_FONT_SIZE, font_size);
+        
+        if (font_family_css) {
+            
+            /* Get font from cache or load it */
+            FONT* custom_font = R_FontCacheGet(font_family_css, new_font_size);
+            if (custom_font) {
+                render_font = custom_font;
+                font_size = new_font_size;
             }
-            
-            /* Get font properties */
-            const char *font_family_css = css_get_property_string(style, CSS_PROP_FONT_FAMILY);
-            int new_font_size = css_get_property_int(style, CSS_PROP_FONT_SIZE, font_size);
-            
-            if (font_family_css) {
-                
-                /* Get font from cache or load it */
-                FONT* custom_font = R_FontCacheGet(font_family_css, new_font_size);
-                if (custom_font) {
-                    render_font = custom_font;
-                    font_size = new_font_size;
-                }
-            } else if (new_font_size != font_size) {
-                /* Only size changed, use default font with new size */
-                FONT* sized_font = R_FontCacheGet(DEFAULT_TEXTFONT_NAME, new_font_size);
-                if (sized_font) {
-                    render_font = sized_font;
-                    font_size = new_font_size;
-                }
+        } else if (new_font_size != font_size) {
+            /* Only size changed, use default font with new size */
+            FONT* sized_font = R_FontCacheGet(DEFAULT_TEXTFONT_NAME, new_font_size);
+            if (sized_font) {
+                render_font = sized_font;
+                font_size = new_font_size;
             }
         }
     }
@@ -1740,6 +1783,32 @@ void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar heigh
         .model_matrix = NULL
     };
     R_DrawImageEx(&drawImg);
+}
+void process_style_node(context *ctx, xmlNode *node, int depth) {
+	if (!ctx || !node) return;
+	
+	// 获取style节点的文本内容
+	xmlChar *style_content = xmlNodeGetContent(node);
+	if (style_content) {
+		// 解析并应用CSS样式
+		const char *css = (const char *)style_content;
+		apply_enhanced_css_to_layout(ctx, node->parent, css);
+		
+		xmlFree(style_content);
+	}
+}
+void process_script_node(context *ctx, xmlNode *node, int depth) {
+	if (!ctx || !node) return;
+	
+	// 获取script节点的文本内容
+	xmlChar *script_content = xmlNodeGetContent(node);
+	if (script_content) {
+		// 这里可以集成JavaScript引擎来执行脚本
+		// 目前仅打印脚本内容作为示例
+		printf("Script content:\n%s\n", (const char *)script_content);
+		
+		xmlFree(script_content);
+	}
 }
 
 // 渲染HTML元素
@@ -1788,10 +1857,12 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
             // 渲染列表边框
             render_rect_border(x, y, width, height, (COLOR32){255, 165, 0, 128}); // 橙色半透明边框
         } else if (strcmp(element_name, "style") == 0) {
-            // <style>标签 - 不渲染内容，只渲染占位符（可选）
-            // render_rect_border(x, y, width, height, (COLOR32){255, 255, 0, 128}); // 黄色半透明边框
-            // html_render_text(node,"[STYLE]", x + 5, y + 5, (COLOR32){128, 128, 0, 255}); // 样式标记
-            // 直接返回，不渲染子元素（CSS内容）
+			process_style_node(ctx, node, depth);
+            return;
+        } else if (strcmp(element_name, "script") == 0) {
+			process_script_node(ctx, node, depth);
+            return;
+        } else if (strcmp(element_name, "head") == 0) {
             return;
         }
         

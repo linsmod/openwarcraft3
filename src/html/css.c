@@ -10,6 +10,7 @@
 #include <assert.h>
 /* HTML/CSS integration headers */
 #include "common/shared.h"
+#include "libwapcaplet/libwapcaplet.h"
 #include <libcss/properties.h>
 #include <libcss/types.h>
 
@@ -973,7 +974,19 @@ const char* css_get_property_string(css_select_results *results, uint32_t proper
     /* This is a simplified version - you'd need to implement proper property extraction */
     switch (property) {
         case CSS_PROP_FONT_FAMILY: {
-            uint8_t font_family = css_computed_font_family(style, NULL);
+			lwc_string** names;
+            uint8_t font_family = css_computed_font_family(style, &names);
+			if (font_family == CSS_FONT_FAMILY_SERIF) {
+				return "serif";
+			} else if (font_family == CSS_FONT_FAMILY_SANS_SERIF) {
+				return "sans-serif";
+			} else if (font_family == CSS_FONT_FAMILY_MONOSPACE) {
+				return "monospace";
+			} else if (font_family == CSS_FONT_FAMILY_CURSIVE) {
+				return "cursive";
+			} else if (font_family == CSS_FONT_FAMILY_FANTASY) {
+				return "fantasy";
+			} else
             /* Convert to string representation */
             return "Arial"; /* Placeholder */
         }
@@ -1038,19 +1051,205 @@ const char* css_get_property_string(css_select_results *results, uint32_t proper
             }
             return "#000000"; /* Default black */
         }
-        // case CSS_PROP_BORDER: {
-        //     /* Get shorthand border property */
-        //     static char border_str[64];
-        //     const char *width = css_get_property_string(results, CSS_PROP_BORDER_WIDTH);
-        //     const char *style = css_get_property_string(results, CSS_PROP_BORDER_STYLE);
-        //     const char *color = css_get_property_string(results, CSS_PROP_BORDER_COLOR);
-            
-        //     if (width && style && color) {
-        //         snprintf(border_str, sizeof(border_str), "%s %s %s", width, style, color);
-        //         return border_str;
-        //     }
-        //     return "1px solid #000000"; /* Default */
-        // }
+		case CSS_PROP_BACKGROUND_COLOR: {
+			css_color color;
+			uint8_t color_type = css_computed_background_color(style, &color);
+			if (color_type == CSS_COLOR_COLOR) {
+				static char color_str[8];
+				snprintf(color_str, sizeof(color_str), "#%06x", color);
+				return color_str;
+			}
+			return "transparent";
+		}
+		case CSS_PROP_MARGIN_TOP:
+		case CSS_PROP_MARGIN_RIGHT:
+		case CSS_PROP_MARGIN_BOTTOM:
+		case CSS_PROP_MARGIN_LEFT: {
+			/* Get margin */
+			css_fixed margin;
+			css_unit unit;
+			uint8_t margin_type = css_computed_margin_top(style, &margin, &unit);
+			// CSS_MARGIN_AUTO , CSS_MARGIN_INHERIT , CSS_MARGIN_SET
+			if (margin_type == CSS_MARGIN_AUTO) {
+				return "auto";
+			} else if (margin_type == CSS_MARGIN_SET) {
+				static char margin_str[16];
+				int px_margin = FIXTOINT(margin);
+				snprintf(margin_str, sizeof(margin_str), "%dpx", px_margin);
+				return margin_str;
+			}
+			else if(margin_type == CSS_MARGIN_INHERIT) {
+				return "0px"; /* Default */
+			}
+			return "0px"; /* Default */
+		}
+		case CSS_PROP_PADDING_TOP:
+		case CSS_PROP_PADDING_RIGHT:
+		case CSS_PROP_PADDING_BOTTOM:
+		case CSS_PROP_PADDING_LEFT: {
+			/* Get padding */
+			css_fixed padding;
+			css_unit unit;
+			uint8_t padding_type = css_computed_padding_top(style, &padding, &unit);
+			// CSS_PADDING_INHERIT , CSS_PADDING_SET
+			if (padding_type == CSS_PADDING_SET) {
+				static char padding_str[16];
+				int px_padding = FIXTOINT(padding);
+				snprintf(padding_str, sizeof(padding_str), "%dpx", px_padding);
+				return padding_str;
+			} else if (padding_type == CSS_PADDING_INHERIT) {
+				return "0px"; /* Default */
+			}
+			return "0px"; /* Default */
+		}
+		case CSS_PROP_WIDTH: {
+			/* Get width */
+			css_fixed width;
+			css_unit unit;
+			uint8_t width_type = css_computed_width(style, &width, &unit);
+			// CSS_WIDTH_AUTO , CSS_WIDTH_INHERIT , CSS_WIDTH_SET
+			if (width_type == CSS_WIDTH_AUTO) {
+				return "auto";
+			} else if (width_type == CSS_WIDTH_SET) {
+				static char width_str[16];
+				int px_width = FIXTOINT(width);
+				snprintf(width_str, sizeof(width_str), "%dpx", px_width);
+				return width_str;
+			} else if (width_type == CSS_WIDTH_INHERIT) {
+				return "auto"; /* Default */
+			}
+			return "auto"; /* Default */
+		}
+		case CSS_PROP_HEIGHT: {
+			/* Get height */
+			css_fixed height;
+			css_unit unit;
+			uint8_t height_type = css_computed_height(style, &height, &unit);
+			// CSS_HEIGHT_AUTO , CSS_HEIGHT_INHERIT , CSS_HEIGHT_SET
+			if (height_type == CSS_HEIGHT_AUTO) {
+				return "auto";
+			} else if (height_type == CSS_HEIGHT_SET) {
+				static char height_str[16];
+				int px_height = FIXTOINT(height);
+				snprintf(height_str, sizeof(height_str), "%dpx", px_height);
+				return height_str;
+			} else if (height_type == CSS_HEIGHT_INHERIT) {
+				return "auto"; /* Default */
+			}
+			return "auto"; /* Default */
+		}
+		case CSS_PROP_DISPLAY: {
+			/* Get display */
+			uint8_t display = css_computed_display(style,false);
+			switch (display) {
+				case CSS_DISPLAY_BLOCK: return "block";
+				case CSS_DISPLAY_INLINE: return "inline";
+				case CSS_DISPLAY_NONE: return "none";
+				default: return "inline";
+			}
+		}
+		case CSS_PROP_POSITION: {
+			/* Get position */
+			uint8_t position = css_computed_position(style);
+			switch (position) {
+				case CSS_POSITION_STATIC: return "static";
+				case CSS_POSITION_RELATIVE: return "relative";
+				case CSS_POSITION_ABSOLUTE: return "absolute";
+				case CSS_POSITION_FIXED: return "fixed";
+				default: return "static";
+			}
+		}
+		case CSS_PROP_TEXT_ALIGN: {
+			/* Get text-align */
+			uint8_t text_align = css_computed_text_align(style);
+			switch (text_align) {
+				case CSS_TEXT_ALIGN_LEFT: return "left";
+				case CSS_TEXT_ALIGN_RIGHT: return "right";
+				case CSS_TEXT_ALIGN_CENTER: return "center";
+				case CSS_TEXT_ALIGN_JUSTIFY: return "justify";
+				default: return "left";
+			}
+		}
+		case CSS_PROP_VERTICAL_ALIGN: {
+			/* Get vertical-align */
+			css_fixed vertical_align;
+			css_unit unit;
+			uint8_t vertical_type = css_computed_vertical_align(style, &vertical_align, &unit);
+			switch (vertical_type) {
+				case CSS_VERTICAL_ALIGN_BASELINE: return "baseline";
+				case CSS_VERTICAL_ALIGN_TOP: return "top";
+				case CSS_VERTICAL_ALIGN_MIDDLE: return "middle";
+				case CSS_VERTICAL_ALIGN_BOTTOM: return "bottom";
+				default: return "baseline";
+			}
+		}
+		case CSS_PROP_FLOAT: {
+			/* Get float */
+			uint8_t float_prop = css_computed_float(style);
+			switch (float_prop) {
+				case CSS_FLOAT_NONE: return "none";
+				case CSS_FLOAT_LEFT: return "left";
+				case CSS_FLOAT_RIGHT: return "right";
+				default: return "none";
+			}
+		}
+		case CSS_PROP_CLEAR: {
+			/* Get clear */
+			uint8_t clear_prop = css_computed_clear(style);
+			switch (clear_prop) {
+				case CSS_CLEAR_NONE: return "none";
+				case CSS_CLEAR_LEFT: return "left";
+				case CSS_CLEAR_RIGHT: return "right";
+				case CSS_CLEAR_BOTH: return "both";
+				default: return "none";
+			}
+		}
+		case CSS_PROP_OPACITY: {
+			/* Get opacity */
+			css_fixed opacity;
+			uint8_t opacity_type = css_computed_opacity(style, &opacity);
+			if (opacity_type == CSS_OPACITY_SET) {
+				static char opacity_str[8];	
+				int int_opacity = FIXTOINT(opacity * 100) / (1 << CSS_RADIX_POINT);
+				snprintf(opacity_str, sizeof(opacity_str), "%d%%", int_opacity);
+				return opacity_str;
+			}
+			return "100%"; /* Default */
+		}
+		case CSS_PROP_Z_INDEX: {
+			/* Get z-index */
+			int32_t z_index;
+			uint8_t z_index_type = css_computed_z_index(style, &z_index);
+			if (z_index_type == CSS_Z_INDEX_AUTO) {
+				return "auto";
+			} else if (z_index_type == CSS_Z_INDEX_SET) {
+				static char z_index_str[16];
+				snprintf(z_index_str, sizeof(z_index_str), "%d", z_index);
+				return z_index_str;
+			}
+			return "auto"; /* Default */
+		}
+		case CSS_PROP_VISIBILITY: {
+			/* Get visibility */
+			uint8_t visibility = css_computed_visibility(style);
+			switch (visibility) {
+				case CSS_VISIBILITY_VISIBLE: return "visible";
+				case CSS_VISIBILITY_HIDDEN: return "hidden";
+				default: return "visible";
+			}
+		}
+		case CSS_PROP_CURSOR: {
+			/* Get cursor */
+		    lwc_string **urls;
+			uint8_t cursor = css_computed_cursor(style, &urls);
+			switch (cursor) {
+				case CSS_CURSOR_AUTO: return "auto";
+				case CSS_CURSOR_POINTER: return "pointer";
+				case CSS_CURSOR_DEFAULT: return "default";
+				case CSS_CURSOR_TEXT: return "text";
+				default: return "auto";
+			}
+		}
         default:
             return NULL;
     }
