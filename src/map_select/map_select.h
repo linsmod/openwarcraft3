@@ -34,6 +34,9 @@ void MapSelect_Render(void);
 // 处理输入事件
 bool MapSelect_HandleInput(int key, bool down);
 
+// 处理鼠标事件
+bool MapSelect_HandleMouseEvent(void);
+
 // 获取选中的地图
 const char* MapSelect_GetSelectedMap(void);
 

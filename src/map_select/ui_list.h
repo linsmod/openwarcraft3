@@ -89,6 +89,9 @@ int UIList_GetScrollOffset(ui_list_t *list);
 // 处理键盘输入（上下键导航）
 bool UIList_HandleInput(ui_list_t *list, int key, bool down);
 
+// 处理鼠标点击
+bool UIList_HandleMouseClick(ui_list_t *list, int x, int y);
+
 // 处理鼠标滚轮
 bool UIList_HandleMouseWheel(ui_list_t *list, int delta);
 

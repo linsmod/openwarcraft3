@@ -58,6 +58,11 @@ static ui_list_t g_ui_list;
 // 全局标志：是否在地图选择模式
 bool g_in_map_select = false;
 
+// START GAME 按钮区域
+static struct {
+    float x, y, width, height;
+} g_start_button = {480, 420, 200, 50};
+
 // 自定义列表项绘制函数
 static void DrawBrowserItemCustom(
     int index,
@@ -118,10 +123,6 @@ static bool IsMapFile(const char *filename) {
 
 // 获取文件类型
 static item_type_t GetFileType(const char *filename) {
-    if (strchr(filename, '\\') != NULL) {
-        return ITEM_TYPE_FOLDER;
-    }
-    
     size_t len = strlen(filename);
     if (len < 5) return ITEM_TYPE_FOLDER;
     
@@ -523,6 +524,12 @@ static void DrawStartButton(float x, float y, float width, float height) {
     canvas2d_fill_text(g_ctx, "START GAME [ENTER]", x + 30, y + 20);
 }
 
+// 检查鼠标是否在按钮区域内
+static bool IsPointInButton(float x, float y) {
+    return x >= g_start_button.x && x < g_start_button.x + g_start_button.width &&
+           y >= g_start_button.y && y < g_start_button.y + g_start_button.height;
+}
+
 // 加载并保存地图信息到txt文件
 bool MapSelect_LoadAndSaveMapInfo(const char *mapPath) {
     printf("Loading map info for: %s\n", mapPath);
@@ -806,6 +813,63 @@ bool MapSelect_HandleInput(int key, bool down) {
             case SDLK_ESCAPE:
                 // 退出游戏
                 return true;
+        }
+    }
+    
+    return false;
+}
+
+// 处理鼠标事件
+bool MapSelect_HandleMouseEvent(void) {
+    if (g_state == MAP_SELECT_STATE_DONE) return false;
+    
+    // 只处理鼠标左键按下事件
+    if (mouse.event != UI_LEFT_MOUSE_DOWN) {
+        return false;
+    }
+    
+    // 检查是否点击了 START GAME 按钮
+    if (IsPointInButton(mouse.origin.x, mouse.origin.y)) {
+        int selected = UIList_GetSelected(&g_ui_list);
+        if (selected >= 0) {
+            void *user_data = UIList_GetSelectedUserData(&g_ui_list);
+            if (user_data) {
+                int all_index = (int)(intptr_t)user_data;
+                if (all_index >= 0 && all_index < g_all_count) {
+                    browser_item_t *item = &g_all_items[all_index];
+                    if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
+                        // 选择地图 - 地图信息已在预览时加载，直接开始游戏
+                        printf("Starting game (button click): %s\n", item->full_path);
+                        g_state = MAP_SELECT_STATE_DONE;
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 检查是否点击了 UI 列表
+    if (UIList_HandleMouseClick(&g_ui_list, mouse.origin.x, mouse.origin.y)) {
+        // 双击检测：如果是地图文件且当前已选中该项，则进入/选择
+        int selected = UIList_GetSelected(&g_ui_list);
+        if (selected >= 0) {
+            void *user_data = UIList_GetSelectedUserData(&g_ui_list);
+            if (user_data) {
+                int all_index = (int)(intptr_t)user_data;
+                if (all_index >= 0 && all_index < g_all_count) {
+                    browser_item_t *item = &g_all_items[all_index];
+                    if (item->type == ITEM_TYPE_FOLDER) {
+                        // 点击进入文件夹
+                        EnterFolder(item->name);
+                        return true;
+                    } else if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
+                        // 地图文件，单击只是选中，不直接开始游戏
+                        // 双击或者点击 START GAME 按钮才开始游戏
+                        printf("Map selected: %s\n", item->full_path);
+                        return true;
+                    }
+                }
+            }
         }
     }
     

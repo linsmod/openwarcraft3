@@ -170,6 +170,40 @@ bool UIList_HandleInput(ui_list_t *list, int key, bool down) {
     return false;
 }
 
+// 处理鼠标点击
+bool UIList_HandleMouseClick(ui_list_t *list, int x, int y) {
+    if (!list) return false;
+
+    const ui_list_config_t *cfg = &list->config;
+
+    // 检查点击是否在列表区域内
+    if (x < cfg->x || x >= cfg->x + cfg->width ||
+        y < cfg->y || y >= cfg->y + cfg->height) {
+        return false;
+    }
+
+    // 计算点击的是哪一项
+    float total_item_height = cfg->item_height + cfg->item_spacing;
+    int clicked_visible_index = (int)((y - cfg->y) / total_item_height);
+
+    // 检查是否点击在有效范围内
+    if (clicked_visible_index < 0 || clicked_visible_index >= list->visible_count) {
+        return false;
+    }
+
+    // 计算实际项索引
+    int clicked_index = list->scroll_offset + clicked_visible_index;
+
+    // 检查索引是否有效
+    if (clicked_index < 0 || clicked_index >= list->item_count) {
+        return false;
+    }
+
+    // 选中点击的项
+    UIList_SetSelected(list, clicked_index);
+    return true;
+}
+
 // 处理鼠标滚轮
 bool UIList_HandleMouseWheel(ui_list_t *list, int delta) {
     if (!list) return false;

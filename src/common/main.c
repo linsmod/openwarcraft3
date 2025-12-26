@@ -14,7 +14,7 @@
 "\n" \
 "Notes:\n" \
 "  - The MPQ path must be an absolute path on your filesystem.\n" \
-"  - The map path must use the internal path format from the MPQ.\n" \
+"  - The map path must use the internal path format from MPQ.\n" \
 "  - If -map is not specified, a map selection screen will be shown.\n"
 
 extern LPTEXTURE Texture;
@@ -86,6 +86,30 @@ int main(int argc, LPSTR argv[]) {
                             return 0;
                         }
                     }
+                }
+                else if (event.type == SDL_MOUSEBUTTONDOWN) {
+                    // 处理鼠标事件
+                    if (event.button.button == SDL_BUTTON_LEFT) {
+                        // 更新鼠标状态
+                        mouse.origin.x = event.button.x;
+                        mouse.origin.y = event.button.y;
+                        mouse.button = event.button.button;
+                        mouse.event = UI_LEFT_MOUSE_DOWN;
+                        
+                        // 处理地图选择界面的鼠标事件
+                        if (MapSelect_HandleMouseEvent()) {
+                            // 检查是否选择了地图
+                            map = MapSelect_GetSelectedMap();
+                            if (map) {
+                                map_selected = true;
+                            }
+                        }
+                    }
+                }
+                else if (event.type == SDL_MOUSEMOTION) {
+                    // 更新鼠标位置
+                    mouse.origin.x = event.motion.x;
+                    mouse.origin.y = event.motion.y;
                 }
             }
             
