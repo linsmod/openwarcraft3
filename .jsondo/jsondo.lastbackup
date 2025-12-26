@@ -1,5 +1,8 @@
 #include "map_select.h"
 #include "ui_list.h"
+#include "ui_button.h"
+#include "ui_text.h"
+#include "ui_container.h"
 #include "../canvas2d/canvas2d.h"
 #include "../client/client.h"
 #include "../common/common.h"
@@ -40,6 +43,7 @@ static int g_filtered_indices[MAX_MAPS];  // 过滤后的项在 g_all_items 中�
 static int g_all_count = 0;
 static int g_filtered_count = 0;
 static map_select_state_t g_state = MAP_SELECT_STATE_INIT;
+static char *g_start_map_path = NULL;
 
 // 当前浏览的路径
 static char g_current_path[MAX_PATH_LEN] = "";
@@ -55,8 +59,46 @@ static canvas2d_context_t *g_ctx = NULL;
 // UI 列表组件
 static ui_list_t g_ui_list;
 
+// UI 按钮组件
+static ui_button_t g_start_button;
+
+// UI 文本组件
+static ui_text_t g_title_text;
+static ui_text_t g_path_text;
+static ui_text_t g_hint_text1;
+static ui_text_t g_hint_text2;
+
+// UI 容器组件（地图预览）
+static ui_container_t g_preview_container;
+static ui_text_t g_preview_title_text;      // "Map Preview"
+static ui_text_t g_preview_filename_text;     // 地图文件名
+static ui_text_t g_preview_name_text;        // 地图名称
+static ui_text_t g_preview_author_text;       // 作者
+static ui_text_t g_preview_players_text;     // 推荐玩家数
+static ui_text_t g_preview_type_text;        // 文件类型
+static ui_text_t g_preview_path_text;       // 完整路径
+
 // 全局标志：是否在地图选择模式
 bool g_in_map_select = false;
+
+// START GAME 按钮点击回调
+static void OnStartGameClick(void *user_data) {
+    int selected = UIList_GetSelected(&g_ui_list);
+    if (selected >= 0) {
+        void *user_data = UIList_GetSelectedUserData(&g_ui_list);
+        if (user_data) {
+            int all_index = (int)(intptr_t)user_data;
+            if (all_index >= 0 && all_index < g_all_count) {
+                browser_item_t *item = &g_all_items[all_index];
+                if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
+                    printf("Starting game (button click): %s\n", item->full_path);
+                    g_start_map_path = strdup(item->full_path);
+                    g_state = MAP_SELECT_STATE_DONE;
+                }
+            }
+        }
+    }
+}
 
 // 自定义列表项绘制函数
 static void DrawBrowserItemCustom(
@@ -118,10 +160,6 @@ static bool IsMapFile(const char *filename) {
 
 // 获取文件类型
 static item_type_t GetFileType(const char *filename) {
-    if (strchr(filename, '\\') != NULL) {
-        return ITEM_TYPE_FOLDER;
-    }
-    
     size_t len = strlen(filename);
     if (len < 5) return ITEM_TYPE_FOLDER;
     
@@ -363,6 +401,238 @@ int MapSelect_Init(void) {
         return -1;
     }
     
+    // 初始化 START GAME 按钮
+    ui_button_config_t button_config = {
+        .x = 480.0f,
+        .y = 420.0f,
+        .width = 200.0f,
+        .height = 50.0f,
+        .text = "START GAME [ENTER]",
+        .bg_color = {
+            {0, 150, 0, 255},      // 正常
+            {0, 180, 0, 255},      // 悬停
+            {0, 120, 0, 255},      // 按下
+            {100, 100, 100, 255}   // 禁用
+        },
+        .border_color = {
+            {0, 255, 0, 255},      // 正常
+            {50, 255, 50, 255},    // 悬停
+            {0, 200, 0, 255},      // 按下
+            {150, 150, 150, 255}   // 禁用
+        },
+        .text_color = {
+            {255, 255, 255, 255},  // 正常
+            {255, 255, 255, 255},  // 悬停
+            {255, 255, 255, 255},  // 按下
+            {180, 180, 180, 255}   // 禁用
+        },
+        .border_width = 2.0f,
+        .on_click = OnStartGameClick,
+        .user_data = NULL,
+        .enabled = true,
+        .visible = true
+    };
+    
+    if (UIButton_Init(&g_start_button, &button_config, g_ctx) != 0) {
+        printf("Failed to initialize UI button\n");
+        return -1;
+    }
+    
+    // 初始化标题文本
+    ui_text_config_t title_config = {
+        .x = 400.0f,
+        .y = 30.0f,
+        .text = "SELECT MAP",
+        .color = {255, 215, 0, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_CENTER,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    
+    if (UIText_Init(&g_title_text, &title_config, g_ctx) != 0) {
+        printf("Failed to initialize title text\n");
+        return -1;
+    }
+    
+    // 初始化路径文本
+    ui_text_config_t path_config = {
+        .x = 50.0f,
+        .y = 60.0f,
+        .text = "Root",
+        .color = {200, 200, 200, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    
+    if (UIText_Init(&g_path_text, &path_config, g_ctx) != 0) {
+        printf("Failed to initialize path text\n");
+        return -1;
+    }
+    
+    // 初始化提示文本1
+    ui_text_config_t hint1_config = {
+        .x = 50.0f,
+        .y = 710.0f,
+        .text = "Use UP/DOWN arrows to navigate, ENTER to select/open",
+        .color = {200, 200, 200, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    
+    if (UIText_Init(&g_hint_text1, &hint1_config, g_ctx) != 0) {
+        printf("Failed to initialize hint text 1\n");
+        return -1;
+    }
+    
+    // 初始化提示文本2
+    ui_text_config_t hint2_config = {
+        .x = 900.0f,
+        .y = 710.0f,
+        .text = "ESC to quit",
+        .color = {200, 200, 200, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    
+    if (UIText_Init(&g_hint_text2, &hint2_config, g_ctx) != 0) {
+        printf("Failed to initialize hint text 2\n");
+        return -1;
+    }
+    
+    // 初始化地图预览容器
+    ui_container_config_t preview_config = {
+        .x = 480.0f,
+        .y = 100.0f,
+        .width = 480.0f,
+        .height = 300.0f,
+        .bg_color = {40, 40, 50, 230},
+        .border_color = {255, 215, 0, 255},
+        .border_width = 2.0f,
+        .visible = true,
+        .max_items = 7  // 6个文本组件
+    };
+    
+    if (UIContainer_Init(&g_preview_container, &preview_config, g_ctx) != 0) {
+        printf("Failed to initialize preview container\n");
+        return -1;
+    }
+    
+    // 初始化预览文本组件（标题 "Map Preview"）
+    ui_text_config_t preview_title_config = {
+        .x = 500.0f,
+        .y = 130.0f,
+        .text = "Map Preview",
+        .color = {255, 215, 0, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    UIText_Init(&g_preview_title_text, &preview_title_config, g_ctx);
+    UIContainer_AddText(&g_preview_container, &g_preview_title_text);
+    
+    // 初始化预览文本组件（文件名）
+    ui_text_config_t preview_filename_config = {
+        .x = 500.0f,
+        .y = 172.0f,
+        .text = "",
+        .color = {200, 200, 200, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    UIText_Init(&g_preview_filename_text, &preview_filename_config, g_ctx);
+    UIContainer_AddText(&g_preview_container, &g_preview_filename_text);
+    
+    // 初始化预览文本组件（地图名称）
+    ui_text_config_t preview_name_config = {
+        .x = 500.0f,
+        .y = 194.0f,
+        .text = "",
+        .color = {180, 180, 180, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    UIText_Init(&g_preview_name_text, &preview_name_config, g_ctx);
+    UIContainer_AddText(&g_preview_container, &g_preview_name_text);
+    
+    // 初始化预览文本组件（作者）
+    ui_text_config_t preview_author_config = {
+        .x = 500.0f,
+        .y = 216.0f,
+        .text = "",
+        .color = {160, 160, 160, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    UIText_Init(&g_preview_author_text, &preview_author_config, g_ctx);
+    UIContainer_AddText(&g_preview_container, &g_preview_author_text);
+    
+    // 初始化预览文本组件（推荐玩家数）
+    ui_text_config_t preview_players_config = {
+        .x = 500.0f,
+        .y = 238.0f,
+        .text = "",
+        .color = {140, 140, 140, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    UIText_Init(&g_preview_players_text, &preview_players_config, g_ctx);
+    UIContainer_AddText(&g_preview_container, &g_preview_players_text);
+    
+    // 初始化预览文本组件（文件类型）
+    ui_text_config_t preview_type_config = {
+        .x = 500.0f,
+        .y = 260.0f,
+        .text = "",
+        .color = {150, 150, 150, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    UIText_Init(&g_preview_type_text, &preview_type_config, g_ctx);
+    UIContainer_AddText(&g_preview_container, &g_preview_type_text);
+    
+    // 初始化预览文本组件（完整路径）
+    ui_text_config_t preview_path_config = {
+        .x = 500.0f,
+        .y = 282.0f,
+        .text = "",
+        .color = {100, 100, 100, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0
+    };
+    UIText_Init(&g_preview_path_text, &preview_path_config, g_ctx);
+    UIContainer_AddText(&g_preview_container, &g_preview_path_text);
+    
     // 从(listfile)加载地图列表
     g_map_count = 0;
     
@@ -402,125 +672,89 @@ void MapSelect_Update(int msec) {
 
 
 
-// 绘制地图预览信息
-static void DrawMapPreview(float x, float y, float width, float height) {
+// 更新地图预览信息
+static void UpdateMapPreview(void) {
     int selected = UIList_GetSelected(&g_ui_list);
-    if (selected < 0) return;
+    
+    // 如果没有选中项，隐藏预览容器
+    if (selected < 0) {
+        UIContainer_SetVisible(&g_preview_container, false);
+        return;
+    }
     
     void *user_data = UIList_GetSelectedUserData(&g_ui_list);
-    if (!user_data) return;
+    if (!user_data) {
+        UIContainer_SetVisible(&g_preview_container, false);
+        return;
+    }
     
     int all_index = (int)(intptr_t)user_data;
     // -1 表示 ".." 返回上级目录，不显示预览
-    if (all_index < 0 || all_index >= g_all_count) return;
+    if (all_index < 0 || all_index >= g_all_count) {
+        UIContainer_SetVisible(&g_preview_container, false);
+        return;
+    }
     
     browser_item_t *item = &g_all_items[all_index];
     
     // 只为地图文件显示预览
     if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {
+        UIContainer_SetVisible(&g_preview_container, false);
         return;
     }
+    
+    // 显示预览容器
+    UIContainer_SetVisible(&g_preview_container, true);
     
     // 获取地图信息
     LPCMAPINFO info = CM_GetMapInfo();
     
-    // 背景
-    canvas2d_set_fill_style(g_ctx, (COLOR32){40, 40, 50, 230});
-    canvas2d_fill_rect(g_ctx, x, y, width, height);
+    // 更新文件名
+    UIText_SetText(&g_preview_filename_text, item->name);
+    UIText_SetVisible(&g_preview_filename_text, true);
     
-    // 边框
-    canvas2d_set_stroke_style(g_ctx, (COLOR32){255, 215, 0, 255});
-    canvas2d_set_line_width(g_ctx, 2.0f);
-    canvas2d_stroke_rect(g_ctx, x, y, width, height);
-    
-    float line_height = 22;
-    float current_y = y + 30;
-    
-    // 标题
-    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 215, 0, 255});
-    canvas2d_fill_text(g_ctx, "Map Preview", x + 20, current_y);
-    current_y += line_height + 10;
-    
-    // 地图文件名
-    canvas2d_set_fill_style(g_ctx, (COLOR32){200, 200, 200, 255});
-    canvas2d_fill_text(g_ctx, item->name, x + 20, current_y);
-    current_y += line_height;
-    
-    // 地图名称（如果可用）
+    // 更新地图名称（如果可用）
     if (info && info->mapName) {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){180, 180, 180, 255});
         char name_text[128];
         snprintf(name_text, sizeof(name_text), "Name: %s", info->mapName);
-        canvas2d_fill_text(g_ctx, name_text, x + 20, current_y);
-        current_y += line_height;
+        UIText_SetText(&g_preview_name_text, name_text);
+        UIText_SetVisible(&g_preview_name_text, true);
+    } else {
+        UIText_SetVisible(&g_preview_name_text, false);
     }
     
-    // 作者（如果可用）
+    // 更新作者（如果可用）
     if (info && info->mapAuthor) {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){160, 160, 160, 255});
         char author_text[128];
         snprintf(author_text, sizeof(author_text), "Author: %s", info->mapAuthor);
-        canvas2d_fill_text(g_ctx, author_text, x + 20, current_y);
-        current_y += line_height;
+        UIText_SetText(&g_preview_author_text, author_text);
+        UIText_SetVisible(&g_preview_author_text, true);
+    } else {
+        UIText_SetVisible(&g_preview_author_text, false);
     }
     
-    // 推荐玩家数（如果可用）
+    // 更新推荐玩家数（如果可用）
     if (info && info->playersRecommended) {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){140, 140, 140, 255});
         char players_text[128];
         snprintf(players_text, sizeof(players_text), "Players: %s", info->playersRecommended);
-        canvas2d_fill_text(g_ctx, players_text, x + 20, current_y);
-        current_y += line_height;
+        UIText_SetText(&g_preview_players_text, players_text);
+        UIText_SetVisible(&g_preview_players_text, true);
+    } else {
+        UIText_SetVisible(&g_preview_players_text, false);
     }
     
-    // 文件类型
-    char type_text[64];
+    // 更新文件类型
+    char type_text[128];
     sprintf(type_text, "Type: %s", 
             item->type == ITEM_TYPE_MAP_W3M ? "Warcraft III Map (.w3m)" : "Warcraft III Expansion Map (.w3x)");
-    canvas2d_set_fill_style(g_ctx, (COLOR32){150, 150, 150, 255});
-    canvas2d_fill_text(g_ctx, type_text, x + 20, current_y);
-    current_y += line_height;
+    UIText_SetText(&g_preview_type_text, type_text);
+    UIText_SetVisible(&g_preview_type_text, true);
     
-    // 完整路径（如果有剩余空间）
-    if (current_y + line_height < y + height) {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){100, 100, 100, 255});
-        char path_text[128];
-        snprintf(path_text, sizeof(path_text), "Path: %s", item->full_path);
-        canvas2d_fill_text(g_ctx, path_text, x + 20, current_y);
-    }
-}
-
-// 绘制开始游戏按钮
-static void DrawStartButton(float x, float y, float width, float height) {
-    int selected = UIList_GetSelected(&g_ui_list);
-    if (selected < 0) return;
-    
-    void *user_data = UIList_GetSelectedUserData(&g_ui_list);
-    if (!user_data) return;
-    
-    int all_index = (int)(intptr_t)user_data;
-    // -1 表示 ".." 返回上级目录，不显示按钮
-    if (all_index < 0 || all_index >= g_all_count) return;
-    
-    browser_item_t *item = &g_all_items[all_index];
-    
-    // 只为地图文件显示按钮
-    if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {
-        return;
-    }
-    
-    // 背景
-    canvas2d_set_fill_style(g_ctx, (COLOR32){0, 150, 0, 255});
-    canvas2d_fill_rect(g_ctx, x, y, width, height);
-    
-    // 边框
-    canvas2d_set_stroke_style(g_ctx, (COLOR32){0, 255, 0, 255});
-    canvas2d_set_line_width(g_ctx, 2.0f);
-    canvas2d_stroke_rect(g_ctx, x, y, width, height);
-    
-    // 按钮文本
-    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 255, 255});
-    canvas2d_fill_text(g_ctx, "START GAME [ENTER]", x + 30, y + 20);
+    // 更新完整路径
+    char path_text[128];
+    snprintf(path_text, sizeof(path_text), "Path: %s", item->full_path);
+    UIText_SetText(&g_preview_path_text, path_text);
+    UIText_SetVisible(&g_preview_path_text, true);
 }
 
 // 加载并保存地图信息到txt文件
@@ -711,24 +945,24 @@ void MapSelect_Render(void) {
         g_current_preview_map[0] = '\0';
     }
     
-    // 地图预览区域
-    float preview_x = 480;
-    float preview_y = 100;
-    float preview_width = 480;
-    float preview_height = 300;
-    DrawMapPreview(preview_x, preview_y, preview_width, preview_height);
+    // 更新并渲染地图预览容器
+    UpdateMapPreview();
+    UIContainer_Render(&g_preview_container);
     
-    // 开始游戏按钮
-    float button_x = 480;
-    float button_y = 420;
-    float button_width = 200;
-    float button_height = 50;
-    DrawStartButton(button_x, button_y, button_width, button_height);
+    // 渲染 START GAME 按钮
+    UIButton_Render(&g_start_button);
     
-    // 提示文本
-    canvas2d_set_fill_style(g_ctx, (COLOR32){200, 200, 200, 255});
-    canvas2d_fill_text(g_ctx, "Use UP/DOWN arrows to navigate, ENTER to select/open", 50, 710);
-    canvas2d_fill_text(g_ctx, "ESC to quit", 900, 710);
+    // 渲染文本组件
+    // 更新路径文本
+    if (g_at_root) {
+        UIText_SetText(&g_path_text, "Root");
+    } else {
+        UIText_SetText(&g_path_text, g_current_path);
+    }
+    UIText_Render(&g_title_text);
+    UIText_Render(&g_path_text);
+    UIText_Render(&g_hint_text1);
+    UIText_Render(&g_hint_text2);
 }
 
 // 进入文件夹
@@ -791,9 +1025,9 @@ bool MapSelect_HandleInput(int key, bool down) {
                             // 进入文件夹
                             EnterFolder(item->name);
                         } else {
-                            // 选择地图 - 加载地图信息并保存到txt文件
-                            printf("Selected map: %s\n", item->full_path);
-                            MapSelect_LoadAndSaveMapInfo(item->full_path);
+                            // 选择地图 - 地图信息已在预览时加载，直接开始游戏
+                            printf("Starting game: %s\n", item->full_path);
+                            g_start_map_path = strdup(item->full_path);
                             g_state = MAP_SELECT_STATE_DONE;
                         }
                     }
@@ -812,6 +1046,49 @@ bool MapSelect_HandleInput(int key, bool down) {
     
     return false;
 }
+
+// 处理鼠标事件
+bool MapSelect_HandleMouseEvent(void) {
+    if (g_state == MAP_SELECT_STATE_DONE) return false;
+    
+    bool handled = false;
+    
+    // 处理按钮鼠标事件
+    bool down = (mouse.event == UI_LEFT_MOUSE_DOWN);
+    if (UIButton_HandleMouseClick(&g_start_button, mouse.origin.x, mouse.origin.y, down)) {
+        handled = true;
+    }
+    
+    // 处理 UI 列表鼠标事件（只处理左键按下）
+    if (mouse.event == UI_LEFT_MOUSE_DOWN && UIList_HandleMouseClick(&g_ui_list, mouse.origin.x, mouse.origin.y)) {
+        // 双击检测：如果是地图文件且当前已选中该项，则进入/选择
+        int selected = UIList_GetSelected(&g_ui_list);
+        if (selected >= 0) {
+            void *user_data = UIList_GetSelectedUserData(&g_ui_list);
+            if (user_data) {
+                int all_index = (int)(intptr_t)user_data;
+                if (all_index >= 0 && all_index < g_all_count) {
+                    browser_item_t *item = &g_all_items[all_index];
+                    if (item->type == ITEM_TYPE_FOLDER) {
+                        // 点击进入文件夹
+                        EnterFolder(item->name);
+                        handled = true;
+                    } else if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
+                        // 地图文件，单击只是选中，不直接开始游戏
+                        // 双击或者点击 START GAME 按钮才开始游戏
+                        printf("Map selected: %s\n", item->full_path);
+                        handled = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    return handled;
+}
+const char* MapSelect_GetStartMap(void) {
+    return g_start_map_path;
+}   
 
 // 获取选中的地图
 const char* MapSelect_GetSelectedMap(void) {
@@ -836,6 +1113,21 @@ void MapSelect_Shutdown(void) {
     printf("Shutting down Map Selection Screen...\n");
     
     UIList_Shutdown(&g_ui_list);
+    UIButton_Shutdown(&g_start_button);
+    UIText_Shutdown(&g_title_text);
+    UIText_Shutdown(&g_path_text);
+    UIText_Shutdown(&g_hint_text1);
+    UIText_Shutdown(&g_hint_text2);
+    
+    // 清理预览容器和组件
+    UIContainer_Shutdown(&g_preview_container);
+    UIText_Shutdown(&g_preview_title_text);
+    UIText_Shutdown(&g_preview_filename_text);
+    UIText_Shutdown(&g_preview_name_text);
+    UIText_Shutdown(&g_preview_author_text);
+    UIText_Shutdown(&g_preview_players_text);
+    UIText_Shutdown(&g_preview_type_text);
+    UIText_Shutdown(&g_preview_path_text);
     
     if (g_canvas) {
         canvas2d_destroy(g_canvas);

@@ -7,4 +7,4 @@ src/DerivedData/
 *.zip
 .DS_Store
 .cache/
-.jsondo
+.jsondo/

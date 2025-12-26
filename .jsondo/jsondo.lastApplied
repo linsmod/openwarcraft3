@@ -2,29 +2,10 @@
   "commands": [
     {
       "call": "replace_by_content",
-      "title": "添加当前预览地图跟踪变量",
       "args": {
         "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
-        "old_str": "// 当前浏览的路径\nstatic char g_current_path[MAX_PATH_LEN] = \"\";\nstatic bool g_at_root = true;",
-        "new_str": "// 当前浏览的路径\nstatic char g_current_path[MAX_PATH_LEN] = \"\";\nstatic bool g_at_root = true;\n\n// 当前预览的地图路径（用于检测选中变化）\nstatic char g_current_preview_map[MAX_PATH_LEN] = \"\";"
-      }
-    },
-    {
-      "call": "replace_by_content",
-      "title": "在Render中检测选中变化并加载地图",
-      "args": {
-        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
-        "old_str": "    // 渲染 UI 列表\n    UIList_Render(&g_ui_list);\n    \n    // 地图预览区域",
-        "new_str": "    // 渲染 UI 列表\n    UIList_Render(&g_ui_list);\n    \n    // 检测选中变化并自动加载地图信息\n    int selected = UIList_GetSelected(&g_ui_list);\n    if (selected >= 0) {\n        void *user_data = UIList_GetSelectedUserData(&g_ui_list);\n        if (user_data) {\n            int all_index = (int)(intptr_t)user_data;\n            if (all_index >= 0 && all_index < g_all_count) {\n                browser_item_t *item = &g_all_items[all_index];\n                if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {\n                    // 比较当前路径是否变化\n                    if (strcmp(item->full_path, g_current_preview_map) != 0) {\n                        // 路径变化，加载新地图信息\n                        strcpy(g_current_preview_map, item->full_path);\n                        printf(\"Loading map info for preview: %s\\n\", g_current_preview_map);\n                        MapSelect_LoadAndSaveMapInfo(g_current_preview_map);\n                    }\n                }\n            }\n        }\n    } else {\n        // 没有选中项，清空当前预览\n        g_current_preview_map[0] = '\\0';\n    }\n    \n    // 地图预览区域"
-      }
-    },
-    {
-      "call": "replace_by_content",
-      "title": "移除回车键重复的加载逻辑",
-      "args": {
-        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
-        "old_str": "                        } else {\n                            // 选择地图 - 加载地图信息并保存到txt文件\n                            printf(\"Selected map: %s\\n\", item->full_path);\n                            MapSelect_LoadAndSaveMapInfo(item->full_path);\n                            g_state = MAP_SELECT_STATE_DONE;\n                        }",
-        "new_str": "                        } else {\n                            // 选择地图 - 地图信息已在预览时加载，直接开始游戏\n                            printf(\"Starting game: %s\\n\", item->full_path);\n                            g_state = MAP_SELECT_STATE_DONE;\n                        }"
+        "old_str": "    g_map_count = 0;\n    g_state = MAP_SELECT_STATE_INIT;\n    g_in_map_select = false;",
+        "new_str": "    // 释放地图路径内存\n    if (g_start_map_path) {\n        free(g_start_map_path);\n        g_start_map_path = NULL;\n    }\n    \n    g_map_count = 0;\n    g_state = MAP_SELECT_STATE_INIT;\n    g_in_map_select = false;"
       }
     }
   ]
