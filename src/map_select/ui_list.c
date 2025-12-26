@@ -258,13 +258,13 @@ void UIList_Render(ui_list_t *list) {
             COLOR32 text_color = selected ? cfg->selected_text_color : cfg->text_color;
             canvas2d_set_fill_style(list->ctx, text_color);
             canvas2d_fill_text(list->ctx, item->text, cfg->x + 10, item_y + 10);
-        }
 
-        // 绘制项边框
-        if (selected) {
-            canvas2d_set_stroke_style(list->ctx, cfg->border_color);
-            canvas2d_set_line_width(list->ctx, 2.0f);
-            canvas2d_stroke_rect(list->ctx, cfg->x, item_y, cfg->width, cfg->item_height);
+            // 绘制项边框（仅默认绘制时）
+            if (selected) {
+                canvas2d_set_stroke_style(list->ctx, cfg->border_color);
+                canvas2d_set_line_width(list->ctx, 2.0f);
+                canvas2d_stroke_rect(list->ctx, cfg->x, item_y, cfg->width, cfg->item_height);
+            }
         }
     }
 

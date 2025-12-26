@@ -63,13 +63,6 @@ static void DrawBrowserItemCustom(
     float height,
     bool selected
 ) {
-    if (!user_data) return;
-
-    int all_index = (int)(intptr_t)user_data;
-    if (all_index < 0 || all_index >= g_all_count) return;
-
-    browser_item_t *item = &g_all_items[all_index];
-
     // 背景
     if (selected) {
         canvas2d_set_fill_style(g_ctx, (COLOR32){100, 150, 255, 200});
@@ -85,17 +78,25 @@ static void DrawBrowserItemCustom(
 
     // 图标/类型指示
     char icon[4] = "[F]";
-    if (item->type == ITEM_TYPE_MAP_W3M) {
-        strcpy(icon, "[3]");
-    } else if (item->type == ITEM_TYPE_MAP_W3X) {
-        strcpy(icon, "[X]");
+    if (user_data) {
+        int all_index = (int)(intptr_t)user_data;
+        // -1 表示 ".." 返回上级目录
+        if (all_index >= 0 && all_index < g_all_count) {
+            browser_item_t *item = &g_all_items[all_index];
+            if (item->type == ITEM_TYPE_MAP_W3M) {
+                strcpy(icon, "[3]");
+            } else if (item->type == ITEM_TYPE_MAP_W3X) {
+                strcpy(icon, "[X]");
+            }
+        }
     }
 
+    // 绘制图标
     canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 255, 255});
     canvas2d_fill_text(g_ctx, icon, x + 10, y + 10);
 
-    // 文件名
-    canvas2d_fill_text(g_ctx, item->name, x + 50, y + 10);
+    // 绘制文件名（使用回调传入的text参数）
+    canvas2d_fill_text(g_ctx, text, x + 50, y + 10);
 }
 
 // 检查文件扩展名是否为地图文件
@@ -155,7 +156,6 @@ int MapSelect_LoadMapsFromListfile(void) {
     }
     
     // 清空浏览器项
-    g_browser_count = 0;
     g_all_count = 0;
     
     // 解析(listfile)内容
@@ -214,28 +214,13 @@ static void FilterCurrentPath(void) {
     // 清空UI列表
     UIList_ClearItems(&g_ui_list);
     
-    // 添加 ".." 目录（如果不是在根目录）
+    // 添加 ".." 目录（如果不是在根目录）- 使用特殊索引 -1
     if (!g_at_root && g_filtered_count < MAX_MAPS) {
-        browser_item_t back_item;
-        strcpy(back_item.name, "..");
-        strcpy(back_item.full_path, g_current_path);
-        back_item.type = ITEM_TYPE_FOLDER;
-        
-        // 将 ".." 项添加到 g_all_items 的末尾
-        if (g_all_count < MAX_MAPS) {
-            g_all_items[g_all_count] = back_item;
-            g_filtered_indices[g_filtered_count++] = g_all_count;
-            g_all_count++;
-        }
+        g_filtered_indices[g_filtered_count++] = -1;  // -1 表示 ".." 返回上级目录
     }
     
     for (int i = 0; i < g_all_count && g_filtered_count < MAX_MAPS; i++) {
         const char *item_path = g_all_items[i].full_path;
-        
-        // 跳过之前添加的 ".." 项
-        if (strcmp(g_all_items[i].name, "..") == 0) {
-            continue;
-        }
         
         if (g_at_root) {
             // 根目录：显示顶级文件夹和根目录下的地图文件
@@ -309,9 +294,17 @@ static void FilterCurrentPath(void) {
         for (int j = i + 1; j < g_filtered_count; j++) {
             int idx_i = g_filtered_indices[i];
             int idx_j = g_filtered_indices[j];
-            if (g_all_items[idx_i].type > g_all_items[idx_j].type ||
-                (g_all_items[idx_i].type == g_all_items[idx_j].type &&
-                 strcmp(g_all_items[idx_i].name, g_all_items[idx_j].name) > 0)) {
+            
+            // 获取类型，-1 表示 ".." 返回上级目录，视为文件夹
+            item_type_t type_i = (idx_i == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_i].type;
+            item_type_t type_j = (idx_j == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_j].type;
+            
+            if (type_i > type_j ||
+                (type_i == type_j &&
+                 ((idx_i == -1 ? ".." : g_all_items[idx_i].name), 
+                  (idx_j == -1 ? ".." : g_all_items[idx_j].name),
+                  strcmp(idx_i == -1 ? ".." : g_all_items[idx_i].name, 
+                        idx_j == -1 ? ".." : g_all_items[idx_j].name) > 0))) {
                 int temp = g_filtered_indices[i];
                 g_filtered_indices[i] = g_filtered_indices[j];
                 g_filtered_indices[j] = temp;
@@ -322,7 +315,8 @@ static void FilterCurrentPath(void) {
     // 将过滤后的项添加到 UI 列表（存储索引而不是指针）
     for (int i = 0; i < g_filtered_count; i++) {
         int idx = g_filtered_indices[i];
-        UIList_AddItem(&g_ui_list, g_all_items[idx].name, (void*)(intptr_t)idx);
+        const char *name = (idx == -1) ? ".." : g_all_items[idx].name;
+        UIList_AddItem(&g_ui_list, name, (void*)(intptr_t)idx);
     }
     
     printf("Filtered %d items, UI list has %d items\n", g_filtered_count, UIList_GetItemCount(&g_ui_list));
@@ -346,7 +340,7 @@ int MapSelect_Init(void) {
         .x = 50.0f,
         .y = 100.0f,
         .width = 400.0f,
-        .height = 620.0f,
+        .height = 500.0f,
         .item_height = 50.0f,
         .item_spacing = 5.0f,
         .bg_color = {30, 30, 40, 255},
@@ -412,6 +406,7 @@ static void DrawMapPreview(float x, float y, float width, float height) {
     if (!user_data) return;
     
     int all_index = (int)(intptr_t)user_data;
+    // -1 表示 ".." 返回上级目录，不显示预览
     if (all_index < 0 || all_index >= g_all_count) return;
     
     browser_item_t *item = &g_all_items[all_index];
@@ -458,6 +453,7 @@ static void DrawStartButton(float x, float y, float width, float height) {
     if (!user_data) return;
     
     int all_index = (int)(intptr_t)user_data;
+    // -1 表示 ".." 返回上级目录，不显示按钮
     if (all_index < 0 || all_index >= g_all_count) return;
     
     browser_item_t *item = &g_all_items[all_index];
@@ -521,8 +517,8 @@ void MapSelect_Render(void) {
     
     // 提示文本
     canvas2d_set_fill_style(g_ctx, (COLOR32){200, 200, 200, 255});
-    canvas2d_fill_text(g_ctx, "Use UP/DOWN arrows to navigate, ENTER to select/open", 50, 730);
-    canvas2d_fill_text(g_ctx, "ESC to quit", 900, 730);
+    canvas2d_fill_text(g_ctx, "Use UP/DOWN arrows to navigate, ENTER to select/open", 50, 710);
+    canvas2d_fill_text(g_ctx, "ESC to quit", 900, 710);
 }
 
 // 进入文件夹
@@ -590,6 +586,9 @@ bool MapSelect_HandleInput(int key, bool down) {
                             g_state = MAP_SELECT_STATE_DONE;
                         }
                     }
+                } else {
+                    // 处理 ".." 返回上级目录的特殊情况
+                    EnterFolder("..");
                 }
                 return true;
             }

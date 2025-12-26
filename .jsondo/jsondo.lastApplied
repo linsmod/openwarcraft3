@@ -2,11 +2,83 @@
   "commands": [
     {
       "call": "replace_by_content",
-      "title": "修复MapSelect_LoadMapsFromListfile函数",
+      "title": "使用特殊索引-1表示返回上级目录项",
       "args": {
         "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
-        "old_str": "    // 清空浏览器项\n    g_browser_count = 0;\n    g_all_count = 0;",
-        "new_str": "    // 清空浏览器项\n    g_all_count = 0;"
+        "old_str": "// 过滤显示当前路径下的文件\nstatic void FilterCurrentPath(void) {\n    g_filtered_count = 0;\n    \n    // 清空UI列表\n    UIList_ClearItems(&g_ui_list);\n    \n    // 添加 \"..\" 目录（如果不是在根目录）\n    if (!g_at_root && g_filtered_count < MAX_MAPS) {\n        browser_item_t back_item;\n        strcpy(back_item.name, \"..\");\n        strcpy(back_item.full_path, g_current_path);\n        back_item.type = ITEM_TYPE_FOLDER;\n        \n        // 将 \"..\" 项添加到 g_all_items 的末尾\n        if (g_all_count < MAX_MAPS) {\n            g_all_items[g_all_count] = back_item;\n            g_filtered_indices[g_filtered_count++] = g_all_count;\n            g_all_count++;\n        }\n    }",
+        "new_str": "// 过滤显示当前路径下的文件\nstatic void FilterCurrentPath(void) {\n    g_filtered_count = 0;\n    \n    // 清空UI列表\n    UIList_ClearItems(&g_ui_list);\n    \n    // 添加 \"..\" 目录（如果不是在根目录）- 使用特殊索引 -1\n    if (!g_at_root && g_filtered_count < MAX_MAPS) {\n        g_filtered_indices[g_filtered_count++] = -1;  // -1 表示 \"..\" 返回上级目录\n    }"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "移除遍历时跳过..的检查",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "    for (int i = 0; i < g_all_count && g_filtered_count < MAX_MAPS; i++) {\n        const char *item_path = g_all_items[i].full_path;\n        \n        // 跳过之前添加的 \"..\" 项\n        if (strcmp(g_all_items[i].name, \"..\") == 0) {\n            continue;\n        }\n        \n        if (g_at_root) {",
+        "new_str": "    for (int i = 0; i < g_all_count && g_filtered_count < MAX_MAPS; i++) {\n        const char *item_path = g_all_items[i].full_path;\n        \n        if (g_at_root) {"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改排序逻辑处理特殊索引-1",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "    // 排序：文件夹在前，文件在后\n    for (int i = 0; i < g_filtered_count - 1; i++) {\n        for (int j = i + 1; j < g_filtered_count; j++) {\n            int idx_i = g_filtered_indices[i];\n            int idx_j = g_filtered_indices[j];\n            if (g_all_items[idx_i].type > g_all_items[idx_j].type ||\n                (g_all_items[idx_i].type == g_all_items[idx_j].type &&\n                 strcmp(g_all_items[idx_i].name, g_all_items[idx_j].name) > 0)) {\n                int temp = g_filtered_indices[i];\n                g_filtered_indices[i] = g_filtered_indices[j];\n                g_filtered_indices[j] = temp;\n            }\n        }\n    }",
+        "new_str": "    // 排序：文件夹在前，文件在后\n    for (int i = 0; i < g_filtered_count - 1; i++) {\n        for (int j = i + 1; j < g_filtered_count; j++) {\n            int idx_i = g_filtered_indices[i];\n            int idx_j = g_filtered_indices[j];\n            \n            // 获取类型，-1 表示 \"..\" 返回上级目录，视为文件夹\n            item_type_t type_i = (idx_i == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_i].type;\n            item_type_t type_j = (idx_j == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_j].type;\n            \n            if (type_i > type_j ||\n                (type_i == type_j &&\n                 ((idx_i == -1 ? \"..\" : g_all_items[idx_i].name), \n                  (idx_j == -1 ? \"..\" : g_all_items[idx_j].name),\n                  strcmp(idx_i == -1 ? \"..\" : g_all_items[idx_i].name, \n                        idx_j == -1 ? \"..\" : g_all_items[idx_j].name) > 0))) {\n                int temp = g_filtered_indices[i];\n                g_filtered_indices[i] = g_filtered_indices[j];\n                g_filtered_indices[j] = temp;\n            }\n        }\n    }"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改添加到UI列表时处理特殊索引-1",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "    // 将过滤后的项添加到 UI 列表（存储索引而不是指针）\n    for (int i = 0; i < g_filtered_count; i++) {\n        int idx = g_filtered_indices[i];\n        UIList_AddItem(&g_ui_list, g_all_items[idx].name, (void*)(intptr_t)idx);\n    }",
+        "new_str": "    // 将过滤后的项添加到 UI 列表（存储索引而不是指针）\n    for (int i = 0; i < g_filtered_count; i++) {\n        int idx = g_filtered_indices[i];\n        const char *name = (idx == -1) ? \"..\" : g_all_items[idx].name;\n        UIList_AddItem(&g_ui_list, name, (void*)(intptr_t)idx);\n    }"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改DrawBrowserItemCustom处理特殊索引-1",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "// 自定义列表项绘制函数\nstatic void DrawBrowserItemCustom(\n    int index,\n    const char *text,\n    void *user_data,\n    float x,\n    float y,\n    float width,\n    float height,\n    bool selected\n) {\n    // 背景\n    if (selected) {\n        canvas2d_set_fill_style(g_ctx, (COLOR32){100, 150, 255, 200});\n    } else {\n        canvas2d_set_fill_style(g_ctx, (COLOR32){50, 50, 50, 200});\n    }\n    canvas2d_fill_rect(g_ctx, x, y, width, height);\n\n    // 边框\n    canvas2d_set_stroke_style(g_ctx, (COLOR32){200, 200, 200, 255});\n    canvas2d_set_line_width(g_ctx, 2.0f);\n    canvas2d_stroke_rect(g_ctx, x, y, width, height);\n\n    // 图标/类型指示\n    char icon[4] = \"[F]\";\n    if (user_data) {\n        int all_index = (int)(intptr_t)user_data;\n        if (all_index >= 0 && all_index < g_all_count) {\n            browser_item_t *item = &g_all_items[all_index];\n            if (item->type == ITEM_TYPE_MAP_W3M) {\n                strcpy(icon, \"[3]\");\n            } else if (item->type == ITEM_TYPE_MAP_W3X) {\n                strcpy(icon, \"[X]\");\n            }\n        }\n    }\n\n    // 绘制图标\n    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 255, 255});\n    canvas2d_fill_text(g_ctx, icon, x + 10, y + 10);\n\n    // 绘制文件名（使用回调传入的text参数）\n    canvas2d_fill_text(g_ctx, text, x + 50, y + 10);\n}",
+        "new_str": "// 自定义列表项绘制函数\nstatic void DrawBrowserItemCustom(\n    int index,\n    const char *text,\n    void *user_data,\n    float x,\n    float y,\n    float width,\n    float height,\n    bool selected\n) {\n    // 背景\n    if (selected) {\n        canvas2d_set_fill_style(g_ctx, (COLOR32){100, 150, 255, 200});\n    } else {\n        canvas2d_set_fill_style(g_ctx, (COLOR32){50, 50, 50, 200});\n    }\n    canvas2d_fill_rect(g_ctx, x, y, width, height);\n\n    // 边框\n    canvas2d_set_stroke_style(g_ctx, (COLOR32){200, 200, 200, 255});\n    canvas2d_set_line_width(g_ctx, 2.0f);\n    canvas2d_stroke_rect(g_ctx, x, y, width, height);\n\n    // 图标/类型指示\n    char icon[4] = \"[F]\";\n    if (user_data) {\n        int all_index = (int)(intptr_t)user_data;\n        // -1 表示 \"..\" 返回上级目录\n        if (all_index >= 0 && all_index < g_all_count) {\n            browser_item_t *item = &g_all_items[all_index];\n            if (item->type == ITEM_TYPE_MAP_W3M) {\n                strcpy(icon, \"[3]\");\n            } else if (item->type == ITEM_TYPE_MAP_W3X) {\n                strcpy(icon, \"[X]\");\n            }\n        }\n    }\n\n    // 绘制图标\n    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 255, 255});\n    canvas2d_fill_text(g_ctx, icon, x + 10, y + 10);\n\n    // 绘制文件名（使用回调传入的text参数）\n    canvas2d_fill_text(g_ctx, text, x + 50, y + 10);\n}"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改DrawMapPreview处理特殊索引-1",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "// 绘制地图预览信息\nstatic void DrawMapPreview(float x, float y, float width, float height) {\n    int selected = UIList_GetSelected(&g_ui_list);\n    if (selected < 0) return;\n    \n    void *user_data = UIList_GetSelectedUserData(&g_ui_list);\n    if (!user_data) return;\n    \n    int all_index = (int)(intptr_t)user_data;\n    if (all_index < 0 || all_index >= g_all_count) return;\n    \n    browser_item_t *item = &g_all_items[all_index];\n    \n    // 只为地图文件显示预览\n    if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {\n        return;\n    }",
+        "new_str": "// 绘制地图预览信息\nstatic void DrawMapPreview(float x, float y, float width, float height) {\n    int selected = UIList_GetSelected(&g_ui_list);\n    if (selected < 0) return;\n    \n    void *user_data = UIList_GetSelectedUserData(&g_ui_list);\n    if (!user_data) return;\n    \n    int all_index = (int)(intptr_t)user_data;\n    // -1 表示 \"..\" 返回上级目录，不显示预览\n    if (all_index < 0 || all_index >= g_all_count) return;\n    \n    browser_item_t *item = &g_all_items[all_index];\n    \n    // 只为地图文件显示预览\n    if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {\n        return;\n    }"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改DrawStartButton处理特殊索引-1",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "// 绘制开始游戏按钮\nstatic void DrawStartButton(float x, float y, float width, float height) {\n    int selected = UIList_GetSelected(&g_ui_list);\n    if (selected < 0) return;\n    \n    void *user_data = UIList_GetSelectedUserData(&g_ui_list);\n    if (!user_data) return;\n    \n    int all_index = (int)(intptr_t)user_data;\n    if (all_index < 0 || all_index >= g_all_count) return;\n    \n    browser_item_t *item = &g_all_items[all_index];\n    \n    // 只为地图文件显示按钮\n    if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {\n        return;\n    }",
+        "new_str": "// 绘制开始游戏按钮\nstatic void DrawStartButton(float x, float y, float width, float height) {\n    int selected = UIList_GetSelected(&g_ui_list);\n    if (selected < 0) return;\n    \n    void *user_data = UIList_GetSelectedUserData(&g_ui_list);\n    if (!user_data) return;\n    \n    int all_index = (int)(intptr_t)user_data;\n    // -1 表示 \"..\" 返回上级目录，不显示按钮\n    if (all_index < 0 || all_index >= g_all_count) return;\n    \n    browser_item_t *item = &g_all_items[all_index];\n    \n    // 只为地图文件显示按钮\n    if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {\n        return;\n    }"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改MapSelect_HandleInput处理特殊索引-1",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "            case SDLK_RETURN: {\n                int selected = UIList_GetSelected(&g_ui_list);\n                if (selected >= 0) {\n                    void *user_data = UIList_GetSelectedUserData(&g_ui_list);\n                    if (user_data) {\n                        int all_index = (int)(intptr_t)user_data;\n                        if (all_index < 0 || all_index >= g_all_count) break;\n                        \n                        browser_item_t *item = &g_all_items[all_index];\n                        \n                        if (item->type == ITEM_TYPE_FOLDER) {\n                            // 进入文件夹\n                            EnterFolder(item->name);\n                        } else {\n                            // 选择地图\n                            printf(\"Selected map: %s\\n\", item->full_path);\n                            g_state = MAP_SELECT_STATE_DONE;\n                        }\n                    }\n                }\n                return true;\n            }",
+        "new_str": "            case SDLK_RETURN: {\n                int selected = UIList_GetSelected(&g_ui_list);\n                if (selected >= 0) {\n                    void *user_data = UIList_GetSelectedUserData(&g_ui_list);\n                    if (user_data) {\n                        int all_index = (int)(intptr_t)user_data;\n                        if (all_index < 0 || all_index >= g_all_count) break;\n                        \n                        browser_item_t *item = &g_all_items[all_index];\n                        \n                        if (item->type == ITEM_TYPE_FOLDER) {\n                            // 进入文件夹\n                            EnterFolder(item->name);\n                        } else {\n                            // 选择地图\n                            printf(\"Selected map: %s\\n\", item->full_path);\n                            g_state = MAP_SELECT_STATE_DONE;\n                        }\n                    }\n                } else {\n                    // 处理 \"..\" 返回上级目录的特殊情况\n                    EnterFolder(\"..\");\n                }\n                return true;\n            }"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "简化排序逻辑",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "    // 排序：文件夹在前，文件在后\n    for (int i = 0; i < g_filtered_count - 1; i++) {\n        for (int j = i + 1; j < g_filtered_count; j++) {\n            int idx_i = g_filtered_indices[i];\n            int idx_j = g_filtered_indices[j];\n            \n            // 获取类型，-1 表示 \"..\" 返回上级目录，视为文件夹\n            item_type_t type_i = (idx_i == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_i].type;\n            item_type_t type_j = (idx_j == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_j].type;\n            \n            if (type_i > type_j ||\n                (type_i == type_j &&\n                 ((idx_i == -1 ? \"..\" : g_all_items[idx_i].name), \n                  (idx_j == -1 ? \"..\" : g_all_items[idx_j].name),\n                  strcmp(idx_i == -1 ? \"..\" : g_all_items[idx_i].name, \n                        idx_j == -1 ? \"..\" : g_all_items[idx_j].name) > 0))) {\n                int temp = g_filtered_indices[i];\n                g_filtered_indices[i] = g_filtered_indices[j];\n                g_filtered_indices[j] = temp;\n            }\n        }\n    }",
+        "new_str": "    // 排序：文件夹在前，文件在后\n    for (int i = 0; i < g_filtered_count - 1; i++) {\n        for (int j = i + 1; j < g_filtered_count; j++) {\n            int idx_i = g_filtered_indices[i];\n            int idx_j = g_filtered_indices[j];\n            \n            // 获取类型，-1 表示 \"..\" 返回上级目录，视为文件夹\n            item_type_t type_i = (idx_i == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_i].type;\n            item_type_t type_j = (idx_j == -1) ? ITEM_TYPE_FOLDER : g_all_items[idx_j].type;\n            \n            // 获取名称\n            const char *name_i = (idx_i == -1) ? \"..\" : g_all_items[idx_i].name;\n            const char *name_j = (idx_j == -1) ? \"..\" : g_all_items[idx_j].name;\n            \n            if (type_i > type_j || (type_i == type_j && strcmp(name_i, name_j) > 0)) {\n                int temp = g_filtered_indices[i];\n                g_filtered_indices[i] = g_filtered_indices[j];\n                g_filtered_indices[j] = temp;\n            }\n        }\n    }"
       }
     }
   ]
