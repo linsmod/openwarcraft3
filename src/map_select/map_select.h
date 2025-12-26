@@ -43,4 +43,10 @@ void MapSelect_Shutdown(void);
 // 从(listfile)加载地图列表
 int MapSelect_LoadMapsFromListfile(void);
 
+// 加载并保存地图信息到txt文件
+bool MapSelect_LoadAndSaveMapInfo(const char *mapPath);
+
+// 保存地图信息到txt文件
+void MapSelect_SaveMapInfoToFile(const char *mapPath, LPCMAPINFO info);
+
 #endif // __MAP_SELECT_H__

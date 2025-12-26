@@ -3,11 +3,14 @@
 #include "../canvas2d/canvas2d.h"
 #include "../client/client.h"
 #include "../common/common.h"
+#include "../common/cmodel.h"
+#include "../common/mapinfo.h"
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 // 最大地图数量
 #define MAX_MAPS 500
@@ -41,6 +44,9 @@ static map_select_state_t g_state = MAP_SELECT_STATE_INIT;
 // 当前浏览的路径
 static char g_current_path[MAX_PATH_LEN] = "";
 static bool g_at_root = true;
+
+// 当前预览的地图路径（用于检测选中变化）
+static char g_current_preview_map[MAX_PATH_LEN] = "";
 
 // Canvas2D 画布
 static canvas2d_t *g_canvas = NULL;
@@ -415,6 +421,9 @@ static void DrawMapPreview(float x, float y, float width, float height) {
         return;
     }
     
+    // 获取地图信息
+    LPCMAPINFO info = CM_GetMapInfo();
+    
     // 背景
     canvas2d_set_fill_style(g_ctx, (COLOR32){40, 40, 50, 230});
     canvas2d_fill_rect(g_ctx, x, y, width, height);
@@ -424,23 +433,61 @@ static void DrawMapPreview(float x, float y, float width, float height) {
     canvas2d_set_line_width(g_ctx, 2.0f);
     canvas2d_stroke_rect(g_ctx, x, y, width, height);
     
+    float line_height = 22;
+    float current_y = y + 30;
+    
     // 标题
     canvas2d_set_fill_style(g_ctx, (COLOR32){255, 215, 0, 255});
-    canvas2d_fill_text(g_ctx, "Map Preview", x + 20, y + 30);
+    canvas2d_fill_text(g_ctx, "Map Preview", x + 20, current_y);
+    current_y += line_height + 10;
     
     // 地图文件名
     canvas2d_set_fill_style(g_ctx, (COLOR32){200, 200, 200, 255});
-    canvas2d_fill_text(g_ctx, item->name, x + 20, y + 60);
+    canvas2d_fill_text(g_ctx, item->name, x + 20, current_y);
+    current_y += line_height;
     
-    // 完整路径
-    canvas2d_set_fill_style(g_ctx, (COLOR32){150, 150, 150, 255});
-    canvas2d_fill_text(g_ctx, item->full_path, x + 20, y + 90);
+    // 地图名称（如果可用）
+    if (info && info->mapName) {
+        canvas2d_set_fill_style(g_ctx, (COLOR32){180, 180, 180, 255});
+        char name_text[128];
+        snprintf(name_text, sizeof(name_text), "Name: %s", info->mapName);
+        canvas2d_fill_text(g_ctx, name_text, x + 20, current_y);
+        current_y += line_height;
+    }
+    
+    // 作者（如果可用）
+    if (info && info->mapAuthor) {
+        canvas2d_set_fill_style(g_ctx, (COLOR32){160, 160, 160, 255});
+        char author_text[128];
+        snprintf(author_text, sizeof(author_text), "Author: %s", info->mapAuthor);
+        canvas2d_fill_text(g_ctx, author_text, x + 20, current_y);
+        current_y += line_height;
+    }
+    
+    // 推荐玩家数（如果可用）
+    if (info && info->playersRecommended) {
+        canvas2d_set_fill_style(g_ctx, (COLOR32){140, 140, 140, 255});
+        char players_text[128];
+        snprintf(players_text, sizeof(players_text), "Players: %s", info->playersRecommended);
+        canvas2d_fill_text(g_ctx, players_text, x + 20, current_y);
+        current_y += line_height;
+    }
     
     // 文件类型
     char type_text[64];
     sprintf(type_text, "Type: %s", 
             item->type == ITEM_TYPE_MAP_W3M ? "Warcraft III Map (.w3m)" : "Warcraft III Expansion Map (.w3x)");
-    canvas2d_fill_text(g_ctx, type_text, x + 20, y + 120);
+    canvas2d_set_fill_style(g_ctx, (COLOR32){150, 150, 150, 255});
+    canvas2d_fill_text(g_ctx, type_text, x + 20, current_y);
+    current_y += line_height;
+    
+    // 完整路径（如果有剩余空间）
+    if (current_y + line_height < y + height) {
+        canvas2d_set_fill_style(g_ctx, (COLOR32){100, 100, 100, 255});
+        char path_text[128];
+        snprintf(path_text, sizeof(path_text), "Path: %s", item->full_path);
+        canvas2d_fill_text(g_ctx, path_text, x + 20, current_y);
+    }
 }
 
 // 绘制开始游戏按钮
@@ -476,6 +523,146 @@ static void DrawStartButton(float x, float y, float width, float height) {
     canvas2d_fill_text(g_ctx, "START GAME [ENTER]", x + 30, y + 20);
 }
 
+// 加载并保存地图信息到txt文件
+bool MapSelect_LoadAndSaveMapInfo(const char *mapPath) {
+    printf("Loading map info for: %s\n", mapPath);
+    
+    // 加载地图
+    if (!CM_LoadMap(mapPath)) {
+        printf("Failed to load map: %s\n", mapPath);
+        return false;
+    }
+    
+    // 获取地图信息
+    LPCMAPINFO info = CM_GetMapInfo();
+    if (!info) {
+        printf("Failed to get map info\n");
+        return false;
+    }
+    
+    // 保存到txt文件
+    MapSelect_SaveMapInfoToFile(mapPath, info);
+    
+    printf("Map info loaded and saved successfully\n");
+    return true;
+}
+
+// 保存地图信息到txt文件
+void MapSelect_SaveMapInfoToFile(const char *mapPath, LPCMAPINFO info) {
+    // 生成txt文件名：将.w3m/w3x替换为.txt
+    char txtPath[512];
+    const char *ext = strrchr(mapPath, '.');
+    if (ext) {
+        size_t baseLen = ext - mapPath;
+        strncpy(txtPath, mapPath, baseLen);
+        txtPath[baseLen] = '\0';
+        strcat(txtPath, ".txt");
+    } else {
+        strcpy(txtPath, mapPath);
+        strcat(txtPath, ".txt");
+    }
+    
+    FILE *fp = fopen(txtPath, "w");
+    if (!fp) {
+        printf("Failed to create file: %s\n", txtPath);
+        return;
+    }
+    
+    fprintf(fp, "========================================\n");
+    fprintf(fp, "       WAR3 MAP INFO\n");
+    fprintf(fp, "========================================\n\n");
+    
+    fprintf(fp, "File Path: %s\n", mapPath);
+    fprintf(fp, "File Format: %d\n", info->fileFormat);
+    fprintf(fp, "Editor Version: %d\n", info->editorVersion);
+    fprintf(fp, "Number of Saves: %d\n", info->numberOfSaves);
+    
+    fprintf(fp, "\n--- Map Information ---\n");
+    fprintf(fp, "Name: %s\n", info->mapName ? info->mapName : "(null)");
+    fprintf(fp, "Author: %s\n", info->mapAuthor ? info->mapAuthor : "(null)");
+    fprintf(fp, "Description: %s\n", info->mapDescription ? info->mapDescription : "(null)");
+    fprintf(fp, "Players Recommended: %s\n", info->playersRecommended ? info->playersRecommended : "(null)");
+    fprintf(fp, "Flags: 0x%08X\n", info->flags);
+    fprintf(fp, "Main Ground Type: %c\n", info->mainGroundType);
+    fprintf(fp, "Campaign Background: %d\n", info->campaignBackgroundNumber);
+    fprintf(fp, "Loading Screen: %d\n", info->loadingScreenNumber);
+    
+    fprintf(fp, "\n--- Loading Screen Text ---\n");
+    fprintf(fp, "Title: %s\n", info->loadingScreenTitle ? info->loadingScreenTitle : "(null)");
+    fprintf(fp, "Subtitle: %s\n", info->loadingScreenSubtitle ? info->loadingScreenSubtitle : "(null)");
+    fprintf(fp, "Text: %s\n", info->loadingScreenText ? info->loadingScreenText : "(null)");
+    
+    fprintf(fp, "\n--- Prologue Screen Text ---\n");
+    fprintf(fp, "Title: %s\n", info->prologueScreenTitle ? info->prologueScreenTitle : "(null)");
+    fprintf(fp, "Subtitle: %s\n", info->prologueScreenSubtitle ? info->prologueScreenSubtitle : "(null)");
+    fprintf(fp, "Text: %s\n", info->prologueScreenText ? info->prologueScreenText : "(null)");
+    
+    fprintf(fp, "\n--- Camera Bounds ---\n");
+    fprintf(fp, "Bounds: [%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f]\n",
+            info->cameraBounds.bounds[0], info->cameraBounds.bounds[1],
+            info->cameraBounds.bounds[2], info->cameraBounds.bounds[3],
+            info->cameraBounds.bounds[4], info->cameraBounds.bounds[5],
+            info->cameraBounds.bounds[6], info->cameraBounds.bounds[7]);
+    fprintf(fp, "Margin: left=%d, right=%d, top=%d, bottom=%d\n",
+            info->cameraBounds.margin.left, info->cameraBounds.margin.right,
+            info->cameraBounds.margin.top, info->cameraBounds.margin.bottom);
+    
+    fprintf(fp, "\n--- Playable Area ---\n");
+    fprintf(fp, "Width: %d\n", info->playableArea.width);
+    fprintf(fp, "Height: %d\n", info->playableArea.height);
+    
+    fprintf(fp, "\n--- Players ---\n");
+    int playerCount = 0;
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        if (info->players[i].used) {
+            playerCount++;
+            fprintf(fp, "  Player %d:\n", i);
+            fprintf(fp, "    Type: ");
+            switch (info->players[i].playerType) {
+                case kPlayerTypeNone: fprintf(fp, "None\n"); break;
+                case kPlayerTypeHuman: fprintf(fp, "Human\n"); break;
+                case kPlayerTypeComputer: fprintf(fp, "Computer\n"); break;
+                case kPlayerTypeNeutral: fprintf(fp, "Neutral\n"); break;
+                case kPlayerTypeRescuable: fprintf(fp, "Rescuable\n"); break;
+                default: fprintf(fp, "Unknown\n"); break;
+            }
+            fprintf(fp, "    Race: ");
+            switch (info->players[i].playerRace) {
+                case kPlayerRaceNone: fprintf(fp, "None\n"); break;
+                case kPlayerRaceHuman: fprintf(fp, "Human\n"); break;
+                case kPlayerRaceOrc: fprintf(fp, "Orc\n"); break;
+                case kPlayerRaceUndead: fprintf(fp, "Undead\n"); break;
+                case kPlayerRaceNightElf: fprintf(fp, "Night Elf\n"); break;
+                default: fprintf(fp, "Unknown\n"); break;
+            }
+            fprintf(fp, "    Name: %s\n", info->players[i].playerName ? info->players[i].playerName : "(null)");
+            fprintf(fp, "    Start Position: (%.2f, %.2f)\n", 
+                    info->players[i].startingPosition.x, info->players[i].startingPosition.y);
+            fprintf(fp, "    Flags: 0x%08X\n", info->players[i].flags);
+            fprintf(fp, "    Ally Low: 0x%08X\n", info->players[i].allyLowPrioritiesFlags);
+            fprintf(fp, "    Ally High: 0x%08X\n", info->players[i].allyHighPrioritiesFlags);
+        }
+    }
+    fprintf(fp, "Total Players Used: %d\n", playerCount);
+    
+    fprintf(fp, "\n--- Teams ---\n");
+    fprintf(fp, "Number of Teams: %d\n", info->num_teams);
+    for (int i = 0; i < info->num_teams; i++) {
+        fprintf(fp, "  Team %d:\n", i);
+        fprintf(fp, "    Name: %s\n", info->teams[i].name ? info->teams[i].name : "(null)");
+        fprintf(fp, "    Flags: 0x%08X\n", info->teams[i].flags);
+        fprintf(fp, "    Player Masks: 0x%08X\n", info->teams[i].playerMasks);
+    }
+    
+    fprintf(fp, "\n--- Map Script ---\n");
+    fprintf(fp, "Script File: %s\n", info->mapscriptName ? info->mapscriptName : "(null)");
+    
+    fprintf(fp, "\n========================================\n");
+    
+    fclose(fp);
+    printf("Map info saved to: %s\n", txtPath);
+}
+
 // 渲染地图选择界面
 void MapSelect_Render(void) {
     if (g_state == MAP_SELECT_STATE_DONE) return;
@@ -499,6 +686,30 @@ void MapSelect_Render(void) {
     
     // 渲染 UI 列表
     UIList_Render(&g_ui_list);
+    
+    // 检测选中变化并自动加载地图信息
+    int selected = UIList_GetSelected(&g_ui_list);
+    if (selected >= 0) {
+        void *user_data = UIList_GetSelectedUserData(&g_ui_list);
+        if (user_data) {
+            int all_index = (int)(intptr_t)user_data;
+            if (all_index >= 0 && all_index < g_all_count) {
+                browser_item_t *item = &g_all_items[all_index];
+                if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
+                    // 比较当前路径是否变化
+                    if (strcmp(item->full_path, g_current_preview_map) != 0) {
+                        // 路径变化，加载新地图信息
+                        strcpy(g_current_preview_map, item->full_path);
+                        printf("Loading map info for preview: %s\n", g_current_preview_map);
+                        MapSelect_LoadAndSaveMapInfo(g_current_preview_map);
+                    }
+                }
+            }
+        }
+    } else {
+        // 没有选中项，清空当前预览
+        g_current_preview_map[0] = '\0';
+    }
     
     // 地图预览区域
     float preview_x = 480;
@@ -580,8 +791,8 @@ bool MapSelect_HandleInput(int key, bool down) {
                             // 进入文件夹
                             EnterFolder(item->name);
                         } else {
-                            // 选择地图
-                            printf("Selected map: %s\n", item->full_path);
+                            // 选择地图 - 地图信息已在预览时加载，直接开始游戏
+                            printf("Starting game: %s\n", item->full_path);
                             g_state = MAP_SELECT_STATE_DONE;
                         }
                     }
