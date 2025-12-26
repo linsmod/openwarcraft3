@@ -1,5 +1,7 @@
 #include "map_select.h"
 #include "ui_list.h"
+#include "ui_button.h"
+#include "ui_text.h"
 #include "../canvas2d/canvas2d.h"
 #include "../client/client.h"
 #include "../common/common.h"
@@ -55,13 +57,35 @@ static canvas2d_context_t *g_ctx = NULL;
 // UI 列表组件
 static ui_list_t g_ui_list;
 
+// UI 按钮组件
+static ui_button_t g_start_button;
+
+// UI 文本组件
+static ui_text_t g_title_text;
+static ui_text_t g_path_text;
+static ui_text_t g_hint_text1;
+static ui_text_t g_hint_text2;
+
 // 全局标志：是否在地图选择模式
 bool g_in_map_select = false;
 
-// START GAME 按钮区域
-static struct {
-    float x, y, width, height;
-} g_start_button = {480, 420, 200, 50};
+// START GAME 按钮点击回调
+static void OnStartGameClick(void *user_data) {
+    int selected = UIList_GetSelected(&g_ui_list);
+    if (selected >= 0) {
+        void *user_data = UIList_GetSelectedUserData(&g_ui_list);
+        if (user_data) {
+            int all_index = (int)(intptr_t)user_data;
+            if (all_index >= 0 && all_index < g_all_count) {
+                browser_item_t *item = &g_all_items[all_index];
+                if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
+                    printf("Starting game (button click): %s\n", item->full_path);
+                    g_state = MAP_SELECT_STATE_DONE;
+                }
+            }
+        }
+    }
+}
 
 // 自定义列表项绘制函数
 static void DrawBrowserItemCustom(
@@ -364,6 +388,119 @@ int MapSelect_Init(void) {
         return -1;
     }
     
+    // 初始化 START GAME 按钮
+    ui_button_config_t button_config = {
+        .x = 480.0f,
+        .y = 420.0f,
+        .width = 200.0f,
+        .height = 50.0f,
+        .text = "START GAME [ENTER]",
+        .bg_color = {
+            {0, 150, 0, 255},      // 正常
+            {0, 180, 0, 255},      // 悬停
+            {0, 120, 0, 255},      // 按下
+            {100, 100, 100, 255}   // 禁用
+        },
+        .border_color = {
+            {0, 255, 0, 255},      // 正常
+            {50, 255, 50, 255},    // 悬停
+            {0, 200, 0, 255},      // 按下
+            {150, 150, 150, 255}   // 禁用
+        },
+        .text_color = {
+            {255, 255, 255, 255},  // 正常
+            {255, 255, 255, 255},  // 悬停
+            {255, 255, 255, 255},  // 按下
+            {180, 180, 180, 255}   // 禁用
+        },
+        .border_width = 2.0f,
+        .on_click = OnStartGameClick,
+        .user_data = NULL,
+        .enabled = true,
+        .visible = true
+    };
+    
+    if (UIButton_Init(&g_start_button, &button_config, g_ctx) != 0) {
+        printf("Failed to initialize UI button\n");
+        return -1;
+    }
+    
+    // 初始化标题文本
+    ui_text_config_t title_config = {
+        .x = 400.0f,
+        .y = 30.0f,
+        .text = "SELECT MAP",
+        .color = {255, 215, 0, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_CENTER,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0,
+        .visible = true
+    };
+    
+    if (UIText_Init(&g_title_text, &title_config, g_ctx) != 0) {
+        printf("Failed to initialize title text\n");
+        return -1;
+    }
+    
+    // 初始化路径文本
+    ui_text_config_t path_config = {
+        .x = 50.0f,
+        .y = 60.0f,
+        .text = "Root",
+        .color = {200, 200, 200, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0,
+        .visible = true
+    };
+    
+    if (UIText_Init(&g_path_text, &path_config, g_ctx) != 0) {
+        printf("Failed to initialize path text\n");
+        return -1;
+    }
+    
+    // 初始化提示文本1
+    ui_text_config_t hint1_config = {
+        .x = 50.0f,
+        .y = 710.0f,
+        .text = "Use UP/DOWN arrows to navigate, ENTER to select/open",
+        .color = {200, 200, 200, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0,
+        .visible = true
+    };
+    
+    if (UIText_Init(&g_hint_text1, &hint1_config, g_ctx) != 0) {
+        printf("Failed to initialize hint text 1\n");
+        return -1;
+    }
+    
+    // 初始化提示文本2
+    ui_text_config_t hint2_config = {
+        .x = 900.0f,
+        .y = 710.0f,
+        .text = "ESC to quit",
+        .color = {200, 200, 200, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0,
+        .visible = true
+    };
+    
+    if (UIText_Init(&g_hint_text2, &hint2_config, g_ctx) != 0) {
+        printf("Failed to initialize hint text 2\n");
+        return -1;
+    }
+    
     // 从(listfile)加载地图列表
     g_map_count = 0;
     
@@ -489,45 +626,6 @@ static void DrawMapPreview(float x, float y, float width, float height) {
         snprintf(path_text, sizeof(path_text), "Path: %s", item->full_path);
         canvas2d_fill_text(g_ctx, path_text, x + 20, current_y);
     }
-}
-
-// 绘制开始游戏按钮
-static void DrawStartButton(float x, float y, float width, float height) {
-    int selected = UIList_GetSelected(&g_ui_list);
-    if (selected < 0) return;
-    
-    void *user_data = UIList_GetSelectedUserData(&g_ui_list);
-    if (!user_data) return;
-    
-    int all_index = (int)(intptr_t)user_data;
-    // -1 表示 ".." 返回上级目录，不显示按钮
-    if (all_index < 0 || all_index >= g_all_count) return;
-    
-    browser_item_t *item = &g_all_items[all_index];
-    
-    // 只为地图文件显示按钮
-    if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {
-        return;
-    }
-    
-    // 背景
-    canvas2d_set_fill_style(g_ctx, (COLOR32){0, 150, 0, 255});
-    canvas2d_fill_rect(g_ctx, x, y, width, height);
-    
-    // 边框
-    canvas2d_set_stroke_style(g_ctx, (COLOR32){0, 255, 0, 255});
-    canvas2d_set_line_width(g_ctx, 2.0f);
-    canvas2d_stroke_rect(g_ctx, x, y, width, height);
-    
-    // 按钮文本
-    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 255, 255});
-    canvas2d_fill_text(g_ctx, "START GAME [ENTER]", x + 30, y + 20);
-}
-
-// 检查鼠标是否在按钮区域内
-static bool IsPointInButton(float x, float y) {
-    return x >= g_start_button.x && x < g_start_button.x + g_start_button.width &&
-           y >= g_start_button.y && y < g_start_button.y + g_start_button.height;
 }
 
 // 加载并保存地图信息到txt文件
@@ -725,17 +823,20 @@ void MapSelect_Render(void) {
     float preview_height = 300;
     DrawMapPreview(preview_x, preview_y, preview_width, preview_height);
     
-    // 开始游戏按钮
-    float button_x = 480;
-    float button_y = 420;
-    float button_width = 200;
-    float button_height = 50;
-    DrawStartButton(button_x, button_y, button_width, button_height);
+    // 渲染 START GAME 按钮
+    UIButton_Render(&g_start_button);
     
-    // 提示文本
-    canvas2d_set_fill_style(g_ctx, (COLOR32){200, 200, 200, 255});
-    canvas2d_fill_text(g_ctx, "Use UP/DOWN arrows to navigate, ENTER to select/open", 50, 710);
-    canvas2d_fill_text(g_ctx, "ESC to quit", 900, 710);
+    // 渲染文本组件
+    // 更新路径文本
+    if (g_at_root) {
+        UIText_SetText(&g_path_text, "Root");
+    } else {
+        UIText_SetText(&g_path_text, g_current_path);
+    }
+    UIText_Render(&g_title_text);
+    UIText_Render(&g_path_text);
+    UIText_Render(&g_hint_text1);
+    UIText_Render(&g_hint_text2);
 }
 
 // 进入文件夹
@@ -823,33 +924,16 @@ bool MapSelect_HandleInput(int key, bool down) {
 bool MapSelect_HandleMouseEvent(void) {
     if (g_state == MAP_SELECT_STATE_DONE) return false;
     
-    // 只处理鼠标左键按下事件
-    if (mouse.event != UI_LEFT_MOUSE_DOWN) {
-        return false;
+    bool handled = false;
+    
+    // 处理按钮鼠标事件
+    bool down = (mouse.event == UI_LEFT_MOUSE_DOWN);
+    if (UIButton_HandleMouseClick(&g_start_button, mouse.origin.x, mouse.origin.y, down)) {
+        handled = true;
     }
     
-    // 检查是否点击了 START GAME 按钮
-    if (IsPointInButton(mouse.origin.x, mouse.origin.y)) {
-        int selected = UIList_GetSelected(&g_ui_list);
-        if (selected >= 0) {
-            void *user_data = UIList_GetSelectedUserData(&g_ui_list);
-            if (user_data) {
-                int all_index = (int)(intptr_t)user_data;
-                if (all_index >= 0 && all_index < g_all_count) {
-                    browser_item_t *item = &g_all_items[all_index];
-                    if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
-                        // 选择地图 - 地图信息已在预览时加载，直接开始游戏
-                        printf("Starting game (button click): %s\n", item->full_path);
-                        g_state = MAP_SELECT_STATE_DONE;
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    
-    // 检查是否点击了 UI 列表
-    if (UIList_HandleMouseClick(&g_ui_list, mouse.origin.x, mouse.origin.y)) {
+    // 处理 UI 列表鼠标事件（只处理左键按下）
+    if (mouse.event == UI_LEFT_MOUSE_DOWN && UIList_HandleMouseClick(&g_ui_list, mouse.origin.x, mouse.origin.y)) {
         // 双击检测：如果是地图文件且当前已选中该项，则进入/选择
         int selected = UIList_GetSelected(&g_ui_list);
         if (selected >= 0) {
@@ -861,19 +945,19 @@ bool MapSelect_HandleMouseEvent(void) {
                     if (item->type == ITEM_TYPE_FOLDER) {
                         // 点击进入文件夹
                         EnterFolder(item->name);
-                        return true;
+                        handled = true;
                     } else if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
                         // 地图文件，单击只是选中，不直接开始游戏
                         // 双击或者点击 START GAME 按钮才开始游戏
                         printf("Map selected: %s\n", item->full_path);
-                        return true;
+                        handled = true;
                     }
                 }
             }
         }
     }
     
-    return false;
+    return handled;
 }
 
 // 获取选中的地图
@@ -899,6 +983,11 @@ void MapSelect_Shutdown(void) {
     printf("Shutting down Map Selection Screen...\n");
     
     UIList_Shutdown(&g_ui_list);
+    UIButton_Shutdown(&g_start_button);
+    UIText_Shutdown(&g_title_text);
+    UIText_Shutdown(&g_path_text);
+    UIText_Shutdown(&g_hint_text1);
+    UIText_Shutdown(&g_hint_text2);
     
     if (g_canvas) {
         canvas2d_destroy(g_canvas);
