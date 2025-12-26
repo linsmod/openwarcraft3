@@ -74,8 +74,18 @@ file(GLOB_RECURSE HEADERS
 
 find_package(LibXml2 REQUIRED)
 
+# 地图选择模块源文件
+set(MAP_SELECT_SOURCES
+    src/map_select/map_select.c
+    src/map_select/map_scanner.c
+)
+
+file(GLOB_RECURSE CMATH3_SRCS "src/cmath3/*.c")
+file(GLOB_RECURSE GAME_SRCS "src/game/*.c")
+file(GLOB_RECURSE RENDERER_SRCS "src/renderer/*.c" "src/canvas2d/*.c")
+
 # 创建可执行文件
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${MAP_SELECT_SOURCES})
 
 # 包含目录
 include_directories(
@@ -92,10 +102,6 @@ include_directories(
     ${PARSERUTILS_INCLUDE_DIRS}
     ${WAPCAPLET_INCLUDE_DIRS}
 )
-
-file(GLOB_RECURSE CMATH3_SRCS "src/cmath3/*.c")
-file(GLOB_RECURSE GAME_SRCS "src/game/*.c")
-file(GLOB_RECURSE RENDERER_SRCS "src/renderer/*.c" "src/canvas2d/*.c")
 
 # 创建共享库并设置输出目录
 add_library(cmath3 SHARED ${CMATH3_SRCS})

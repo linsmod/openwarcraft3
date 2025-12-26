@@ -7,6 +7,7 @@
 #include "common/shared.h"
 #include "g_local.h"
 #include "../canvas2d/canvas2d_test.h"
+#include "../map_select/map_select.h"
 
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
@@ -718,13 +719,17 @@ void SCR_UpdateScreen(void) {
 
     re.BeginFrame();
     
-    V_RenderView();  // 先渲染3D场景
-    
-    SCR_DrawOverlays();  // 再渲染UI元素
+    extern bool g_in_map_select;
+    if (g_in_map_select) {
+        MapSelect_Render();
+    } else {
+        V_RenderView();  // 先渲染3D场景
+        SCR_DrawOverlays();  // 再渲染UI元素
+    }
 
     // canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
 
-    html_update_frame();
+    // html_update_frame();
 
     CON_DrawConsole();
     

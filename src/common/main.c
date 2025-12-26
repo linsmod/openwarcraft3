@@ -1,18 +1,21 @@
 #include "../client/client.h"
 #include "../server/server.h"
+#include "../map_select/map_select.h"
 
 #include <SDL2/SDL.h>
 
 #define USAGE \
 "Usage:\n" \
-"  openwarcraft3 -mpq=<full path to MPQ file> -map=<path to map inside MPQ>\n"\
+"  openwarcraft3 -mpq=<full path to MPQ file> [-map=<path to map inside MPQ>]\n"\
 "\n" \
-"Example:\n" \
+"Examples:\n" \
 "  openwarcraft3 -mpq=/Users/John/War3.mpq -map=Maps\\Campaign\\Human02.w3m\n" \
+"  openwarcraft3 -mpq=/Users/John/War3.mpq  # Will show map selection screen\n" \
 "\n" \
 "Notes:\n" \
 "  - The MPQ path must be an absolute path on your filesystem.\n" \
-"  - The map path must use the internal path format from the MPQ.\n"
+"  - The map path must use the internal path format from the MPQ.\n" \
+"  - If -map is not specified, a map selection screen will be shown.\n"
 
 extern LPTEXTURE Texture;
 
@@ -26,6 +29,7 @@ int html_init(LPCSTR filename);
 int main(int argc, LPSTR argv[]) {
     LPCSTR map = NULL;
     BOOL mpq = 0;
+    
     for (int i = 0; i < argc; i++) {
         if (!strncmp(argv[i], "-mpq=", 5)) {
             FS_AddArchive(argv[i]+5);
@@ -36,29 +40,87 @@ int main(int argc, LPSTR argv[]) {
         }
     }
     
-    if (!mpq || !map) {
+    // 检查 MPQ 参数
+    if (!mpq) {
         printf(USAGE);
         return 1;
     }
     
+    // 初始化游戏系统
     Com_Init();
-    html_init("../html_tests/test_enhanced_css.html"); // relative build dir
+    html_init("../html_tests/test_enhanced_css.html");
+    
+    // 检查是否提供了地图参数
+    if (!map) {
+        // 没有提供地图，显示地图选择界面
+        printf("No map specified, showing map selection screen...\n");
+        
+        if (MapSelect_Init() != 0) {
+            printf("Failed to initialize map selection screen\n");
+            return 1;
+        }
+        
+        // 地图选择界面主循环
+        bool map_selected = false;
+        while (!map_selected) {
+            DWORD startTime = SDL_GetTicks();
+            
+            // 处理 SDL 事件
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT) {
+                    MapSelect_Shutdown();
+                    return 0;
+                }
+                else if (event.type == SDL_KEYDOWN) {
+                    if (MapSelect_HandleInput(event.key.keysym.sym, true)) {
+                        // 检查是否选择了地图
+                        if (event.key.keysym.sym == SDLK_RETURN) {
+                            map = MapSelect_GetSelectedMap();
+                            if (map) {
+                                map_selected = true;
+                            }
+                        }
+                        else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                            MapSelect_Shutdown();
+                            return 0;
+                        }
+                    }
+                }
+            }
+            
+            // 更新和渲染
+            DWORD currentTime = SDL_GetTicks();
+            DWORD msec = currentTime - startTime;
+            
+            // 渲染屏幕
+            SCR_UpdateScreen();
+            
+            // 帧率控制
+            if (msec < 16) {
+                SDL_Delay(16 - msec);
+            }
+        }
+        
+        // 清理地图选择界面
+        MapSelect_Shutdown();
+    }
+    
+    // 加载选中的地图
     SV_Map(map);
-    // canvas2d_runtest();
-    DWORD startTime = SDL_GetTicks();
+    
+    // 进入游戏主循环
     while (true) {
-        DWORD currentTime = SDL_GetTicks();
-        DWORD msec = currentTime - startTime;
-        // Cap the frame rate to 60 FPS
+        DWORD startTime = SDL_GetTicks();
+        DWORD msec = 0;
+        
+        // 帧率控制
         if (msec < 16) {
             SDL_Delay(16 - msec);
-            currentTime = SDL_GetTicks();
-            msec = currentTime - startTime;
         }
-
+        
         SV_Frame(msec);
         CL_Frame(msec);
-        startTime = currentTime;
     }
     
     return 0;

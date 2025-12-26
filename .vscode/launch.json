@@ -30,6 +30,31 @@
             ]
         },
         {
+            "name": "(gdb) 启动MapSelect",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/openwarcraft3",
+            "preLaunchTask": "build-debug",
+            "args": ["-mpq=/home/wulin/Warcraft-III-1.27a/War3.mpq"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "将反汇编风格设置为 Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "(gdb) canvas2d",
             "type": "cppdbg",
             "request": "launch",
