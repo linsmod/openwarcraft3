@@ -43,7 +43,7 @@ static int g_filtered_indices[MAX_MAPS];  // 过滤后的项在 g_all_items 中�
 static int g_all_count = 0;
 static int g_filtered_count = 0;
 static map_select_state_t g_state = MAP_SELECT_STATE_INIT;
-static char g_start_map_path[MAX_PATH_LEN] = "";
+static char *g_start_map_path = NULL;
 
 // 当前浏览的路径
 static char g_current_path[MAX_PATH_LEN] = "";
@@ -92,8 +92,7 @@ static void OnStartGameClick(void *user_data) {
                 browser_item_t *item = &g_all_items[all_index];
                 if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
                     printf("Starting game (button click): %s\n", item->full_path);
-                    strncpy(g_start_map_path, item->full_path, MAX_PATH_LEN - 1);
-                    g_start_map_path[MAX_PATH_LEN - 1] = '\0';
+                    g_start_map_path = strdup(item->full_path);
                     g_state = MAP_SELECT_STATE_DONE;
                 }
             }
@@ -1028,8 +1027,7 @@ bool MapSelect_HandleInput(int key, bool down) {
                         } else {
                             // 选择地图 - 地图信息已在预览时加载，直接开始游戏
                             printf("Starting game: %s\n", item->full_path);
-                            strncpy(g_start_map_path, item->full_path, MAX_PATH_LEN - 1);
-                            g_start_map_path[MAX_PATH_LEN - 1] = '\0';
+                            g_start_map_path = strdup(item->full_path);
                             g_state = MAP_SELECT_STATE_DONE;
                         }
                     }
@@ -1135,6 +1133,12 @@ void MapSelect_Shutdown(void) {
         canvas2d_destroy(g_canvas);
         g_canvas = NULL;
         g_ctx = NULL;
+    }
+    
+    // 释放地图路径内存
+    if (g_start_map_path) {
+        free(g_start_map_path);
+        g_start_map_path = NULL;
     }
     
     g_map_count = 0;
