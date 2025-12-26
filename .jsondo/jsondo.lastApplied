@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修复MapSelect_LoadMapsFromListfile函数",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "    // 清空浏览器项\n    g_browser_count = 0;\n    g_all_count = 0;",
+        "new_str": "    // 清空浏览器项\n    g_all_count = 0;"
+      }
+    }
+  ]
+}

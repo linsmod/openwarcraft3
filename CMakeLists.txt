@@ -78,6 +78,7 @@ find_package(LibXml2 REQUIRED)
 set(MAP_SELECT_SOURCES
     src/map_select/map_select.c
     src/map_select/map_scanner.c
+    src/map_select/ui_list.c
 )
 
 file(GLOB_RECURSE CMATH3_SRCS "src/cmath3/*.c")

@@ -155,6 +155,7 @@ int MapSelect_LoadMapsFromListfile(void) {
     }
     
     // 清空浏览器项
+    g_browser_count = 0;
     g_all_count = 0;
     
     // 解析(listfile)内容
