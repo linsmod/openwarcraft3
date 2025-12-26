@@ -27,7 +27,7 @@ void Sys_Quit(void) {
 int html_init(LPCSTR filename);
 #include "canvas2d/canvas2d.h"
 int main(int argc, LPSTR argv[]) {
-    LPCSTR map = NULL;
+    char *map = NULL;
     BOOL mpq = 0;
     
     for (int i = 0; i < argc; i++) {
@@ -93,7 +93,11 @@ int main(int argc, LPSTR argv[]) {
             }
             
             // 检查是否选择了地图
-            map = MapSelect_GetStartMap();
+            if (!map) {
+                 const char* startMap = MapSelect_GetStartMap();
+                if(startMap)
+                    map = strdup(startMap);
+            }
             
             // 更新和渲染
             DWORD currentTime = SDL_GetTicks();
@@ -114,19 +118,21 @@ int main(int argc, LPSTR argv[]) {
     
     // 加载选中的地图
     SV_Map(map);
-    
-    // 进入游戏主循环
+    // canvas2d_runtest();
+    DWORD startTime = SDL_GetTicks();
     while (true) {
-        DWORD startTime = SDL_GetTicks();
-        DWORD msec = 0;
-        
-        // 帧率控制
+        DWORD currentTime = SDL_GetTicks();
+        DWORD msec = currentTime - startTime;
+        // Cap the frame rate to 60 FPS
         if (msec < 16) {
             SDL_Delay(16 - msec);
+            currentTime = SDL_GetTicks();
+            msec = currentTime - startTime;
         }
-        
+
         SV_Frame(msec);
         CL_Frame(msec);
+        startTime = currentTime;
     }
     
     return 0;

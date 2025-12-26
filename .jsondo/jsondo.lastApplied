@@ -2,10 +2,29 @@
   "commands": [
     {
       "call": "replace_by_content",
+      "title": "修改map类型和添加need_free标志",
       "args": {
-        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
-        "old_str": "    g_map_count = 0;\n    g_state = MAP_SELECT_STATE_INIT;\n    g_in_map_select = false;",
-        "new_str": "    // 释放地图路径内存\n    if (g_start_map_path) {\n        free(g_start_map_path);\n        g_start_map_path = NULL;\n    }\n    \n    g_map_count = 0;\n    g_state = MAP_SELECT_STATE_INIT;\n    g_in_map_select = false;"
+        "file": "/home/wulin/myopenwarcraft3/src/common/main.c",
+        "old_str": "int main(int argc, LPSTR argv[]) {\n    LPCSTR map = NULL;\n    BOOL mpq = 0;",
+        "new_str": "int main(int argc, LPSTR argv[]) {\n    char *map = NULL;\n    BOOL mpq = 0;\n    bool need_free_map = false;"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "使用GetStartMapDup",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/common/main.c",
+        "old_str": "            // 检查是否选择了地图\n            map = MapSelect_GetStartMap();",
+        "new_str": "            // 检查是否选择了地图\n            if (!map) {\n                map = MapSelect_GetStartMapDup();\n                need_free_map = true;\n            }"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "根据need_free标志释放",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/common/main.c",
+        "old_str": "    // 加载选中的地图\n    SV_Map(map);\n    free(map);",
+        "new_str": "    // 加载选中的地图\n    SV_Map(map);\n    if (need_free_map && map) {\n        free(map);\n    }"
       }
     }
   ]

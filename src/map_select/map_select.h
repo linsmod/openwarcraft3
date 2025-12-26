@@ -40,8 +40,8 @@ bool MapSelect_HandleMouseEvent(void);
 // 获取选中的地图
 const char* MapSelect_GetSelectedMap(void);
 
-// 获取要开始的地图（ENTER或START GAME按钮选择）
-const char* MapSelect_GetStartMap(void);
+// 获取要开始的地图（ENTER或START GAME按钮选择），调用者负责free返回的字符串
+char* MapSelect_GetStartMap(void);
 
 // 清理地图选择界面
 void MapSelect_Shutdown(void);
