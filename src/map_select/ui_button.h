@@ -29,7 +29,7 @@ typedef struct {
     ui_button_click_callback_t on_click;  // 点击回调函数
     void *user_data;                  // 用户数据
     bool enabled;                     // 是否启用
-    bool visible;                     // 是否可见
+    bool visible;                     // 是否可见 (默认 true)
 } ui_button_config_t;
 
 // UI 按钮状态
@@ -40,6 +40,9 @@ typedef struct {
     bool is_pressed;
     canvas2d_context_t *ctx;
 } ui_button_t;
+
+// 创建默认按钮配置
+ui_button_config_t UIButton_GetDefaultConfig(void);
 
 // 初始化 UI 按钮
 int UIButton_Init(ui_button_t *button, const ui_button_config_t *config, canvas2d_context_t *ctx);

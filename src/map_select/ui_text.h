@@ -29,7 +29,7 @@ typedef struct {
     ui_text_valign_t valign;         // 垂直对齐方式
     bool wrap;                       // 是否自动换行
     float wrap_width;                // 换行宽度（仅在wrap=true时有效）
-    bool visible;                    // 是否可见
+    bool visible;                    // 是否可见 (默认 true)
 } ui_text_config_t;
 
 // UI 文本状态
@@ -37,6 +37,9 @@ typedef struct {
     ui_text_config_t config;
     canvas2d_context_t *ctx;
 } ui_text_t;
+
+// 创建默认文本配置
+ui_text_config_t UIText_GetDefaultConfig(void);
 
 // 初始化 UI 文本
 int UIText_Init(ui_text_t *text, const ui_text_config_t *config, canvas2d_context_t *ctx);

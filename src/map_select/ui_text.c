@@ -2,6 +2,23 @@
 #include <string.h>
 #include <stdio.h>
 
+// 创建默认文本配置
+ui_text_config_t UIText_GetDefaultConfig(void) {
+    ui_text_config_t config = {
+        .x = 0.0f,
+        .y = 0.0f,
+        .text = "",
+        .color = {255, 255, 255, 255},
+        .font_size = 16.0f,
+        .align = UI_TEXT_ALIGN_LEFT,
+        .valign = UI_TEXT_VALIGN_TOP,
+        .wrap = false,
+        .wrap_width = 0,
+        .visible = true
+    };
+    return config;
+}
+
 // 初始化 UI 文本
 int UIText_Init(ui_text_t *text, const ui_text_config_t *config, canvas2d_context_t *ctx) {
     if (!text || !config || !ctx) {

@@ -81,6 +81,7 @@ set(MAP_SELECT_SOURCES
     src/map_select/ui_list.c
     src/map_select/ui_button.c
     src/map_select/ui_text.c
+    src/map_select/ui_container.c
 )
 
 file(GLOB_RECURSE CMATH3_SRCS "src/cmath3/*.c")

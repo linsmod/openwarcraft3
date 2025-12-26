@@ -2,6 +2,41 @@
 #include <string.h>
 #include <stdio.h>
 
+// 创建默认按钮配置
+ui_button_config_t UIButton_GetDefaultConfig(void) {
+    ui_button_config_t config = {
+        .x = 0.0f,
+        .y = 0.0f,
+        .width = 100.0f,
+        .height = 30.0f,
+        .text = "",
+        .bg_color = {
+            {60, 60, 70, 255},      // 正常
+            {80, 80, 90, 255},      // 悬停
+            {50, 50, 60, 255},      // 按下
+            {40, 40, 50, 200}       // 禁用
+        },
+        .border_color = {
+            {200, 200, 200, 255},  // 正常
+            {220, 220, 220, 255},  // 悬停
+            {180, 180, 180, 255},  // 按下
+            {100, 100, 100, 255}   // 禁用
+        },
+        .text_color = {
+            {255, 255, 255, 255},  // 正常
+            {255, 255, 255, 255},  // 悬停
+            {255, 255, 255, 255},  // 按下
+            {180, 180, 180, 255}   // 禁用
+        },
+        .border_width = 1.0f,
+        .on_click = NULL,
+        .user_data = NULL,
+        .enabled = true,
+        .visible = true
+    };
+    return config;
+}
+
 // 初始化 UI 按钮
 int UIButton_Init(ui_button_t *button, const ui_button_config_t *config, canvas2d_context_t *ctx) {
     if (!button || !config || !ctx) {
