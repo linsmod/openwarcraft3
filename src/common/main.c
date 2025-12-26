@@ -61,8 +61,7 @@ int main(int argc, LPSTR argv[]) {
         }
         
         // 地图选择界面主循环
-        bool map_selected = false;
-        while (!map_selected) {
+        while (!map) {
             DWORD startTime = SDL_GetTicks();
             
             // 处理 SDL 事件
@@ -73,19 +72,7 @@ int main(int argc, LPSTR argv[]) {
                     return 0;
                 }
                 else if (event.type == SDL_KEYDOWN) {
-                    if (MapSelect_HandleInput(event.key.keysym.sym, true)) {
-                        // 检查是否选择了地图
-                        if (event.key.keysym.sym == SDLK_RETURN) {
-                            map = MapSelect_GetSelectedMap();
-                            if (map) {
-                                map_selected = true;
-                            }
-                        }
-                        else if (event.key.keysym.sym == SDLK_ESCAPE) {
-                            MapSelect_Shutdown();
-                            return 0;
-                        }
-                    }
+                    MapSelect_HandleInput(event.key.keysym.sym, true);
                 }
                 else if (event.type == SDL_MOUSEBUTTONDOWN) {
                     // 处理鼠标事件
@@ -95,15 +82,7 @@ int main(int argc, LPSTR argv[]) {
                         mouse.origin.y = event.button.y;
                         mouse.button = event.button.button;
                         mouse.event = UI_LEFT_MOUSE_DOWN;
-                        
-                        // 处理地图选择界面的鼠标事件
-                        if (MapSelect_HandleMouseEvent()) {
-                            // 检查是否选择了地图
-                            map = MapSelect_GetSelectedMap();
-                            if (map) {
-                                map_selected = true;
-                            }
-                        }
+                        MapSelect_HandleMouseEvent();
                     }
                 }
                 else if (event.type == SDL_MOUSEMOTION) {
@@ -112,6 +91,9 @@ int main(int argc, LPSTR argv[]) {
                     mouse.origin.y = event.motion.y;
                 }
             }
+            
+            // 检查是否选择了地图
+            map = MapSelect_GetStartMap();
             
             // 更新和渲染
             DWORD currentTime = SDL_GetTicks();
