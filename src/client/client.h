@@ -95,10 +95,15 @@ void V_AddEntity(renderEntity_t *ent);
 LPCUIFRAME SCR_Clear(HANDLE data);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
 void SCR_UpdateScreen(void);
+void SCR_DrawOverlays(void);
 
 // cl_input.c
 void CL_Input(void);
 void CL_InitInput(void);
+
+// cl_main.c
+void CL_ReadPackets(void);
+void CL_SendCommand(void);
 
 // cl_tent.c
 void CL_ParseTEnt(LPSIZEBUF msg);

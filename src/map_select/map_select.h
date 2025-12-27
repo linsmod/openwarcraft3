@@ -3,7 +3,18 @@
 
 #include "../common/shared.h"
 
+// ========================================
+// 前向声明
+// ========================================
+typedef struct scene_t scene_t;
+typedef struct scene_params_t scene_params_t;
+typedef struct scene_transition_t scene_transition_t;
+
+#include "../common/scene.h"  // 包含完整定义
+
+// ========================================
 // 地图信息结构
+// ========================================
 typedef struct {
     char filename[256];        // 地图文件名
     char name[128];            // 地图显示名称
@@ -14,7 +25,9 @@ typedef struct {
     int height;                // 地图高度
 } map_info_t;
 
+// ========================================
 // 地图选择界面状态
+// ========================================
 typedef enum {
     MAP_SELECT_STATE_INIT,      // 初始化
     MAP_SELECT_STATE_LIST,      // 显示地图列表
@@ -22,6 +35,9 @@ typedef enum {
     MAP_SELECT_STATE_DONE       // 完成
 } map_select_state_t;
 
+// ========================================
+// 原有API（保持向后兼容）
+// ========================================
 // 初始化地图选择界面
 int MapSelect_Init(void);
 
@@ -37,10 +53,8 @@ bool MapSelect_HandleInput(int key, bool down);
 // 处理鼠标事件
 bool MapSelect_HandleMouseEvent(void);
 
-// 获取选中的地图
+// 获取选中的地图（兼容旧代码）
 const char* MapSelect_GetSelectedMap(void);
-
-// 获取要开始的地图（ENTER或START GAME按钮选择），调用者负责free返回的字符串
 char* MapSelect_GetStartMap(void);
 
 // 清理地图选择界面
@@ -54,5 +68,33 @@ bool MapSelect_LoadAndSaveMapInfo(const char *mapPath);
 
 // 保存地图信息到txt文件
 void MapSelect_SaveMapInfoToFile(const char *mapPath, LPCMAPINFO info);
+
+// ========================================
+// Scene 接口 - 新的API
+// ========================================
+
+// Scene 初始化
+// 参数说明：
+//   - "start_folder" (string, 可选): 启动时显示的文件夹路径
+int MapSelectScene_Init(scene_t *scene, const scene_params_t *params);
+
+// Scene 关闭
+void MapSelectScene_Shutdown(scene_t *scene);
+
+// Scene 更新
+// 返回值：scene_transition_t* - 如果需要跳转场景，返回跳转请求
+scene_transition_t* MapSelectScene_Update(scene_t *scene, int msec);
+
+// Scene 渲染
+void MapSelectScene_Render(scene_t *scene);
+
+// Scene 输入处理
+// 返回值：scene_transition_t* - 如果需要跳转场景，返回跳转请求
+scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event);
+
+// ========================================
+// 获取场景实例
+// ========================================
+scene_t* MapSelectScene_GetInstance(void);
 
 #endif // __MAP_SELECT_H__

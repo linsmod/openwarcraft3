@@ -11,9 +11,13 @@ enum {
     K_ESCAPE = 27,
     K_SPACE = 32,
     
+    K_F1 = 290,
+    
     K_MOUSE1 = 200,
     K_MOUSE2 = 201,
     K_MOUSE3 = 202,
+    K_MWHEELUP = 203,
+    K_MWHEELDOWN = 204,
 };
 
 void Key_SetBinding(keyCode_t key, LPCSTR binding);

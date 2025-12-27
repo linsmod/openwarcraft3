@@ -68,6 +68,14 @@ file(GLOB SOURCES
     "src/libs/*.c"
 )
 
+# 添加场景系统源文件
+set(SCENE_SOURCES
+    src/common/scene.c
+    src/common/input_converter.c
+    src/client/cl_game_scene.c
+)
+list(APPEND SOURCES ${SCENE_SOURCES})
+
 file(GLOB_RECURSE HEADERS 
     "src/*.h"
 )

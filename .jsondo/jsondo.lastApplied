@@ -2,29 +2,11 @@
   "commands": [
     {
       "call": "replace_by_content",
-      "title": "修改map类型和添加need_free标志",
+      "title": "移除main.c中的调试输出",
       "args": {
         "file": "/home/wulin/myopenwarcraft3/src/common/main.c",
-        "old_str": "int main(int argc, LPSTR argv[]) {\n    LPCSTR map = NULL;\n    BOOL mpq = 0;",
-        "new_str": "int main(int argc, LPSTR argv[]) {\n    char *map = NULL;\n    BOOL mpq = 0;\n    bool need_free_map = false;"
-      }
-    },
-    {
-      "call": "replace_by_content",
-      "title": "使用GetStartMapDup",
-      "args": {
-        "file": "/home/wulin/myopenwarcraft3/src/common/main.c",
-        "old_str": "            // 检查是否选择了地图\n            map = MapSelect_GetStartMap();",
-        "new_str": "            // 检查是否选择了地图\n            if (!map) {\n                map = MapSelect_GetStartMapDup();\n                need_free_map = true;\n            }"
-      }
-    },
-    {
-      "call": "replace_by_content",
-      "title": "根据need_free标志释放",
-      "args": {
-        "file": "/home/wulin/myopenwarcraft3/src/common/main.c",
-        "old_str": "    // 加载选中的地图\n    SV_Map(map);\n    free(map);",
-        "new_str": "    // 加载选中的地图\n    SV_Map(map);\n    if (need_free_map && map) {\n        free(map);\n    }"
+        "old_str": "    // 注册场景到SceneManager\n    if (SceneManager_RegisterScene(scene_mgr, map_select_scene) != 0) {\n        printf(\"Failed to register MapSelect scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }\n    \n    if (SceneManager_RegisterScene(scene_mgr, game_scene) != 0) {\n        printf(\"Failed to register Game scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }\n    \n    printf(\"Registered %d scenes\\n\", scene_mgr->registered_count);",
+        "new_str": "    // 注册场景到SceneManager\n    if (SceneManager_RegisterScene(scene_mgr, map_select_scene) != 0) {\n        printf(\"Failed to register MapSelect scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }\n    \n    if (SceneManager_RegisterScene(scene_mgr, game_scene) != 0) {\n        printf(\"Failed to register Game scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }"
       }
     }
   ]

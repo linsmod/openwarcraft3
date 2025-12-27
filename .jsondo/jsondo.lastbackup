@@ -1,12 +1,15 @@
 #include "../client/client.h"
 #include "../server/server.h"
 #include "../map_select/map_select.h"
+#include "../client/cl_game_scene.h"
+#include "scene.h"
+#include "canvas2d/canvas2d.h"
 
 #include <SDL2/SDL.h>
 
 #define USAGE \
 "Usage:\n" \
-"  openwarcraft3 -mpq=<full path to MPQ file> [-map=<path to map inside MPQ>]\n"\
+"  openwarcraft3 -mpq=<full path to MPQ file> [-map=<path to map inside MPQ>]\n" \
 "\n" \
 "Examples:\n" \
 "  openwarcraft3 -mpq=/Users/John/War3.mpq -map=Maps\\Campaign\\Human02.w3m\n" \
@@ -18,18 +21,33 @@
 "  - If -map is not specified, a map selection screen will be shown.\n"
 
 extern LPTEXTURE Texture;
-
 HANDLE FS_AddArchive(LPCSTR);
-
-void Sys_Quit(void) {
-    exit(0);
-}
+void Sys_Quit(void) { exit(0); }
 int html_init(LPCSTR filename);
-#include "canvas2d/canvas2d.h"
+
+// 将输入事件转换为scene的输入事件类型
+static input_event_type_t convert_sdl_event_type(SDL_Event* event) {
+    switch (event->type) {
+        case SDL_KEYDOWN:
+            return INPUT_EVENT_KEY_DOWN;
+        case SDL_KEYUP:
+            return INPUT_EVENT_KEY_UP;
+        case SDL_MOUSEBUTTONDOWN:
+            return INPUT_EVENT_MOUSE_DOWN;
+        case SDL_MOUSEBUTTONUP:
+            return INPUT_EVENT_MOUSE_UP;
+        case SDL_MOUSEMOTION:
+            return INPUT_EVENT_MOUSE_MOTION;
+        case SDL_MOUSEWHEEL:
+            return INPUT_EVENT_MOUSE_WHEEL;
+        default:
+            return INPUT_EVENT_KEY_DOWN; // 默认值
+    }
+}
+
 int main(int argc, LPSTR argv[]) {
     char *map = NULL;
     BOOL mpq = 0;
-    bool need_free_map = false;
     
     for (int i = 0; i < argc; i++) {
         if (!strncmp(argv[i], "-mpq=", 5)) {
@@ -51,88 +69,150 @@ int main(int argc, LPSTR argv[]) {
     Com_Init();
     html_init("../html_tests/test_enhanced_css.html");
     
-    // 检查是否提供了地图参数
+    // 初始化SceneManager
+    scene_manager_t *scene_mgr = SceneManager_Create();
+    if (!scene_mgr) {
+        printf("Failed to create SceneManager\n");
+        return 1;
+    }
+    
+    // 获取MapSelect和Game场景实例
+    scene_t *map_select_scene = MapSelectScene_GetInstance();
+    scene_t *game_scene = GameScene_GetInstance();
+    
+    // 注册场景到SceneManager
+    if (SceneManager_RegisterScene(scene_mgr, map_select_scene) != 0) {
+        printf("Failed to register MapSelect scene\n");
+        SceneManager_Destroy(scene_mgr);
+        return 1;
+    }
+    
+    if (SceneManager_RegisterScene(scene_mgr, game_scene) != 0) {
+        printf("Failed to register Game scene\n");
+        SceneManager_Destroy(scene_mgr);
+        return 1;
+    }
+    
+    printf("Registered %d scenes\n", scene_mgr->registered_count);
+    
+    // 根据是否有map参数决定启动哪个场景
     if (!map) {
         // 没有提供地图，显示地图选择界面
         printf("No map specified, showing map selection screen...\n");
+        SceneManager_SwitchScene(scene_mgr, map_select_scene, NULL);
+    } else {
+        // 直接启动游戏场景
+        printf("Loading map: %s\n", map);
         
-        if (MapSelect_Init() != 0) {
-            printf("Failed to initialize map selection screen\n");
+        // 创建传递给Game场景的参数
+        scene_params_t *params = SceneParams_Create();
+        if (params) {
+            SceneParams_SetString(params, "map_path", map);
+            SceneParams_SetString(params, "start_folder", "");
+            SceneManager_SwitchScene(scene_mgr, game_scene, params);
+            SceneParams_Destroy(params);
+        } else {
+            printf("Failed to create scene parameters\n");
+            SceneManager_Destroy(scene_mgr);
             return 1;
         }
+    }
+    
+    // 主游戏循环 - 使用SceneManager
+    DWORD startTime = SDL_GetTicks();
+    while (true) {
+        DWORD currentTime = SDL_GetTicks();
+        float dt = (currentTime - startTime) / 1000.0f;
         
-        // 地图选择界面主循环
-        while (!map) {
-            DWORD startTime = SDL_GetTicks();
-            
-            // 处理 SDL 事件
-            SDL_Event event;
-            while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_QUIT) {
-                    MapSelect_Shutdown();
-                    return 0;
-                }
-                else if (event.type == SDL_KEYDOWN) {
-                    MapSelect_HandleInput(event.key.keysym.sym, true);
-                }
-                else if (event.type == SDL_MOUSEBUTTONDOWN) {
-                    // 处理鼠标事件
-                    if (event.button.button == SDL_BUTTON_LEFT) {
-                        // 更新鼠标状态
-                        mouse.origin.x = event.button.x;
-                        mouse.origin.y = event.button.y;
-                        mouse.button = event.button.button;
-                        mouse.event = UI_LEFT_MOUSE_DOWN;
-                        MapSelect_HandleMouseEvent();
-                    }
-                }
-                else if (event.type == SDL_MOUSEMOTION) {
-                    // 更新鼠标位置
-                    mouse.origin.x = event.motion.x;
-                    mouse.origin.y = event.motion.y;
-                }
+        // 处理SDL事件并分发给当前场景
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                SceneManager_Destroy(scene_mgr);
+                return 0;
             }
             
-            // 检查是否选择了地图
-            if (!map) {
-                map = MapSelect_GetStartMapDup();
-                need_free_map = true;
+            // 转换SDL事件为scene输入事件
+            input_event_t input_event;
+            input_event.type = convert_sdl_event_type(&event);
+            input_event.handled = false;
+            
+            switch (input_event.type) {
+                case INPUT_EVENT_KEY_DOWN:
+                    input_event.key.key = event.key.keysym.sym;
+                    input_event.key.down = true;
+                    break;
+                case INPUT_EVENT_KEY_UP:
+                    input_event.key.key = event.key.keysym.sym;
+                    input_event.key.down = false;
+                    break;
+                case INPUT_EVENT_MOUSE_DOWN:
+                    input_event.mouse.button = event.button.button;
+                    input_event.mouse.x = event.button.x;
+                    input_event.mouse.y = event.button.y;
+                    input_event.mouse.down = true;
+                    break;
+                case INPUT_EVENT_MOUSE_UP:
+                    input_event.mouse.button = event.button.button;
+                    input_event.mouse.x = event.button.x;
+                    input_event.mouse.y = event.button.y;
+                    input_event.mouse.down = false;
+                    break;
+                case INPUT_EVENT_MOUSE_MOTION:
+                    input_event.motion.x = event.motion.x;
+                    input_event.motion.y = event.motion.y;
+                    input_event.motion.dx = event.motion.xrel;
+                    input_event.motion.dy = event.motion.yrel;
+                    break;
+                case INPUT_EVENT_MOUSE_WHEEL:
+                    input_event.wheel.delta = event.wheel.y;
+                    break;
+                default:
+                    break;
             }
             
-            // 更新和渲染
-            DWORD currentTime = SDL_GetTicks();
-            DWORD msec = currentTime - startTime;
+            // 分发输入事件给当前场景
+            SceneManager_OnInput(scene_mgr, &input_event);
             
-            // 渲染屏幕
-            SCR_UpdateScreen();
-            
-            // 帧率控制
-            if (msec < 16) {
-                SDL_Delay(16 - msec);
+            // 检查场景是否请求了跳转
+            scene_transition_t *transition = scene_mgr->pending_transition;
+            if (transition) {
+                SceneManager_Transition(scene_mgr, transition);
             }
         }
         
-        // 清理地图选择界面
-        MapSelect_Shutdown();
-    }
-    
-    // 加载选中的地图
-    SV_Map(map);
-    free(map);
-    
-    // 进入游戏主循环
-    while (true) {
-        DWORD startTime = SDL_GetTicks();
-        DWORD msec = 0;
+            // 检查场景是否请求了跳转
+        scene_transition_t *transition = scene_mgr->pending_transition;
+        if (transition) {
+            SceneManager_Transition(scene_mgr, transition);
+        }
+        // 更新当前场景
+        scene_transition_t *update_transition = NULL;
+        update_transition = scene_mgr->current_scene->update(scene_mgr->current_scene, (int)(dt * 1000));
+        
+        if (update_transition) {
+            SceneManager_Transition(scene_mgr, update_transition);
+        }
+        
+        // 渲染当前场景
+        // 注意：SceneManager_Render只是调用scene->render()，不会刷新屏幕
+        // 我们需要在这里统一处理屏幕刷新
+        
+        re.BeginFrame();
+        SceneManager_Render(scene_mgr);
+        re.EndFrame();
         
         // 帧率控制
-        if (msec < 16) {
-            SDL_Delay(16 - msec);
+        DWORD frameTime = SDL_GetTicks() - currentTime;
+        if (frameTime < 16) {
+            SDL_Delay(16 - frameTime);
         }
         
-        SV_Frame(msec);
-        CL_Frame(msec);
+        startTime = SDL_GetTicks();
     }
+    
+    // 清理SceneManager
+    SceneManager_Destroy(scene_mgr);
     
     return 0;
 }

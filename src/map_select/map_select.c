@@ -5,7 +5,9 @@
 #include "ui_container.h"
 #include "../canvas2d/canvas2d.h"
 #include "../client/client.h"
+#include "../client/cl_game_scene.h"
 #include "../common/common.h"
+#include "../common/scene.h"
 #include "../common/cmodel.h"
 #include "../common/mapinfo.h"
 #include <SDL2/SDL.h>
@@ -18,8 +20,7 @@
 // 最大地图数量
 #define MAX_MAPS 500
 
-// 最大路径长度
-#define MAX_PATH_LEN 512
+// 最大路径长度（使用shared.h中的MAX_PATHLEN）
 
 // 文件浏览器项类型
 typedef enum {
@@ -31,7 +32,7 @@ typedef enum {
 // 文件浏览器项
 typedef struct {
     char name[256];            // 显示名称
-    char full_path[MAX_PATH_LEN]; // 完整路径
+    char full_path[MAX_PATHLEN]; // 完整路径
     item_type_t type;          // 类型
 } browser_item_t;
 
@@ -46,11 +47,11 @@ static map_select_state_t g_state = MAP_SELECT_STATE_INIT;
 static char *g_start_map_path = NULL;
 
 // 当前浏览的路径
-static char g_current_path[MAX_PATH_LEN] = "";
+static char g_current_path[MAX_PATHLEN] = "";
 static bool g_at_root = true;
 
 // 当前预览的地图路径（用于检测选中变化）
-static char g_current_preview_map[MAX_PATH_LEN] = "";
+static char g_current_preview_map[MAX_PATHLEN] = "";
 
 // Canvas2D 画布
 static canvas2d_t *g_canvas = NULL;
@@ -211,9 +212,9 @@ int MapSelect_LoadMapsFromListfile(void) {
         size_t line_len = line_end - line_start;
         
         // 移除换行符
-        char line[MAX_PATH_LEN];
-        strncpy(line, line_start, line_len < MAX_PATH_LEN - 1 ? line_len : MAX_PATH_LEN - 1);
-        line[line_len < MAX_PATH_LEN - 1 ? line_len : MAX_PATH_LEN - 1] = '\0';
+        char line[MAX_PATHLEN];
+        strncpy(line, line_start, line_len < MAX_PATHLEN - 1 ? line_len : MAX_PATHLEN - 1);
+        line[line_len < MAX_PATHLEN - 1 ? line_len : MAX_PATHLEN - 1] = '\0';
         
         // 移除回车符（Windows风格）
         char *cr = strrchr(line, '\r');
@@ -229,8 +230,8 @@ int MapSelect_LoadMapsFromListfile(void) {
         if (IsMapFile(line)) {
             // 保存到原始列表
             browser_item_t *all_item = &g_all_items[g_all_count];
-            strncpy(all_item->full_path, line, MAX_PATH_LEN - 1);
-            all_item->full_path[MAX_PATH_LEN - 1] = '\0';
+            strncpy(all_item->full_path, line, MAX_PATHLEN - 1);
+            all_item->full_path[MAX_PATHLEN - 1] = '\0';
             
             const char *display_name = GetDisplayName(line);
             strncpy(all_item->name, display_name, 255);
@@ -985,8 +986,8 @@ static void EnterFolder(const char *folder_path) {
         // 进入子目录
         if (g_at_root) {
             // 从根目录进入，直接使用文件夹名
-            strncpy(g_current_path, folder_path, MAX_PATH_LEN - 1);
-            g_current_path[MAX_PATH_LEN - 1] = '\0';
+            strncpy(g_current_path, folder_path, MAX_PATHLEN - 1);
+            g_current_path[MAX_PATHLEN - 1] = '\0';
         } else {
             // 从子目录进入，追加到当前路径
             size_t len = strlen(g_current_path);
@@ -1145,3 +1146,202 @@ void MapSelect_Shutdown(void) {
     g_state = MAP_SELECT_STATE_INIT;
     g_in_map_select = false;
 }
+
+// ========================================
+// Scene 接口实现
+// ========================================
+
+// Scene实例
+static scene_t g_map_select_scene = {
+    .name = "MapSelect",
+    .state = SCENE_STATE_UNINITIALIZED,
+    .user_data = NULL,
+    .launch_params = NULL,
+    .manager = NULL,
+    .init = MapSelectScene_Init,
+    .shutdown = MapSelectScene_Shutdown,
+    .update = MapSelectScene_Update,
+    .render = MapSelectScene_Render,
+    .on_input = MapSelectScene_OnInput,
+    .pause = NULL,
+    .resume = NULL
+};
+
+// Scene 初始化
+int MapSelectScene_Init(scene_t *scene, const scene_params_t *params) {
+    printf("MapSelectScene: Initializing...\n");
+    
+    // 检查启动参数
+    if (params) {
+        const char *start_folder = PARAMS_GET_STRING(params, "start_folder", "");
+        if (strlen(start_folder) > 0) {
+            printf("Starting folder: %s\n", start_folder);
+            // TODO: 可以导航到指定文件夹
+        }
+    }
+    
+    // 调用原有的初始化函数
+    int result = MapSelect_Init();
+    if (result != 0) {
+        printf("MapSelectScene: MapSelect_Init failed with code %d\n", result);
+        return -1;
+    }
+    
+    printf("MapSelectScene: Initialized successfully\n");
+    return 0;
+}
+
+// Scene 关闭
+void MapSelectScene_Shutdown(scene_t *scene) {
+    printf("MapSelectScene: Shutting down...\n");
+    
+    // 调用原有的关闭函数
+    MapSelect_Shutdown();
+    
+    printf("MapSelectScene: Shutdown complete\n");
+}
+
+// Scene 更新
+scene_transition_t* MapSelectScene_Update(scene_t *scene, int msec) {
+    // 调用原有的更新函数
+    MapSelect_Update(msec);
+    
+    // 检查是否需要切换到游戏场景
+    if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {
+        printf("Starting game: %s\n", g_start_map_path);
+        
+        // 创建跳转参数
+        scene_params_t *params = SceneParams_Create();
+        if (params) {
+            SceneParams_SetString(params, "map_path", g_start_map_path);
+            SceneParams_SetString(params, "start_folder", g_current_path);
+            
+            // 创建切换到Game场景的请求
+            // 使用场景名称创建跳转请求
+            scene_transition_t *transition = SceneTransition_CreateByName(
+                TRANSITION_SWITCH,
+                "Game",
+                params,   // 传递地图路径
+                NULL     // 不需要返回值
+            );
+            
+            // 重置状态
+            g_state = MAP_SELECT_STATE_INIT;
+            if (g_start_map_path) {
+                free(g_start_map_path);
+                g_start_map_path = NULL;
+            }
+            
+            return transition;
+        }
+    }
+    
+    return NULL;
+}
+
+// 获取场景实例
+scene_t* MapSelectScene_GetInstance(void) {
+    return &g_map_select_scene;
+}
+
+// Scene 渲染
+void MapSelectScene_Render(scene_t *scene) {
+    MapSelect_Render();
+}
+
+// Scene 输入处理
+scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event) {
+    switch (event->type) {
+        case INPUT_EVENT_KEY_DOWN: {
+            // 键盘事件 - 传递给原有的处理函数
+            MapSelect_HandleInput(event->key.key, event->key.down);
+            
+            // 检查是否需要切换场景
+            if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {
+                scene_params_t *params = SceneParams_Create();
+                if (params) {
+                    SceneParams_SetString(params, "map_path", g_start_map_path);
+                    
+                    scene_transition_t *transition = SceneTransition_CreateByName(
+                        TRANSITION_SWITCH,
+                        "Game",
+                        params,
+                        NULL
+                    );
+                    
+                    g_state = MAP_SELECT_STATE_INIT;
+                    if (g_start_map_path) {
+                        free(g_start_map_path);
+                        g_start_map_path = NULL;
+                    }
+                    
+                    return transition;
+                }
+            }
+            break;
+        }
+        
+        case INPUT_EVENT_MOUSE_DOWN: {
+            // 鼠标按下事件
+            mouse.origin.x = event->mouse.x;
+            mouse.origin.y = event->mouse.y;
+            mouse.button = event->mouse.button;
+            mouse.event = UI_LEFT_MOUSE_DOWN;
+            
+            MapSelect_HandleMouseEvent();
+            
+            // 检查是否需要切换场景
+            if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {
+                scene_params_t *params = SceneParams_Create();
+                if (params) {
+                    SceneParams_SetString(params, "map_path", g_start_map_path);
+                    
+                    scene_transition_t *transition = SceneTransition_CreateByName(
+                        TRANSITION_SWITCH,
+                        "Game",
+                        params,
+                        NULL
+                    );
+                    
+                    g_state = MAP_SELECT_STATE_INIT;
+                    if (g_start_map_path) {
+                        free(g_start_map_path);
+                        g_start_map_path = NULL;
+                    }
+                    
+                    return transition;
+                }
+            }
+            break;
+        }
+        
+        case INPUT_EVENT_MOUSE_UP: {
+            // 鼠标释放事件
+            mouse.origin.x = event->mouse.x;
+            mouse.origin.y = event->mouse.y;
+            mouse.button = 0;
+            mouse.event = UI_LEFT_MOUSE_UP;
+            
+            MapSelect_HandleMouseEvent();
+            break;
+        }
+        
+        case INPUT_EVENT_MOUSE_MOTION: {
+            // 鼠标移动事件
+            mouse.origin.x = event->motion.x;
+            mouse.origin.y = event->motion.y;
+            break;
+        }
+        
+        case INPUT_EVENT_KEY_UP: {
+            MapSelect_HandleInput(event->key.key, event->key.down);
+            break;
+        }
+        
+        default:
+            break;
+    }
+    
+    return NULL;
+}
+

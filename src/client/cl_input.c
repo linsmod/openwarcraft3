@@ -61,7 +61,7 @@ static void CL_HandleZoom(bool zoomIn);
 static float CL_ClampZoomDistance(float distance, float min, float max);
 
 // 网络通信函数声明
-static void CL_SendCommand(const char* format, ...);
+static void CL_SendNetworkCommand(const char* format, ...);
 
 static void pan_camera(float x, float y, float sensivity) {
     cl.viewDef.camerastate->origin.x += x * sensivity;
@@ -186,11 +186,11 @@ static void CL_HandleSingleSelection(int x, int y) {
     
     // 优先选择实体
     if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
-        CL_SendCommand("select %d", entnum);
+        CL_SendNetworkCommand("select %d", entnum);
     }
     // 其次选择地点
     else if (re.TraceLocation(&cl.viewDef, x, y, &point)) {
-        CL_SendCommand("point %d %d", (int)point.x, (int)point.y);
+        CL_SendNetworkCommand("point %d %d", (int)point.x, (int)point.y);
     }
 }
 
@@ -208,7 +208,7 @@ static void CL_HandleAreaSelection(const RECT* rect) {
         sprintf(buffer + strlen(buffer), " %d", selected[i]);
     }
     
-    CL_SendCommand(buffer);
+    CL_SendNetworkCommand(buffer);
 }
 
 // 右键释放处理（War3风格攻击/移动）
@@ -221,12 +221,12 @@ static void CL_HandleRightMouseUp(SDL_Event* event, int* moved) {
         
         // 检查是否右键点击实体（攻击）
         if (re.TraceEntity(&cl.viewDef, event->button.x, event->button.y, &entnum)) {
-            CL_SendCommand("attack %d", entnum);
+        CL_SendNetworkCommand("attack %d", entnum);
         }
         // 检查是否右键点击地面（移动）
         else if (re.TraceLocation(&cl.viewDef, event->button.x, event->button.y, &point)) {
             VECTOR2 location = { (float)point.x, (float)point.y };
-            CL_SendCommand("move %f %f", location.x, location.y);
+        CL_SendNetworkCommand("move %f %f", location.x, location.y);
         }
     }
 }
@@ -304,7 +304,7 @@ static void CL_HandleZoom(bool zoomIn) {
     cl.viewDef.camerastate[0].distance = new_distance;
     
     // 发送到服务器同步
-    CL_SendCommand("zoom %f", new_distance);
+    CL_SendNetworkCommand("zoom %f", new_distance);
 }
 
 // 限制缩放距离
@@ -326,7 +326,7 @@ static void CL_HandleWindowEvent(SDL_Event* event) {
 }
 
 // 发送命令到服务器的辅助函数
-static void CL_SendCommand(const char* format, ...) {
+static void CL_SendNetworkCommand(const char* format, ...) {
     va_list args;
     char buffer[1024];
     
