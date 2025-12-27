@@ -1885,12 +1885,11 @@ static float g_html_last_time = 0.0f;  // 用于计算delta_time
 
 // HTML渲染模式枚举
 typedef enum {
-    HTML_RENDER_MODE_STATIC,    // 静态模式（默认）
-    HTML_RENDER_MODE_ANIMATED,  // 动画模式
+    HTML_RENDER_MODE_ANIMATED,  // 动画模式（默认）
     HTML_RENDER_MODE_INTERACTIVE // 交互模式
 } html_render_mode_t;
 
-static html_render_mode_t g_html_render_mode = HTML_RENDER_MODE_STATIC;
+static html_render_mode_t g_html_render_mode = HTML_RENDER_MODE_ANIMATED;
 
 // 渲染矩形边框
 void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, COLOR32 color) {
@@ -2731,11 +2730,8 @@ void html_update_and_layout(float delta_time) {
     // 1. 渲染背景
     draw_html_background(g_html_render_context);
     
-    // 2. 重新计算布局（如果需要）
-    if (g_html_render_mode == HTML_RENDER_MODE_ANIMATED) {
-        // 在动画模式下，重新计算布局
-        lay_run_context(g_html_render_context->layout_ctx);
-    }
+    // 2. 重新计算布局（总是需要）
+    lay_run_context(g_html_render_context->layout_ctx);
     
     
 }
@@ -2767,7 +2763,6 @@ void html_render_cleanup() {
 void html_render_set_mode(html_render_mode_t mode) {
     g_html_render_mode = mode;
     printf("HTML Render mode set to: %s\n",
-           mode == HTML_RENDER_MODE_STATIC ? "STATIC" :
            mode == HTML_RENDER_MODE_ANIMATED ? "ANIMATED" : "INTERACTIVE");
 }
 
