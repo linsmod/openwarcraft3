@@ -2342,7 +2342,7 @@ void render_html_info_panel(context *ctx) {
     snprintf(info_text, sizeof(info_text), "HTML Renderer - Frame: %d", g_html_frame_count);
     R_DrawUtf8Text(info_text,panel_x + 10, panel_y + 10,  (COLOR32){255, 255, 255, 255}); // 白色文本
     
-    const char *mode_str = "STATIC";
+    const char *mode_str = "ANIMATED";
     if (g_html_render_mode == HTML_RENDER_MODE_ANIMATED) mode_str = "ANIMATED";
     else if (g_html_render_mode == HTML_RENDER_MODE_INTERACTIVE) mode_str = "INTERACTIVE";
     
