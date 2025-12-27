@@ -711,7 +711,7 @@ void SCR_DrawOverlays(void) {
     }
 }
 
-void html_update_frame();
+void html_update_and_layout(float delta_time);
 
 void SCR_UpdateScreen(void) {
 
@@ -724,7 +724,7 @@ void SCR_UpdateScreen(void) {
 
     // canvas2d_update_frame();
 
-    // html_update_frame();
+    // html_update_frame(0.0f);  // 传递0表示不更新动画管理器
 
     CON_DrawConsole();
     

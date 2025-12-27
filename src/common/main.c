@@ -2,6 +2,7 @@
 #include "../server/server.h"
 #include "../map_select/map_select.h"
 #include "../client/cl_game_scene.h"
+#include "../splash/splash_scene.h"
 #include "scene.h"
 #include "canvas2d/canvas2d.h"
 
@@ -61,13 +62,13 @@ int main(int argc, LPSTR argv[]) {
     
     // 检查 MPQ 参数
     if (!mpq) {
-        printf(USAGE);
-        return 1;
+        FS_AddArchive("/home/wulin/Warcraft-III-1.27a/War3.mpq"); // 默认MPQ路径，方便测试
+        // printf(USAGE);
+        // return 1;
     }
-    
     // 初始化游戏系统
     Com_Init();
-    html_init("../html_tests/test_enhanced_css.html");
+    html_init("../html_tests/splash.html");
     
     // 初始化SceneManager
     scene_manager_t *scene_mgr = SceneManager_Create();
@@ -76,11 +77,18 @@ int main(int argc, LPSTR argv[]) {
         return 1;
     }
     
-    // 获取MapSelect和Game场景实例
+    // 获取Splash、MapSelect和Game场景实例
+    scene_t *splash_scene = SplashScene_GetInstance();
     scene_t *map_select_scene = MapSelectScene_GetInstance();
     scene_t *game_scene = GameScene_GetInstance();
     
     // 注册场景到SceneManager
+    if (SceneManager_RegisterScene(scene_mgr, splash_scene) != 0) {
+        printf("Failed to register Splash scene\n");
+        SceneManager_Destroy(scene_mgr);
+        return 1;
+    }
+    
     if (SceneManager_RegisterScene(scene_mgr, map_select_scene) != 0) {
         printf("Failed to register MapSelect scene\n");
         SceneManager_Destroy(scene_mgr);
@@ -93,27 +101,24 @@ int main(int argc, LPSTR argv[]) {
         return 1;
     }
     
-    // 根据是否有map参数决定启动哪个场景
-    if (!map) {
-        // 没有提供地图，显示地图选择界面
-        printf("No map specified, showing map selection screen...\n");
-        SceneManager_SwitchScene(scene_mgr, map_select_scene, NULL);
-    } else {
-        // 直接启动游戏场景
-        printf("Loading map: %s\n", map);
-        
-        // 创建传递给Game场景的参数
-        scene_params_t *params = SceneParams_Create();
-        if (params) {
-            SceneParams_SetString(params, "map_path", map);
-            SceneParams_SetString(params, "start_folder", "");
-            SceneManager_SwitchScene(scene_mgr, game_scene, params);
-            SceneParams_Destroy(params);
+    // 先启动splash场景，传递参数给splash以决定后续跳转
+    // 使用共享参数，因为场景会在其生命周期内保持引用
+    scene_params_t *splash_params = SceneParams_CreateShared();
+    if (splash_params) {
+        if (map) {
+            SceneParams_SetString(splash_params, "map_path", map);
+            SceneParams_SetString(splash_params, "next_scene", "Game");
         } else {
-            printf("Failed to create scene parameters\n");
-            SceneManager_Destroy(scene_mgr);
-            return 1;
+            SceneParams_SetString(splash_params, "next_scene", "MapSelect");
         }
+        
+        printf("Starting splash screen...\n");
+        SceneManager_SwitchScene(scene_mgr, splash_scene, splash_params);
+        // 不销毁共享参数，让程序退出时自动清理
+    } else {
+        printf("Failed to create splash parameters\n");
+        SceneManager_Destroy(scene_mgr);
+        return 1;
     }
     
     // 主游戏循环 - 使用SceneManager

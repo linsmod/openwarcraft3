@@ -527,11 +527,18 @@ const scene_params_t* SceneManager_GetPreviousResult(scene_manager_t *mgr) {
 void SceneManager_Update(scene_manager_t *mgr, int msec) {
     if (!mgr || !mgr->current_scene) return;
     
+    
+    if(mgr->pending_transition) {
+        SceneManager_Transition(mgr, mgr->pending_transition);
+        SceneTransition_Destroy(mgr->pending_transition);
+        mgr->pending_transition = NULL;
+        return;
+    }
     // 调用场景的update函数，检查是否有跳转请求
     scene_transition_t *transition = SCENE_UPDATE(mgr->current_scene, msec);
     if (transition) {
         mgr->pending_transition = transition;
-        SceneManager_Transition(mgr, transition);
+        SceneManager_Transition(mgr, mgr->pending_transition);
         SceneTransition_Destroy(mgr->pending_transition);
         mgr->pending_transition = NULL;
     }
@@ -558,7 +565,6 @@ void SceneManager_OnInput(scene_manager_t *mgr, input_event_t *event) {
     for (int i = mgr->stack_size - 1; i >= 0; i--) {
         scene_t *scene = mgr->stack[i];
         if (scene->state == SCENE_STATE_ACTIVE && scene->on_input) {
-            // 调用场景的on_input，检查是否有跳转请求
             SCENE_ON_INPUT(scene, event);
             if (event->handled) {
                 break;  // 事件已被处理，停止分发

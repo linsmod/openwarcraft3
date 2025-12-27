@@ -66,11 +66,11 @@ void CL_Init(void) {
     re.Init(WINDOW_WIDTH, WINDOW_HEIGHT);
 
     // 初始化canvas2d测试
-    if (canvas2d_init_test() == 0) {
-        CON_printf("Canvas 2D Test initialized successfully");
-    } else {
-        CON_printf("Failed to initialize Canvas 2D Test");
-    }
+    // if (canvas2d_init_test() == 0) {
+    //     CON_printf("Canvas 2D Test initialized successfully");
+    // } else {
+    //     CON_printf("Failed to initialize Canvas 2D Test");
+    // }
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     

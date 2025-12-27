@@ -36,10 +36,16 @@
 #include "layout.h"
 
 #include "html.h"
+#include "animation/anim_state.h"
+#include "css/css_animation.h"
 
 #define UNUSED(x) ((x)=(x))
 
 #define GETLAYID(node) ((userdata*)node->_private)->layid
+
+// Macro to apply animated opacity to a color
+#define APPLY_ANIMATED_OPACITY(color, opacity) \
+    ((COLOR32){(color).r, (color).g, (color).b, (BYTE)((color).a * (opacity))})
 
 /**
  * Error codes
@@ -81,6 +87,18 @@ typedef struct context {
 	lay_context* layout_ctx;			/**< Layout context */
 	struct PZHashTable *node_to_layout_id; /**< XML node -> layout ID mapping */
 
+	// Animation integration
+	animation_manager_t* anim_mgr;	/**< Animation manager */
+
+	// Keyframes storage
+	int num_keyframes;			/**< Number of stored keyframe animations */
+	#define MAX_KEYFRAMES 32
+	struct {
+		char name[64];			/**< Animation name */
+		keyframe_t keyframes[32];	/**< Keyframe data */
+		int keyframe_count;		/**< Number of keyframes */
+	} keyframes_store[MAX_KEYFRAMES];
+
 	int inhead;
 } context;
 
@@ -92,6 +110,9 @@ typedef struct userdata{
 	LPCSTR __f;
 	LPCSS parsedStyle;
 	LPCSS computedStyle;
+	uint32_t animation_id;  /**< Animation instance ID if this element is animated */
+	COLOR32 bg_color;        /**< Background color for rendering */
+	bool has_bg_color;       /**< Whether background color is set */
 } userdata;
 
 #define ALLOCUDREF(c,ud,rc) \
@@ -102,6 +123,9 @@ typedef struct userdata{
 	ud->__ln= __LINE__; \
 	ud->layid = lay_item(c->layout_ctx); \
 	ud->parsedStyle = NULL; \
+	ud->computedStyle = NULL; \
+	ud->animation_id = 0; \
+	ud->has_bg_color = false; \
 	ud->refcount = rc;
 
 #define ALLOCUD(c,ud) \
@@ -112,6 +136,9 @@ typedef struct userdata{
 	ud->__ln= __LINE__; \
 	ud->layid = lay_item(c->layout_ctx); \
 	ud->parsedStyle = NULL; \
+	ud->computedStyle = NULL; \
+	ud->animation_id = 0; \
+	ud->has_bg_color = false; \
 	ud->refcount = 0;
 
 /**
@@ -195,6 +222,7 @@ int html_render_init(context *ctx);
 
 /* Layout helper functions */
 static int extract_number(const char *css, const char *property);
+static color32_t parse_css_color(const char *color_str);
 void apply_css_to_layout(context *c, xmlNode *node, const char *css);
 void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c);
 static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c);
@@ -250,6 +278,17 @@ error_code create_context(const char *charset, context **ctx)
 	lay_init_context(c->layout_ctx);
 	lay_reset_context(c->layout_ctx); /* Clear any existing data */
 	lay_reserve_items_capacity(c->layout_ctx, 1000); /* Pre-allocate */
+
+	// animation manager
+	c->anim_mgr = malloc(sizeof(animation_manager_t));
+	if (c->anim_mgr == NULL) {
+		lay_destroy_context(c->layout_ctx);
+		free(c->layout_ctx);
+		hubbub_parser_destroy(c->parser);
+		free(c);
+		return NOMEM;
+	}
+	anim_manager_init(c->anim_mgr);
 
 
 	/* Allocate userdata for document */
@@ -318,6 +357,13 @@ void destroy_context(context *c)
 
 	/* Clean up layout context */
 	lay_destroy_context(c->layout_ctx);
+
+	/* Clean up animation manager */
+	if (c->anim_mgr != NULL) {
+		anim_manager_cleanup(c->anim_mgr);
+		free(c->anim_mgr);
+		c->anim_mgr = NULL;
+	}
 
 	c->parser = NULL;
 	c->encoding = NULL;
@@ -1109,6 +1155,7 @@ hubbub_error add_attributes(void *ctx, void *node,
 			return HUBBUB_NOMEM;
 		}
 
+		printf("DEBUG: attr %d: name='%s', value='%s'\n", attr, name, value ? value : "NULL");
 		if (attributes[attr].ns != HUBBUB_NS_NULL && 
 				c->namespaces[0] != NULL) {
 			prop = xmlNewNsProp(n, 
@@ -1125,8 +1172,15 @@ hubbub_error add_attributes(void *ctx, void *node,
 
 		if (name != NULL && strcmp(name, "style") == 0) {
             if (value != NULL) {
+                printf("DEBUG: style attribute found: '%s'\n", value);
                 apply_css_to_layout(c, n, value);
-                free(value);
+            }
+        }
+
+		if (name != NULL && strcmp(name, "animation") == 0) {
+            if (value != NULL) {
+                // Parse and start animation
+                apply_animation_attribute(c, n, value);
             }
         }
 
@@ -1201,11 +1255,90 @@ hubbub_error change_encoding(void *ctx, const char *charset)
 	return (charset == name) ? HUBBUB_OK : HUBBUB_ENCODINGCHANGE;
 }
 
+/**
+ * Get current animated value for an element (if animated)
+ * @param c HTML context
+ * @param node XML node
+ * @param prop_index Property index to retrieve
+ * @param value Output value
+ * @return true if value exists and is animated, false otherwise
+ */
+static bool get_element_animation_value(context *c, xmlNode *node, int prop_index, anim_value_t *value) {
+    if (!c || !node || !c->anim_mgr) return false;
+    
+    userdata *ud = (userdata *) node->_private;
+    if (!ud || ud->animation_id == 0) return false;
+    
+    // Get current animation value
+    return anim_manager_get_value(c->anim_mgr, ud->animation_id, prop_index, value);
+}
+
+/**
+ * Apply animation attribute to an HTML element
+ * Parses the animation shorthand and starts the animation if keyframes are found
+ */
+void apply_animation_attribute(context *c, xmlNode *node, const char *animation_value) {
+	if (!c || !node || !animation_value) return;
+	if (!c->anim_mgr) return;
+
+
+	// Parse animation shorthand property
+	animation_props_t props;
+	if (!css_parse_animation_shorthand(animation_value, &props)) {
+		printf("Failed to parse animation: '%s'\n", animation_value);
+		return;
+	}
+
+	printf("Parsed animation: name='%s', duration=%.2fs, timing=%s, iterations=%d\n",
+		   props.name, props.duration, props.timing_func, props.iteration_count);
+
+	// Find keyframes by name
+	int keyframes_idx = -1;
+	for (int i = 0; i < c->num_keyframes; i++) {
+		if (strcasecmp(c->keyframes_store[i].name, props.name) == 0) {
+			keyframes_idx = i;
+			break;
+		}
+	}
+
+	if (keyframes_idx == -1) {
+		printf("Keyframes '%s' not found in stored keyframes\n", props.name);
+		return;
+	}
+
+	printf("Found keyframes: '%s' with %d keyframes\n",
+		   c->keyframes_store[keyframes_idx].name,
+		   c->keyframes_store[keyframes_idx].keyframe_count);
+
+	// Start animation
+	uint32_t anim_id = anim_manager_start(
+		c->anim_mgr,
+		&props,
+		c->keyframes_store[keyframes_idx].keyframes,
+		c->keyframes_store[keyframes_idx].keyframe_count
+	);
+
+	if (anim_id == 0) {
+		printf("Failed to start animation\n");
+		return;
+	}
+
+	printf("Started animation with ID: %u\n", anim_id);
+
+	// Store animation ID in node's userdata
+	userdata *ud = (userdata *) node->_private;
+	if (ud) {
+		ud->animation_id = anim_id;
+	}
+}
+
 void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 {
 	lay_id layout_id = GETLAYID(node);
 	
 	if (layout_id == LAY_INVALID_ID) return;
+	
+	printf("DEBUG: apply_css_to_layout called with css='%s'\n", css);
 	
 	/* Enhanced CSS parsing with support for more properties */
 	
@@ -1375,6 +1508,93 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
 		lay_set_size_xy(c->layout_ctx, layout_id, current_width + left, current_height);
 	}
+	
+/* Animation property */
+	if (strstr(css, "animation:")) {
+		const char *anim_start = strstr(css, "animation:") + 10; /* Skip "animation:" including colon */
+		
+		printf("DEBUG: Found 'animation:', anim_start='%s'\n", anim_start);
+		
+		/* Skip whitespace */
+		while (*anim_start && (*anim_start == ' ')) {
+			anim_start++;
+		}
+		
+		printf("DEBUG: After skipping whitespace, anim_start='%s'\n", anim_start);
+		
+		/* Extract animation value */
+		char anim_value[256];
+		int i = 0;
+		while (*anim_start && (*anim_start != ';' && *anim_start != '}') && i < sizeof(anim_value) - 1) {
+			anim_value[i++] = *anim_start++;
+		}
+		anim_value[i] = '\0';
+		
+		printf("DEBUG: Found animation in style: '%s'\n", anim_value);
+		
+		/* Apply animation */
+		apply_animation_attribute(c, node, anim_value);
+	}
+	
+	/* Background color support */
+	if (strstr(css, "background-color:")) {
+		const char *color_start = strstr(css, "background-color:");
+		color_start += 16; /* Skip "background-color:" */
+		
+		/* Skip whitespace */
+		while (*color_start && (*color_start == ' ' || *color_start == ':')) {
+			color_start++;
+		}
+		
+		/* Extract color value */
+		char color_str[32];
+		int i = 0;
+		while (*color_start && (*color_start != ';' && *color_start != '}') && i < sizeof(color_str) - 1) {
+			color_str[i++] = *color_start++;
+		}
+		color_str[i] = '\0';
+		
+		/* Parse and apply color */
+		COLOR32 bg_color = parse_css_color(color_str);
+		printf("DEBUG: Parsed background-color '%s' -> r=%d,g=%d,b=%d,a=%d\n", color_str, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
+		
+		/* Store color for rendering */
+		if (c) {
+			userdata *ud = (userdata *)node->_private;
+			if (ud) {
+				ud->bg_color = bg_color;
+				ud->has_bg_color = true;
+				printf("DEBUG: Stored bg_color for element\n");
+			}
+		}
+	}
+	
+/* Animation property */
+	if (strstr(css, "animation:")) {
+		const char *anim_start = strstr(css, "animation:") + 10; /* Skip "animation:" including colon */
+		
+		printf("DEBUG: Found 'animation:', anim_start='%s'\n", anim_start);
+		
+		/* Skip whitespace */
+		while (*anim_start && (*anim_start == ' ')) {
+			anim_start++;
+		}
+		
+		printf("DEBUG: After skipping whitespace, anim_start='%s'\n", anim_start);
+		
+		/* Extract animation value */
+		char anim_value[256];
+		int i = 0;
+		while (*anim_start && (*anim_start != ';' && *anim_start != '}') && i < sizeof(anim_value) - 1) {
+			anim_value[i++] = *anim_start++;
+		}
+		anim_value[i] = '\0';
+		
+		printf("DEBUG: Found animation in style: '%s'\n", anim_value);
+		
+		/* Apply animation */
+		apply_animation_attribute(c, node, anim_value);
+	}
 }
 
 static int extract_number(const char *css, const char *property)
@@ -1460,7 +1680,10 @@ static color32_t parse_css_color(const char *color_str)
  */
 void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 {
+	printf("DEBUG: apply_enhanced_css_to_layout called for node '%s'\n", node->name ? (char*)node->name : "NULL");
+	printf("DEBUG: CSS content: '%s'\n", css);
 	lay_id layout_id = GETLAYID(node);
+	printf("DEBUG: layout_id=%d\n", layout_id);
 	
 	if (layout_id == LAY_INVALID_ID) return;
 	
@@ -1487,29 +1710,41 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 	if (strstr(css, "width:")) {
 		const char *end_ptr;
 		int width = extract_number_with_unit(css, "width:", &end_ptr);
+		printf("DEBUG: Parsing width, raw=%d\n", width);
 		if (end_ptr && strstr(end_ptr, "px")) {
 			/* Use pixel value directly */
+			printf("DEBUG: width is in pixels: %d\n", width);
 		} else if (end_ptr && strstr(end_ptr, "%")) {
 			/* Percentage - calculate based on parent width */
 			size2_t vpsize = R_GetViewPortSize();
 			width = (int)(vpsize.width * width / 100.0);
+			printf("DEBUG: width is percentage, calculated: %d\n", width);
 		}
-		lay_set_size_xy(c->layout_ctx, layout_id, width,
-		               lay_get_size(c->layout_ctx, layout_id)[1]);
+		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Current size before setting width: (%.2f,%.2f)\n", current_size[0], current_size[1]);
+		lay_set_size_xy(c->layout_ctx, layout_id, width, current_size[1]);
+		current_size = lay_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Size after setting width: (%.2f,%.2f)\n", current_size[0], current_size[1]);
 	}
 	
 	if (strstr(css, "height:")) {
 		const char *end_ptr;
 		int height = extract_number_with_unit(css, "height:", &end_ptr);
+		printf("DEBUG: Parsing height, raw=%d\n", height);
 		if (end_ptr && strstr(end_ptr, "px")) {
 			/* Use pixel value directly */
+			printf("DEBUG: height is in pixels: %d\n", height);
 		} else if (end_ptr && strstr(end_ptr, "%")) {
 			/* Percentage - calculate based on parent height */
 			size2_t vpsize = R_GetViewPortSize();
 			height = (int)(vpsize.height * height / 100.0);
+			printf("DEBUG: height is percentage, calculated: %d\n", height);
 		}
-		lay_set_size_xy(c->layout_ctx, layout_id,
-		               lay_get_size(c->layout_ctx, layout_id)[0], height);
+		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Current size before setting height: (%.2f,%.2f)\n", current_size[0], current_size[1]);
+		lay_set_size_xy(c->layout_ctx, layout_id, current_size[0], height);
+		current_size = lay_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Size after setting height: (%.2f,%.2f)\n", current_size[0], current_size[1]);
 	}
 	
 	/* Background color support */
@@ -1532,14 +1767,15 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 		
 		/* Parse and apply color */
 		COLOR32 bg_color = parse_css_color(color_str);
+		printf("DEBUG: Parsed background-color '%s' -> r=%d,g=%d,b=%d,a=%d\n", color_str, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
 		
-		/* Store color for rendering (this would need to be integrated with the rendering system) */
-		/* For now, we'll just store it in the userdata */
+		/* Store color for rendering */
 		if (c) {
 			userdata *ud = (userdata *)node->_private;
 			if (ud) {
-				/* We could extend userdata to store color information */
-				/* For now, this is just a placeholder */
+				ud->bg_color = bg_color;
+				ud->has_bg_color = true;
+				printf("DEBUG: Stored bg_color for element\n");
 			}
 		}
 	}
@@ -1555,6 +1791,34 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			}
 		}
 	}
+	
+	/* Animation property */
+	if (strstr(css, "animation:")) {
+		const char *anim_start = strstr(css, "animation:") + 9; /* Skip "animation:" */
+		
+		printf("DEBUG: Found 'animation:', anim_start='%s'\n", anim_start);
+		
+		/* Skip whitespace */
+		while (*anim_start && (*anim_start == ' ')) {
+			anim_start++;
+		}
+		
+		printf("DEBUG: After skipping whitespace, anim_start='%s'\n", anim_start);
+		
+		/* Extract animation value */
+		char anim_value[256];
+		int i = 0;
+		while (*anim_start && (*anim_start != ';' && *anim_start != '}') && i < sizeof(anim_value) - 1) {
+			anim_value[i++] = *anim_start++;
+		}
+		anim_value[i] = '\0';
+		
+		printf("DEBUG: Found animation in style: '%s'\n", anim_value);
+		
+		/* Apply animation */
+		apply_animation_attribute(c, node, anim_value);
+	}
+	
 	if (strstr(css, "font-family:")) {
 		const char *font_start = strstr(css, "font-family:");
 		font_start += 12; /* Skip "font-family:" */
@@ -1617,6 +1881,7 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 static context *g_html_render_context = NULL;
 static int g_html_frame_count = 0;
 static bool g_html_render_enabled = true;
+static float g_html_last_time = 0.0f;  // 用于计算delta_time
 
 // HTML渲染模式枚举
 typedef enum {
@@ -1727,10 +1992,9 @@ void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_sca
         /* Get color from style */
         const char *color_str = css_get_property_string(style, CSS_PROP_COLOR);
         if (color_str && color_str[0] == '#') {
-			// TODO
-            // render_color = (COLOR32)strtoul(color_str + 1, NULL, 16);
-            /* Add alpha channel if missing */
-            // if (strlen(color_str) == 7) render_color |= 0xFF000000;
+            /* Parse hex color and convert to COLOR32 */
+            color32_t parsed_color = parse_css_color(color_str);
+            render_color = (COLOR32){parsed_color.r, parsed_color.g, parsed_color.b, parsed_color.a};
         }
         
         /* Get font properties */
@@ -1784,15 +2048,142 @@ void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar heigh
     };
     R_DrawImageEx(&drawImg);
 }
+// 简单的CSS类选择器匹配和应用
+static void apply_css_class_selectors(context *ctx, xmlNode *root, const char *css) {
+    if (!ctx || !root || !css) return;
+    
+    printf("DEBUG: CSS Class Selector - Starting to parse CSS...\n");
+    const char *pos = css;
+    
+    while (*pos) {
+        // 跳过空白和@keyframes
+        while (*pos && (*pos == ' ' || *pos == '\n' || *pos == '\r' || *pos == '\t')) pos++;
+        if (*pos == '@') {
+            // 跳过@规则（如@keyframes）
+            pos++;
+            while (*pos && *pos != '{') pos++;
+            if (*pos == '{') {
+                pos++;
+                int brace_count = 1;
+                while (*pos && brace_count > 0) {
+                    if (*pos == '{') brace_count++;
+                    else if (*pos == '}') brace_count--;
+                    pos++;
+                }
+            }
+            continue;
+        }
+        
+        if (!*pos) break;
+        
+        // 提取选择器（如.splash-container或body）
+        const char *selector_start = pos;
+        while (*pos && *pos != '{') pos++;
+        if (*pos != '{') break;
+        const char *selector_end = pos;
+        
+        // 提取样式块
+        pos++;
+        const char *style_start = pos;
+        int brace_count = 1;
+        while (*pos && brace_count > 0) {
+            if (*pos == '{') brace_count++;
+            else if (*pos == '}') brace_count--;
+            pos++;
+        }
+        const char *style_end = pos - 1;
+        
+        // 复制选择器
+        char selector[64] = {0};
+        int selector_len = selector_end - selector_start;
+        if (selector_len > 0) {
+            // 去除选择器前后的空白
+            while (selector_len > 0 && (selector_start[selector_len-1] == ' ' || selector_start[selector_len-1] == '\n')) selector_len--;
+            if (selector_len > 0) {
+                strncpy(selector, selector_start, selector_len < 63 ? selector_len : 63);
+                selector[selector_len < 63 ? selector_len : 63] = '\0';
+                printf("DEBUG: Extracted selector='%s', selector_len=%d\n", selector, selector_len);
+            }
+        }
+        
+        // 复制样式
+        char style[1024] = {0};
+        int style_len = style_end - style_start;
+        if (style_len > 0 && style_len < sizeof(style) - 1) {
+            strncpy(style, style_start, style_len);
+            style[style_len] = '\0';
+            printf("DEBUG: Extracted style for selector '%s': '%s'\n", selector, style);
+            
+            // 遍历DOM树，查找匹配的元素
+            xmlNode *current = root;
+            printf("DEBUG: Determining selector type for '%s'\n", selector);
+            if (strcmp(selector, "body") == 0) {
+                printf("DEBUG: Selector type is 'body'\n");
+                // 查找body元素
+                xmlNode *body = xmlDocGetRootElement(ctx->document);
+                if (body) {
+                    body = body->children;
+                    while (body) {
+                        if (body->type == XML_ELEMENT_NODE && strcmp((char*)body->name, "body") == 0) {
+                            apply_enhanced_css_to_layout(ctx, body, style);
+                            break;
+                        }
+                        body = body->next;
+                    }
+                }
+            } else if (selector[0] == '.') {
+                printf("DEBUG: Selector type is class selector (starts with '.')\n");
+                // 类选择器（如.splash-container）
+                const char *class_name = selector + 1;
+                
+                // 递归遍历DOM树
+                void traverse_and_apply(xmlNode *node) {
+                    if (!node) return;
+                    
+                    if (node->type == XML_ELEMENT_NODE) {
+                        // 检查class属性
+                        for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
+                            if (attr->name && strcmp((char*)attr->name, "class") == 0) {
+                                if (attr->children && attr->children->content) {
+                                    const char *attr_class = (char*)attr->children->content;
+                                    printf("DEBUG: Checking element '%s', class='%s', looking for '%s'\n", 
+                                           (char*)node->name, attr_class, class_name);
+                                    if (strstr(attr_class, class_name) != NULL) {
+                                        printf("DEBUG: MATCH! Applying style to element '%s'\n", (char*)node->name);
+                                        // 匹配成功，应用样式
+                                        apply_enhanced_css_to_layout(ctx, node, style);
+                                        // printf("DEBUG: Applied class selector '%s' to element\n", selector);
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 递归处理子节点
+                    for (xmlNode *child = node->children; child; child = child->next) {
+						traverse_and_apply(child);
+					}
+                }
+                
+                traverse_and_apply(xmlDocGetRootElement(ctx->document));
+            }
+        }
+    }
+}
+
 void process_style_node(context *ctx, xmlNode *node, int depth) {
 	if (!ctx || !node) return;
 	
 	// 获取style节点的文本内容
 	xmlChar *style_content = xmlNodeGetContent(node);
 	if (style_content) {
-		// 解析并应用CSS样式
+		// 解析并应用CSS样式（包括类选择器）
 		const char *css = (const char *)style_content;
-		apply_enhanced_css_to_layout(ctx, node->parent, css);
+		
+		// 先处理CSS类选择器
+		apply_css_class_selectors(ctx, xmlDocGetRootElement(ctx->document), css);
 		
 		xmlFree(style_content);
 	}
@@ -1825,45 +2216,70 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
     // 根据元素类型进行不同的渲染
     if (node->type == XML_ELEMENT_NODE) {
         const char *element_name = node->name ? (char*)node->name : "unknown";
-        
+
+        // Check if element has animation and apply animated values
+        anim_value_t anim_value;
+        bool has_animation = get_element_animation_value(ctx, node, 0, &anim_value);
+        float animated_opacity = 1.0f; // Default to full opacity
+        if (has_animation) {
+            // Apply opacity animation (anim_value.number is used for opacity)
+            animated_opacity = anim_value.number;
+        }
+
         // 根据元素类型进行渲染
-        if (strcmp(element_name, "div") == 0) {
-            // 渲染div边框（调试用）
-            render_rect_border(x, y, width, height, (COLOR32){255, 0, 0, 128}); // 红色半透明边框
-        } else if (strcmp(element_name, "p") == 0) {
-            // 渲染段落边框（调试用）
-            render_rect_border(x, y, width, height, (COLOR32){0, 255, 0, 128}); // 绿色半透明边框
+        // First, draw background if it exists
+        userdata *ud = (userdata *)node->_private;
+        printf("DEBUG: Rendering element '%s' at (%.2f,%.2f) size=(%.2fx%.2f), ud=%p, has_bg_color=%d\n", 
+               element_name, x, y, width, height, ud, ud ? ud->has_bg_color : -1);
+        if (ud && ud->has_bg_color) {
+            printf("DEBUG: Drawing bg_color=(%d,%d,%d,%d) for '%s'\n", 
+                   ud->bg_color.r, ud->bg_color.g, ud->bg_color.b, ud->bg_color.a, element_name);
+            render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(ud->bg_color, animated_opacity));
+        }
+
+        // 移除了调试边框，让渲染更美观
+        if (strcmp(element_name, "p") == 0) {
+            // 段落元素 - 无边框
         } else if (strcmp(element_name, "h1") == 0 || strcmp(element_name, "h2") == 0 ||
                    strcmp(element_name, "h3") == 0 || strcmp(element_name, "h4") == 0 ||
                    strcmp(element_name, "h5") == 0 || strcmp(element_name, "h6") == 0) {
-            // 渲染标题边框（调试用）
-            render_rect_border(x, y, width, height, (COLOR32){0, 0, 255, 128}); // 蓝色半透明边框
+            // 标题元素 - 无边框
         } else if (strcmp(element_name, "img") == 0) {
             // 渲染图片占位符
-            render_rect_fill(x, y, width, height, (COLOR32){200, 200, 200, 255}); // 灰色背景
-            render_rect_border(x, y, width, height, (COLOR32){100, 100, 100, 255}); // 深灰色边框
-            html_render_text(node,"[IMAGE]",x + 5, y + 5,  (COLOR32){100, 100, 100, 255}); // 图片标记
+            COLOR32 img_fill_color = (COLOR32){200, 200, 200, 255};
+            COLOR32 img_border_color = (COLOR32){100, 100, 100, 255};
+            render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(img_fill_color, animated_opacity)); // 灰色背景
+            render_rect_border(x, y, width, height, APPLY_ANIMATED_OPACITY(img_border_color, animated_opacity)); // 深灰色边框
+            html_render_text(node,"[IMAGE]",x + 5, y + 5,  APPLY_ANIMATED_OPACITY(img_border_color, animated_opacity)); // 图片标记
         } else if (strcmp(element_name, "input") == 0 ||
                    strcmp(element_name, "textarea") == 0 ||
                    strcmp(element_name, "select") == 0) {
             // 渲染表单控件
-            render_rect_fill(x, y, width, height, (COLOR32){240, 240, 240, 255}); // 浅灰色背景
-            render_rect_border(x, y, width, height, (COLOR32){128, 128, 128, 255}); // 灰色边框
-            html_render_text(node,"[FORM]", x + 5, y + 5, (COLOR32){64, 64, 64, 255}); // 表单标记
+            COLOR32 form_fill_color = (COLOR32){240, 240, 240, 255};
+            COLOR32 form_border_color = (COLOR32){128, 128, 128, 255};
+            COLOR32 form_text_color = (COLOR32){64, 64, 64, 255};
+            render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(form_fill_color, animated_opacity)); // 浅灰色背景
+            render_rect_border(x, y, width, height, APPLY_ANIMATED_OPACITY(form_border_color, animated_opacity)); // 灰色边框
+            html_render_text(node,"[FORM]", x + 5, y + 5, APPLY_ANIMATED_OPACITY(form_text_color, animated_opacity)); // 表单标记
         } else if (strcmp(element_name, "table") == 0) {
-            // 渲染表格边框
-            render_rect_border(x, y, width, height, (COLOR32){128, 0, 128, 128}); // 紫色半透明边框
+            // 表格元素 - 无边框
         } else if (strcmp(element_name, "ul") == 0 || strcmp(element_name, "ol") == 0) {
-            // 渲染列表边框
-            render_rect_border(x, y, width, height, (COLOR32){255, 165, 0, 128}); // 橙色半透明边框
+            // 列表元素 - 无边框
         } else if (strcmp(element_name, "style") == 0) {
 			process_style_node(ctx, node, depth);
             return;
         } else if (strcmp(element_name, "script") == 0) {
 			process_script_node(ctx, node, depth);
             return;
+        } else if (strcmp(element_name, "div") == 0) {
+            // div元素 - 添加白色边框以便调试
+            if (!ud || !ud->has_bg_color) {
+                render_rect_border(x, y, width, height, (COLOR32){255, 255, 255, 255});
+            } else {
+                render_rect_border(x, y, width, height, (COLOR32){200, 200, 200, 255});
+            }
         } else if (strcmp(element_name, "head") == 0) {
-            return;
+            // return;
         }
         
         // 递归渲染子元素
@@ -2058,13 +2474,19 @@ int html_init(LPCSTR filename)
 	lay_run_context(c->layout_ctx);
 	
 	/* Print layout information */
-	printf("=== Layout Information ===\n");
-	print_layout_info(c->layout_ctx, c->document, c);
-	printf("=========================\n");
+	// printf("=== Layout Information ===\n");
+	// print_layout_info(c->layout_ctx, c->document, c);
+	// printf("=========================\n");
 	
 	
     g_html_render_context = c;
     g_html_frame_count = 0;
+
+    /* Scan and store @keyframes rules */
+    html_scan_and_store_keyframes();
+
+    /* Reapply animations after keyframes are loaded */
+    html_reapply_all_animations();
 
 	fclose(input);
 
@@ -2075,6 +2497,192 @@ int html_destroy(){
 	destroy_context(g_html_render_context);
 }
 
+/**
+ * 递归处理XML节点的keyframes扫描
+ */
+static void scan_node_for_keyframes(xmlNode *node) {
+	if (!node) return;
+
+	// 查找style标签
+	if (node->type == XML_ELEMENT_NODE) {
+		const char *name = (const char *)node->name;
+		if (strcasecmp(name, "style") == 0) {
+			// 提取style内容
+			xmlChar *content = xmlNodeGetContent(node);
+			if (content) {
+				const char *css_content = (const char *)content;
+				printf("Found <style> tag, scanning for @keyframes...\n");
+
+				// 扫描@keyframes规则
+				const char *keyframes_pos = strstr(css_content, "@keyframes");
+				const char *block_end = NULL; // 提前声明，以便在循环外使用
+				while (keyframes_pos && g_html_render_context->num_keyframes < MAX_KEYFRAMES) {
+					// 查找@keyframes后的名称
+					const char *name_start = keyframes_pos + 10; // 跳过"@keyframes"
+					while (*name_start && isspace(*name_start)) name_start++;
+
+					// 查找名称结束（在{之前）
+					const char *name_end = strchr(name_start, '{');
+					if (!name_end) break;
+
+					// 提取动画名称
+					int name_len = name_end - name_start;
+					if (name_len > 0 && name_len < 64) {
+						strncpy(g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name,
+							   name_start, name_len);
+						g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name[name_len] = '\0';
+
+						// 提取完整的@keyframes内容
+						const char *block_start = name_end;
+						int brace_count = 0;
+						block_end = block_start;
+
+						for (; *block_end; block_end++) {
+							if (*block_end == '{') brace_count++;
+							else if (*block_end == '}') {
+								brace_count--;
+								if (brace_count == 0) {
+									block_end++; // 包含最后的}
+									break;
+								}
+							}
+						}
+
+						// 创建完整的keyframes字符串
+						int block_len = block_end - keyframes_pos;
+						char *keyframes_text = malloc(block_len + 1);
+						if (keyframes_text) {
+							strncpy(keyframes_text, keyframes_pos, block_len);
+							keyframes_text[block_len] = '\0';
+
+							// 使用css_parse_keyframes解析
+							int count = css_parse_keyframes(
+								keyframes_text,
+								g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name,
+								g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].keyframes,
+								32
+							);
+
+							if (count > 0) {
+								g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].keyframe_count = count;
+								printf("  -> Stored keyframes: '%s' with %d keyframes\n",
+								   g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name, count);
+								g_html_render_context->num_keyframes++;
+							}
+
+							free(keyframes_text);
+						}
+					}
+
+					// 继续查找下一个@keyframes
+					if (block_end) {
+						keyframes_pos = strstr(block_end, "@keyframes");
+					} else {
+						break;
+					}
+				}
+
+				xmlFree(content);
+			}
+		}
+	}
+
+	// 递归处理子节点
+	if (node->children) {
+		xmlNode *child = node->children;
+		while (child) {
+			scan_node_for_keyframes(child);
+			child = child->next;
+		}
+	}
+}
+
+/**
+ * 扫描并存储@keyframes规则
+ * 遍历DOM树查找<style>标签，提取@keyframes并存储到context中
+ */
+void html_scan_and_store_keyframes(void) {
+	if (!g_html_render_context || !g_html_render_context->document) {
+		return;
+	}
+
+	// 重置keyframes存储
+	g_html_render_context->num_keyframes = 0;
+	memset(g_html_render_context->keyframes_store, 0, sizeof(g_html_render_context->keyframes_store));
+
+	printf("Scanning for @keyframes in HTML document...\n");
+
+	// 从根节点开始扫描
+	xmlNode *root = xmlDocGetRootElement(g_html_render_context->document);
+	if (root) {
+		scan_node_for_keyframes(root);
+	}
+
+	printf("Total keyframes stored: %d\n", g_html_render_context->num_keyframes);
+}
+
+/**
+ * @brief 重新应用节点上的动画属性
+ * 在keyframes加载完成后调用此函数
+ */
+static void reapply_node_animations(xmlNode *node) {
+	if (!node || node->type != XML_ELEMENT_NODE) {
+		return;
+	}
+
+	// 检查 animation 属性
+	xmlAttr *attr = node->properties;
+	while (attr) {
+		const char *attr_name = (const char *)attr->name;
+		if (attr_name && strcmp(attr_name, "animation") == 0) {
+			const char *attr_value = (const char *)xmlNodeGetContent(attr->children);
+			if (attr_value) {
+				printf("Reapplying animation attribute: '%s'\n", attr_value);
+				apply_animation_attribute(g_html_render_context, node, attr_value);
+			}
+		}
+		attr = attr->next;
+	}
+
+	// 检查 style 属性中的 animation
+	attr = node->properties;
+	while (attr) {
+		const char *attr_name = (const char *)attr->name;
+		if (attr_name && strcmp(attr_name, "style") == 0) {
+			const char *attr_value = (const char *)xmlNodeGetContent(attr->children);
+			if (attr_value && strstr(attr_value, "animation:")) {
+				printf("Reapplying animation from style: '%s'\n", attr_value);
+				apply_css_to_layout(g_html_render_context, node, attr_value);
+			}
+		}
+		attr = attr->next;
+	}
+
+	// 递归处理子节点
+	if (node->children) {
+		xmlNode *child = node->children;
+		while (child) {
+			reapply_node_animations(child);
+			child = child->next;
+		}
+	}
+}
+
+/**
+ * @brief 在加载keyframes后重新应用所有动画
+ */
+void html_reapply_all_animations(void) {
+	if (!g_html_render_context || !g_html_render_context->document) {
+		return;
+	}
+
+	printf("Reapplying all animations after keyframes loaded...\n");
+	xmlNode *root = xmlDocGetRootElement(g_html_render_context->document);
+	if (root) {
+		reapply_node_animations(root);
+	}
+}
+
 // 渲染HTML文档背景
 void draw_html_background(context *ctx) {
     if (!ctx || !ctx->document) return;
@@ -2082,19 +2690,43 @@ void draw_html_background(context *ctx) {
     // 获取窗口大小
     size2_t vpsize = R_GetViewPortSize();
     
-    // 渲染白色背景
-    render_rect_fill(0, 0, vpsize.width, vpsize.height, (COLOR32){255, 255, 255, 160});
+    // 尝试从body元素获取背景色
+    COLOR32 bg_color = (COLOR32){0, 0, 0, 255}; // 默认黑色背景
     
-    // printf("Drawing HTML background: %dx%d\n", vpsize.width, vpsize.height);
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (root) {
+        xmlNode *body = root->children;
+        while (body) {
+            if (body->type == XML_ELEMENT_NODE && strcmp((char*)body->name, "body") == 0) {
+                userdata *ud = (userdata *)body->_private;
+                if (ud && ud->has_bg_color) {
+                    bg_color = ud->bg_color;
+                }
+                break;
+            }
+            body = body->next;
+        }
+    }
+    
+    // 渲染背景
+    render_rect_fill(0, 0, vpsize.width, vpsize.height, bg_color);
+    
+    // printf("Drawing HTML background: %dx%d, color=(%d,%d,%d,%d)\n", 
+    //        vpsize.width, vpsize.height, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
 }
 
 // 主要的HTML渲染帧函数
-void html_update_frame() {
+void html_update_and_layout(float delta_time) {
     if (!g_html_render_context || !g_html_render_enabled) {
         return;
     }
-    
+
     g_html_frame_count++;
+
+    // 0. 更新动画管理器（如果提供了delta_time）
+    if (delta_time > 0.0f && g_html_render_context->anim_mgr) {
+        anim_manager_update(g_html_render_context->anim_mgr, delta_time);
+    }
     
     // 1. 渲染背景
     draw_html_background(g_html_render_context);
@@ -2105,7 +2737,10 @@ void html_update_frame() {
         lay_run_context(g_html_render_context->layout_ctx);
     }
     
-    // 3. 渲染HTML元素
+    
+}
+void html_render(){
+	// 3. 渲染HTML元素
     if (g_html_render_context->document) {
         xmlNode *root = xmlDocGetRootElement(g_html_render_context->document);
         if (root) {
@@ -2115,7 +2750,6 @@ void html_update_frame() {
     
     // 4. 渲染信息面板
     render_html_info_panel(g_html_render_context);
-    
     // printf("HTML Render Frame %d completed\n", g_html_frame_count);
 }
 

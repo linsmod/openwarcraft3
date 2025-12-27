@@ -65,6 +65,9 @@ file(GLOB SOURCES
     "src/client/*.c"
     "src/server/*.c"
     "src/html/*.c"
+    "src/html/css/*.c"
+    "src/html/renderer/*.c"
+    "src/html/animation/*.c"
     "src/libs/*.c"
 )
 
@@ -73,6 +76,7 @@ set(SCENE_SOURCES
     src/common/scene.c
     src/common/input_converter.c
     src/client/cl_game_scene.c
+    src/splash/splash_scene.c
 )
 list(APPEND SOURCES ${SCENE_SOURCES})
 

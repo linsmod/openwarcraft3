@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenWarcraft3 Splash Screen</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 800px;
+            height: 600px;
+            background-color: #1a1a2e;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .splash-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeInOut 6s ease-in-out forwards;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            8.33% { opacity: 1; }    /* 淡入：0.5秒 (0.5/6 = 8.33%) */
+            91.67% { opacity: 1; }   /* 显示：5秒 */
+            100% { opacity: 0; }     /* 淡出：0.5秒 */
+        }
+        
+        .logo-container {
+            width: 200px;
+            height: 200px;
+            margin-bottom: 40px;
+            background-color: #2b5876;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .logo-text {
+            font-size: 64px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        
+        .title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #e0e0e0;
+            margin-bottom: 15px;
+        }
+        
+        .subtitle {
+            font-size: 24px;
+            color: #a0a0a0;
+            margin-bottom: 40px;
+        }
+        
+        .version {
+            font-size: 16px;
+            color: #60a5fa;
+            margin-bottom: 30px;
+            padding: 8px 20px;
+            background-color: #60a5fa;
+            color: #ffffff;
+        }
+        
+        .loading-container {
+            width: 300px;
+            margin-top: 20px;
+        }
+        
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #303030;
+        }
+        
+        .loading-progress {
+            width: 100%;
+            height: 100%;
+            background-color: #4e4376;
+        }
+        
+        .loading-text {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #808080;
+        }
+        
+        .footer {
+            text-align: center;
+        }
+        
+        .hint {
+            font-size: 14px;
+            color: #505050;
+        }
+        
+        .copyright {
+            font-size: 12px;
+            color: #303030;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-container">
+        <div class="logo-container">
+            <div class="logo-text">W3</div>
+        </div>
+        
+        <div class="title">OpenWarcraft3</div>
+        <div class="subtitle">A Complete Reimplementation</div>
+        
+        <div class="version">v0.1.0 Alpha</div>
+        
+        <div class="loading-container">
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <div class="loading-text">LOADING...</div>
+        </div>
+        
+        <div class="footer">
+            <div class="hint">Press any key or click to continue</div>
+            <div class="copyright">© 2024 OpenWarcraft3 Project</div>
+        </div>
+    </div>
+</body>
+</html>
