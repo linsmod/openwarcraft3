@@ -120,7 +120,7 @@ int main(int argc, LPSTR argv[]) {
     DWORD startTime = SDL_GetTicks();
     while (true) {
         DWORD currentTime = SDL_GetTicks();
-        float dt = (currentTime - startTime) / 1000.0f;
+        float dt =currentTime - startTime;
         
         // 处理SDL事件并分发给当前场景
         SDL_Event event;
@@ -171,26 +171,9 @@ int main(int argc, LPSTR argv[]) {
             
             // 分发输入事件给当前场景
             SceneManager_OnInput(scene_mgr, &input_event);
-            
-            // 检查场景是否请求了跳转
-            scene_transition_t *transition = scene_mgr->pending_transition;
-            if (transition) {
-                SceneManager_Transition(scene_mgr, transition);
-            }
         }
-        
-            // 检查场景是否请求了跳转
-        scene_transition_t *transition = scene_mgr->pending_transition;
-        if (transition) {
-            SceneManager_Transition(scene_mgr, transition);
-        }
-        // 更新当前场景
-        scene_transition_t *update_transition = NULL;
-        update_transition = scene_mgr->current_scene->update(scene_mgr->current_scene, (int)(dt * 1000));
-        
-        if (update_transition) {
-            SceneManager_Transition(scene_mgr, update_transition);
-        }
+        // 更新当前场景（如果有transition会自动设置到pending）
+        SceneManager_Update(scene_mgr, dt);
         
         // 渲染当前场景
         // 注意：SceneManager_Render只是调用scene->render()，不会刷新屏幕
@@ -206,7 +189,7 @@ int main(int argc, LPSTR argv[]) {
             SDL_Delay(16 - frameTime);
         }
         
-        startTime = SDL_GetTicks();
+        startTime = currentTime;
     }
     
     // 清理SceneManager

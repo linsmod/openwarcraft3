@@ -79,22 +79,28 @@ static ui_text_t g_preview_players_text;     // 推荐玩家数
 static ui_text_t g_preview_type_text;        // 文件类型
 static ui_text_t g_preview_path_text;       // 完整路径
 
-// 全局标志：是否在地图选择模式
-bool g_in_map_select = false;
+// ========================================
+// 辅助函数
+// ========================================
+
+// 开始游戏 - 公共函数
+static void StartGame(const char *map_path, const char *source) {
+    printf("Starting game (%s): %s\n", source, map_path);
+    g_start_map_path = strdup(map_path);
+    g_state = MAP_SELECT_STATE_DONE;
+}
 
 // START GAME 按钮点击回调
 static void OnStartGameClick(void *user_data) {
     int selected = UIList_GetSelected(&g_ui_list);
     if (selected >= 0) {
-        void *user_data = UIList_GetSelectedUserData(&g_ui_list);
-        if (user_data) {
-            int all_index = (int)(intptr_t)user_data;
+        void *item_data = UIList_GetSelectedUserData(&g_ui_list);
+        if (item_data) {
+            int all_index = (int)(intptr_t)item_data;
             if (all_index >= 0 && all_index < g_all_count) {
                 browser_item_t *item = &g_all_items[all_index];
                 if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
-                    printf("Starting game (button click): %s\n", item->full_path);
-                    g_start_map_path = strdup(item->full_path);
-                    g_state = MAP_SELECT_STATE_DONE;
+                    StartGame(item->full_path, "button click");
                 }
             }
         }
@@ -658,17 +664,9 @@ int MapSelect_Init(void) {
     FilterCurrentPath();
     
     g_state = MAP_SELECT_STATE_LIST;
-    g_in_map_select = true;
     
     printf("Map Selection Screen initialized\n");
     return 0;
-}
-
-// 更新地图选择界面
-void MapSelect_Update(int msec) {
-    if (g_state == MAP_SELECT_STATE_DONE) {
-        return;
-    }
 }
 
 
@@ -1027,9 +1025,7 @@ bool MapSelect_HandleInput(int key, bool down) {
                             EnterFolder(item->name);
                         } else {
                             // 选择地图 - 地图信息已在预览时加载，直接开始游戏
-                            printf("Starting game: %s\n", item->full_path);
-                            g_start_map_path = strdup(item->full_path);
-                            g_state = MAP_SELECT_STATE_DONE;
+                            StartGame(item->full_path, "keyboard");
                         }
                     }
                 } else {
@@ -1140,13 +1136,11 @@ void MapSelect_Shutdown(void) {
     if (g_start_map_path) {
         free(g_start_map_path);
         g_start_map_path = NULL;
-    }
+}
     
     g_map_count = 0;
     g_state = MAP_SELECT_STATE_INIT;
-    g_in_map_select = false;
 }
-
 // ========================================
 // Scene 接口实现
 // ========================================
@@ -1203,12 +1197,9 @@ void MapSelectScene_Shutdown(scene_t *scene) {
 
 // Scene 更新
 scene_transition_t* MapSelectScene_Update(scene_t *scene, int msec) {
-    // 调用原有的更新函数
-    MapSelect_Update(msec);
     
     // 检查是否需要切换到游戏场景
     if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {
-        printf("Starting game: %s\n", g_start_map_path);
         
         // 创建跳转参数
         scene_params_t *params = SceneParams_Create();
@@ -1252,35 +1243,12 @@ void MapSelectScene_Render(scene_t *scene) {
 // Scene 输入处理
 scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event) {
     switch (event->type) {
-        case INPUT_EVENT_KEY_DOWN: {
+        case INPUT_EVENT_KEY_DOWN:
+        case INPUT_EVENT_KEY_UP:
             // 键盘事件 - 传递给原有的处理函数
             MapSelect_HandleInput(event->key.key, event->key.down);
-            
-            // 检查是否需要切换场景
-            if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {
-                scene_params_t *params = SceneParams_Create();
-                if (params) {
-                    SceneParams_SetString(params, "map_path", g_start_map_path);
-                    
-                    scene_transition_t *transition = SceneTransition_CreateByName(
-                        TRANSITION_SWITCH,
-                        "Game",
-                        params,
-                        NULL
-                    );
-                    
-                    g_state = MAP_SELECT_STATE_INIT;
-                    if (g_start_map_path) {
-                        free(g_start_map_path);
-                        g_start_map_path = NULL;
-                    }
-                    
-                    return transition;
-                }
-            }
             break;
-        }
-        
+            
         case INPUT_EVENT_MOUSE_DOWN: {
             // 鼠标按下事件
             mouse.origin.x = event->mouse.x;
@@ -1289,32 +1257,9 @@ scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event)
             mouse.event = UI_LEFT_MOUSE_DOWN;
             
             MapSelect_HandleMouseEvent();
-            
-            // 检查是否需要切换场景
-            if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {
-                scene_params_t *params = SceneParams_Create();
-                if (params) {
-                    SceneParams_SetString(params, "map_path", g_start_map_path);
-                    
-                    scene_transition_t *transition = SceneTransition_CreateByName(
-                        TRANSITION_SWITCH,
-                        "Game",
-                        params,
-                        NULL
-                    );
-                    
-                    g_state = MAP_SELECT_STATE_INIT;
-                    if (g_start_map_path) {
-                        free(g_start_map_path);
-                        g_start_map_path = NULL;
-                    }
-                    
-                    return transition;
-                }
-            }
             break;
         }
-        
+            
         case INPUT_EVENT_MOUSE_UP: {
             // 鼠标释放事件
             mouse.origin.x = event->mouse.x;
@@ -1325,23 +1270,18 @@ scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event)
             MapSelect_HandleMouseEvent();
             break;
         }
-        
-        case INPUT_EVENT_MOUSE_MOTION: {
+            
+        case INPUT_EVENT_MOUSE_MOTION:
             // 鼠标移动事件
             mouse.origin.x = event->motion.x;
             mouse.origin.y = event->motion.y;
             break;
-        }
-        
-        case INPUT_EVENT_KEY_UP: {
-            MapSelect_HandleInput(event->key.key, event->key.down);
-            break;
-        }
-        
+            
         default:
             break;
     }
     
+    // 输入处理函数不返回 transition，场景跳转统一由 Update 处理
     return NULL;
 }
 

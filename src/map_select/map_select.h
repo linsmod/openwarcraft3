@@ -41,9 +41,6 @@ typedef enum {
 // 初始化地图选择界面
 int MapSelect_Init(void);
 
-// 更新地图选择界面
-void MapSelect_Update(int msec);
-
 // 渲染地图选择界面
 void MapSelect_Render(void);
 

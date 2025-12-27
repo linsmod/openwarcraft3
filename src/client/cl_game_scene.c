@@ -66,6 +66,10 @@ int GameScene_Init(scene_t *scene, const scene_params_t *params) {
                 
                 // 加载地图
                 SV_Map(data->current_map_path);
+                
+                // 发送 new 命令连接到服务器
+                extern void CL_ConnectionlessPacket(void);
+                CL_ConnectionlessPacket();
             } else {
                 printf("GameScene: No map_path parameter provided\n");
                 free(data);
@@ -86,10 +90,6 @@ int GameScene_Init(scene_t *scene, const scene_params_t *params) {
         free(data);
         return -1;
     }
-    
-    // 清除mapselect标志
-    extern bool g_in_map_select;
-    g_in_map_select = false;
     
     printf("GameScene: Initialized successfully\n");
     return 0;
@@ -136,12 +136,10 @@ void GameScene_Render(scene_t *scene) {
     if (!data) return;
     
     // 渲染3D场景
+    re.ResizeIfNeeded();
     V_RenderView();
     
-    // 如果没有暂停，渲染UI覆盖层
-    if (!data->paused) {
-        SCR_DrawOverlays();
-    }
+    SCR_DrawOverlays();
 }
 
 // Scene 输入处理
@@ -226,6 +224,11 @@ scene_transition_t* GameScene_OnInput(scene_t *scene, input_event_t *event) {
             switch (event->mouse.button) {
                 case 1:
                     mouse.event = UI_LEFT_MOUSE_DOWN;
+                    cl.selection.in_progress = true;
+                    cl.selection.rect.x = mouse.origin.x;
+                    cl.selection.rect.y = mouse.origin.y;
+                    cl.selection.rect.w = 0;
+                    cl.selection.rect.h = 0;
                     break;
                 case 2:
                     mouse.event = UI_MIDDLE_MOUSE_DOWN;
@@ -247,15 +250,52 @@ scene_transition_t* GameScene_OnInput(scene_t *scene, input_event_t *event) {
             mouse.button = 0;
             
             switch (event->mouse.button) {
-                case 1:
+                case 1: {
                     mouse.event = UI_LEFT_MOUSE_UP;
+                    RECT const r = cl.selection.rect;
+                    cl.selection.in_progress = false;
+                    
+                    // 判断是点击还是框选
+                    if (fabs(r.w) + fabs(r.h) < 10) {
+                        // 单个实体选择
+                        DWORD entnum;
+                        VECTOR3 point;
+                        if (re.TraceEntity(&cl.viewDef, event->mouse.x, event->mouse.y, &entnum)) {
+                            CL_SendNetworkCommand("select %d", entnum);
+                        } else if (re.TraceLocation(&cl.viewDef, event->mouse.x, event->mouse.y, &point)) {
+                            CL_SendNetworkCommand("point %d %d", (int)point.x, (int)point.y);
+                        }
+                    } else {
+                        // 区域选择
+                        DWORD selected[64] = { 0 };
+                        DWORD num = re.EntitiesInRect(&cl.viewDef, &r, 64, selected);
+                        if (num > 0) {
+                            char buffer[1024] = { 0 };
+                            strcpy(buffer, "select");
+                            for (int i = 0; i < num; i++) {
+                                sprintf(buffer + strlen(buffer), " %d", selected[i]);
+                            }
+                            CL_SendNetworkCommand("%s", buffer);
+                        }
+                    }
                     break;
+                }
                 case 2:
                     mouse.event = UI_MIDDLE_MOUSE_UP;
                     break;
-                case 3:
+                case 3: {
                     mouse.event = UI_RIGHT_MOUSE_UP;
+                    // War3风格攻击/移动
+                    DWORD entnum;
+                    VECTOR3 point;
+                    if (re.TraceEntity(&cl.viewDef, event->mouse.x, event->mouse.y, &entnum)) {
+                        CL_SendNetworkCommand("attack %d", entnum);
+                    } else if (re.TraceLocation(&cl.viewDef, event->mouse.x, event->mouse.y, &point)) {
+                        VECTOR2 location = { (float)point.x, (float)point.y };
+                        CL_SendNetworkCommand("move %f %f", location.x, location.y);
+                    }
                     break;
+                }
             }
             break;
         }

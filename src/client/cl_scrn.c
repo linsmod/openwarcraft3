@@ -719,15 +719,10 @@ void SCR_UpdateScreen(void) {
 
     re.BeginFrame();
     
-    extern bool g_in_map_select;
-    if (g_in_map_select) {
-        MapSelect_Render();
-    } else {
-        V_RenderView();  // 先渲染3D场景
-        SCR_DrawOverlays();  // 再渲染UI元素
-    }
+    V_RenderView();  // 先渲染3D场景
+    SCR_DrawOverlays();  // 再渲染UI元素
 
-    // canvas2d_update_frame();  // 最后渲染canvas2d内容，这样不会覆盖3D场景
+    // canvas2d_update_frame();
 
     // html_update_frame();
 

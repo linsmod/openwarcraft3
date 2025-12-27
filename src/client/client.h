@@ -100,6 +100,8 @@ void SCR_DrawOverlays(void);
 // cl_input.c
 void CL_Input(void);
 void CL_InitInput(void);
+void CL_SendNetworkCommand(const char* format, ...);
+void CL_ConnectionlessPacket(void);
 
 // cl_main.c
 void CL_ReadPackets(void);

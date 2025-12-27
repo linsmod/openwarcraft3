@@ -2,11 +2,11 @@
   "commands": [
     {
       "call": "replace_by_content",
-      "title": "移除main.c中的调试输出",
+      "title": "在 client.h 中添加 CL_ConnectionlessPacket 声明",
       "args": {
-        "file": "/home/wulin/myopenwarcraft3/src/common/main.c",
-        "old_str": "    // 注册场景到SceneManager\n    if (SceneManager_RegisterScene(scene_mgr, map_select_scene) != 0) {\n        printf(\"Failed to register MapSelect scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }\n    \n    if (SceneManager_RegisterScene(scene_mgr, game_scene) != 0) {\n        printf(\"Failed to register Game scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }\n    \n    printf(\"Registered %d scenes\\n\", scene_mgr->registered_count);",
-        "new_str": "    // 注册场景到SceneManager\n    if (SceneManager_RegisterScene(scene_mgr, map_select_scene) != 0) {\n        printf(\"Failed to register MapSelect scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }\n    \n    if (SceneManager_RegisterScene(scene_mgr, game_scene) != 0) {\n        printf(\"Failed to register Game scene\\n\");\n        SceneManager_Destroy(scene_mgr);\n        return 1;\n    }"
+        "file": "/home/wulin/myopenwarcraft3/src/client/client.h",
+        "old_str": "// cl_input.c\nvoid CL_Input(void);\nvoid CL_InitInput(void);\nvoid CL_SendNetworkCommand(const char* format, ...);",
+        "new_str": "// cl_input.c\nvoid CL_Input(void);\nvoid CL_InitInput(void);\nvoid CL_SendNetworkCommand(const char* format, ...);\nvoid CL_ConnectionlessPacket(void);"
       }
     }
   ]

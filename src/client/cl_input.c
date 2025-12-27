@@ -60,9 +60,6 @@ static void CL_HandleAreaSelection(const RECT* rect);
 static void CL_HandleZoom(bool zoomIn);
 static float CL_ClampZoomDistance(float distance, float min, float max);
 
-// 网络通信函数声明
-static void CL_SendNetworkCommand(const char* format, ...);
-
 static void pan_camera(float x, float y, float sensivity) {
     cl.viewDef.camerastate->origin.x += x * sensivity;
     cl.viewDef.camerastate->origin.y += y * sensivity;
@@ -326,7 +323,7 @@ static void CL_HandleWindowEvent(SDL_Event* event) {
 }
 
 // 发送命令到服务器的辅助函数
-static void CL_SendNetworkCommand(const char* format, ...) {
+void CL_SendNetworkCommand(const char* format, ...) {
     va_list args;
     char buffer[1024];
     
