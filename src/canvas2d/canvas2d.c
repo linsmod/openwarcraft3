@@ -253,6 +253,29 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
     R_DrawUtf8Text2(text, box, ctx->state.fillStyle, font, &ctx->state.transformMatrix);
 }
 
+// 测量文本宽度
+float canvas2d_measure_text(canvas2d_context_t *ctx, const char *text) {
+    if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !text) {
+        return 0.0f;
+    }
+
+    // 使用状态中的字体大小获取字体
+    LPFONT font = R_FontCacheGet(DEFAULT_TEXTFONT_NAME, (DWORD)ctx->state.fontSize);
+    if (!font) {
+        // 如果无法获取字体，返回估算值（字符数 * 字体大小 * 0.6）
+        return strlen(text) * ctx->state.fontSize * 0.6f;
+    }
+
+    // 使用渲染器的文本测量函数（返回归一化坐标）
+    float normalized_width = R_GetFontWidth(font, text);
+    
+    // 获取视口大小，将归一化宽度转换为像素宽度
+    size2_t vpsize = R_GetViewPortSize();
+    float pixel_width = normalized_width * vpsize.width;
+    
+    return pixel_width;
+}
+
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y) {
     if (!ctx || !ctx->canvas || !ctx->canvas->initialized || !text) {
         canvas2d_log_error("Invalid parameters");
@@ -588,22 +611,22 @@ void canvas2d_draw_debug_grid(canvas2d_context_t *ctx, float x, float y, float w
         }
         
         // 打印网格信息到控制台
-        printf("Debug Grid Info:\n");
-        printf("  Position: (%.1f, %.1f)\n", x, y);
-        printf("  Size: %.1f x %.1f\n", width, height);
-        printf("  Grid: %d x %d cells\n", cols, rows);
-        printf("  Cell size: %.1f x %.1f\n", cell_width, cell_height);
-        printf("  Total cells: %d\n", cols * rows);
+        // printf("Debug Grid Info:\n");
+        // printf("  Position: (%.1f, %.1f)\n", x, y);
+        // printf("  Size: %.1f x %.1f\n", width, height);
+        // printf("  Grid: %d x %d cells\n", cols, rows);
+        // printf("  Cell size: %.1f x %.1f\n", cell_width, cell_height);
+        // printf("  Total cells: %d\n", cols * rows);
         
         // 打印关键坐标点
-        printf("  Key coordinates:\n");
-        for (int i = 0; i <= cols; i += (cols > 10 ? cols / 10 : 1)) {
-            for (int j = 0; j <= rows; j += (rows > 10 ? rows / 10 : 1)) {
-                float coord_x = x + i * cell_width;
-                float coord_y = y + j * cell_height;
-                printf("    (%.1f, %.1f)\n", coord_x, coord_y);
-            }
-        }
+        // printf("  Key coordinates:\n");
+        // for (int i = 0; i <= cols; i += (cols > 10 ? cols / 10 : 1)) {
+        //     for (int j = 0; j <= rows; j += (rows > 10 ? rows / 10 : 1)) {
+        //         float coord_x = x + i * cell_width;
+        //         float coord_y = y + j * cell_height;
+        //         printf("    (%.1f, %.1f)\n", coord_x, coord_y);
+        //     }
+        // }
     }
     
     // 绘制边框

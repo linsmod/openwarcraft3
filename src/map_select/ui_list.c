@@ -18,6 +18,11 @@ int UIList_Init(ui_list_t *list, const ui_list_config_t *config, canvas2d_contex
     list->scroll_offset = 0;
     list->scroll_pos = 0.0f;
     list->is_scrolling = false;
+    
+    // 设置默认字体大小（如果未设置）
+    if (list->config.font_size <= 0) {
+        list->config.font_size = 14.0f;
+    }
 
     // 计算可见项数量
     float total_item_height = config->item_height + config->item_spacing;
@@ -292,10 +297,14 @@ void UIList_Render(ui_list_t *list) {
             canvas2d_set_fill_style(list->ctx, bg);
             canvas2d_fill_rect(list->ctx, cfg->x, item_y, cfg->width, cfg->item_height);
 
-            // 文本
+            // 文本（垂直居中）
             COLOR32 text_color = selected ? cfg->selected_text_color : cfg->text_color;
             canvas2d_set_fill_style(list->ctx, text_color);
-            canvas2d_fill_text(list->ctx, item->text, cfg->x + 10, item_y + 10);
+            
+            // 计算垂直居中位置
+            float text_x = cfg->x + 10;
+            float text_y = item_y + (cfg->item_height - cfg->font_size) / 2;
+            canvas2d_fill_text(list->ctx, item->text, text_x, text_y);
 
             // 绘制项边框（仅默认绘制时）
             if (selected) {

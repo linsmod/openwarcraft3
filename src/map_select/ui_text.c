@@ -1,4 +1,5 @@
 #include "ui_text.h"
+#include "canvas2d/canvas2d.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -94,8 +95,7 @@ void UIText_CalcPosition(const ui_text_t *text, float *out_x, float *out_y) {
     *out_x = text->config.x;
     *out_y = text->config.y;
 
-    // 简单的文本宽度估算（每个字符约10像素）
-    float text_width = strlen(text->config.text) * 10.0f;
+    float text_width = canvas2d_measure_text(text->ctx, text->config.text);
     float text_height = text->config.font_size > 0 ? text->config.font_size : 16.0f;
 
     // 水平对齐

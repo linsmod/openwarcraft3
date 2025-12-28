@@ -146,12 +146,18 @@ static void DrawBrowserItemCustom(
         }
     }
 
-    // 绘制图标
+    // 绘制图标（使用较小字体）
     canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 255, 255});
-    canvas2d_fill_text(g_ctx, icon, x + 8, y + 8);
+    canvas2d_set_font_size(g_ctx, 12.0f);
+    float icon_text_height = 12.0f * 1.2f;
+    float icon_y = y + (height - icon_text_height) / 2;
+    canvas2d_fill_text(g_ctx, icon, x + 8, icon_y);
 
     // 绘制文件名（使用回调传入的text参数）
-    canvas2d_fill_text(g_ctx, text, x + 40, y + 8);
+    canvas2d_set_font_size(g_ctx, 14.0f);
+    float text_text_height = 14.0f * 1.2f;
+    float text_y = y + (height - text_text_height) / 2;
+    canvas2d_fill_text(g_ctx, text, x + 40, text_y);
 }
 
 // 检查文件扩展名是否为地图文件
@@ -393,6 +399,7 @@ int MapSelect_Init(void) {
         .height = 580.0f,
         .item_height = 50.0f,
         .item_spacing = 5.0f,
+        .font_size = 14.0f,
         .bg_color = {30, 30, 40, 255},
         .selected_bg_color = {100, 150, 255, 200},
         .border_color = {200, 200, 200, 255},
@@ -412,9 +419,10 @@ int MapSelect_Init(void) {
     ui_button_config_t button_config = {
         .x = 440.0f,
         .y = 500.0f,
-        .width = 200.0f,
+        .width = 280.0f,
         .height = 50.0f,
         .text = "START GAME [ENTER]",
+        .font_size = 20.0f,
         .bg_color = {
             {0, 150, 0, 255},      // 正常
             {0, 180, 0, 255},      // 悬停
@@ -455,7 +463,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_CENTER,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     
     if (UIText_Init(&g_title_text, &title_config, g_ctx) != 0) {
@@ -473,7 +482,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     
     if (UIText_Init(&g_path_text, &path_config, g_ctx) != 0) {
@@ -491,7 +501,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     
     if (UIText_Init(&g_hint_text1, &hint1_config, g_ctx) != 0) {
@@ -509,7 +520,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     
     if (UIText_Init(&g_hint_text2, &hint2_config, g_ctx) != 0) {
@@ -545,7 +557,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     UIText_Init(&g_preview_title_text, &preview_title_config, g_ctx);
     UIContainer_AddText(&g_preview_container, &g_preview_title_text);
@@ -560,7 +573,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     UIText_Init(&g_preview_filename_text, &preview_filename_config, g_ctx);
     UIContainer_AddText(&g_preview_container, &g_preview_filename_text);
@@ -575,7 +589,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     UIText_Init(&g_preview_name_text, &preview_name_config, g_ctx);
     UIContainer_AddText(&g_preview_container, &g_preview_name_text);
@@ -590,7 +605,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     UIText_Init(&g_preview_author_text, &preview_author_config, g_ctx);
     UIContainer_AddText(&g_preview_container, &g_preview_author_text);
@@ -605,7 +621,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     UIText_Init(&g_preview_players_text, &preview_players_config, g_ctx);
     UIContainer_AddText(&g_preview_container, &g_preview_players_text);
@@ -620,7 +637,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     UIText_Init(&g_preview_type_text, &preview_type_config, g_ctx);
     UIContainer_AddText(&g_preview_container, &g_preview_type_text);
@@ -635,7 +653,8 @@ int MapSelect_Init(void) {
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
-        .wrap_width = 0
+        .wrap_width = 0,
+        .visible = true
     };
     UIText_Init(&g_preview_path_text, &preview_path_config, g_ctx);
     UIContainer_AddText(&g_preview_container, &g_preview_path_text);

@@ -135,7 +135,7 @@ void SplashScene_Render(scene_t *scene) {
 }
 
 // Scene 输入处理
-scene_transition_t* SplashScene_OnInput(scene_t *scene, input_event_t *event) {
+void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
     splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
     if (!data || data->is_finished) return;
     

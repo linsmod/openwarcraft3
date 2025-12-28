@@ -192,6 +192,7 @@ static int font_cache_count = 0;
  */
 LPFONT R_FontCacheGet(LPCSTR family, DWORD size)
 {
+    // 首先在缓存中查找精确匹配
     for (int i = 0; i < font_cache_count; i++) {
         if (strcmp(font_cache[i].family, family) == 0 && 
             font_cache[i].size == size) {
@@ -206,6 +207,28 @@ LPFONT R_FontCacheGet(LPCSTR family, DWORD size)
             }
         }
     }
+    
+    // 如果找不到指定大小的字体，尝试从相同 family 的其他大小加载
+    for (int i = 0; i < font_cache_count; i++) {
+        if (strcmp(font_cache[i].family, family) == 0 && font_cache[i].filename) {
+            // 找到相同 family 的字体，使用其字体文件加载新的大小
+            LPFONT new_font = R_LoadFont(font_cache[i].filename, size);
+            if (new_font) {
+                // 添加到缓存
+                if (font_cache_count < 16) {
+                    font_cache_entry_t *entry = &font_cache[font_cache_count++];
+                    strncpy(entry->family, family, sizeof(entry->family)-1);
+                    entry->size = size;
+                    entry->font = new_font;
+                    entry->filename = strdup(font_cache[i].filename);
+                    printf("R_FontCacheGet: Loaded %s size %d from %s\n", family, size, font_cache[i].filename);
+                }
+                return new_font;
+            }
+            break;
+        }
+    }
+    
     return NULL;
 }
 LPFONT R_FontCacheSet(LPCSTR family, DWORD size,LPCSTR filename){

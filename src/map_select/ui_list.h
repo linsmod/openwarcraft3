@@ -27,6 +27,7 @@ typedef struct {
     float height;                     // 列表高度
     float item_height;                // 单项高度
     float item_spacing;               // 项间距
+    float font_size;                  // 字体大小
     COLOR32 bg_color;                 // 背景色
     COLOR32 selected_bg_color;        // 选中背景色
     COLOR32 border_color;             // 边框色

@@ -3,6 +3,7 @@
 
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
+#include "ui_text.h"
 
 // UI 按钮状态
 typedef enum {
@@ -25,6 +26,7 @@ typedef struct {
     COLOR32 bg_color[4];              // 背景色 [正常, 悬停, 按下, 禁用]
     COLOR32 border_color[4];         // 边框色 [正常, 悬停, 按下, 禁用]
     COLOR32 text_color[4];            // 文本颜色 [正常, 悬停, 按下, 禁用]
+    float font_size;                  // 字体大小 (默认 16.0f)
     float border_width;               // 边框宽度
     ui_button_click_callback_t on_click;  // 点击回调函数
     void *user_data;                  // 用户数据
@@ -39,6 +41,7 @@ typedef struct {
     bool is_hovered;
     bool is_pressed;
     canvas2d_context_t *ctx;
+    ui_text_t text_component;  // 文本组件
 } ui_button_t;
 
 // 创建默认按钮配置

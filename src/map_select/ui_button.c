@@ -28,6 +28,7 @@ ui_button_config_t UIButton_GetDefaultConfig(void) {
             {255, 255, 255, 255},  // 按下
             {180, 180, 180, 255}   // 禁用
         },
+        .font_size = 16.0f,
         .border_width = 1.0f,
         .on_click = NULL,
         .user_data = NULL,
@@ -49,6 +50,26 @@ int UIButton_Init(ui_button_t *button, const ui_button_config_t *config, canvas2
     button->state = UI_BUTTON_STATE_NORMAL;
     button->is_hovered = false;
     button->is_pressed = false;
+    if(config->font_size < 8.0f) {
+        button->config.font_size = 16.0f; // 默认字体大小
+    }
+
+    // 初始化文本组件（居中对齐）
+    ui_text_config_t text_config = {
+        .x = config->x + config->width / 2.0f,      // 中心点 X
+        .y = config->y + config->height / 2.0f,     // 中心点 Y
+        .color = config->text_color[0],             // 默认使用正常状态的文本颜色
+        .font_size = config->font_size,
+        .align = UI_TEXT_ALIGN_CENTER,
+        .valign = UI_TEXT_VALIGN_MIDDLE,
+        .wrap = false,
+        .wrap_width = 0,
+        .visible = true
+    };
+    strncpy(text_config.text, config->text, 511);
+    text_config.text[511] = '\0';
+    
+    UIText_Init(&button->text_component, &text_config, ctx);
 
     printf("UIButton initialized: text='%s', pos=(%.1f,%.1f), size=(%.1fx%.1f)\n",
            config->text, config->x, config->y, config->width, config->height);
@@ -61,6 +82,8 @@ void UIButton_SetText(ui_button_t *button, const char *text) {
     if (!button || !text) return;
     strncpy(button->config.text, text, 127);
     button->config.text[127] = '\0';
+    // 同时更新文本组件
+    UIText_SetText(&button->text_component, text);
 }
 
 // 设置按钮位置
@@ -194,18 +217,19 @@ void UIButton_Render(ui_button_t *button) {
         canvas2d_stroke_rect(button->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
     }
 
-    // 绘制文本（居中）
-    if (cfg->text[0] != '\0') {
-        canvas2d_set_fill_style(button->ctx, text_color);
-        // 简单居中计算（假设文本高度约为按钮高度的一半）
-        float text_x = cfg->x + (cfg->width - 100) / 2; // 假设文本宽度约100
-        float text_y = cfg->y + cfg->height / 2 + 5;
-        canvas2d_fill_text(button->ctx, cfg->text, text_x, text_y);
-    }
+    // 更新文本组件的颜色和位置（如果按钮位置或大小改变了）
+    UIText_SetColor(&button->text_component, text_color);
+    UIText_SetPosition(&button->text_component, cfg->x + cfg->width / 2.0f, cfg->y + cfg->height / 2.0f);
+    UIText_SetFontSize(&button->text_component, cfg->font_size);
+    
+    // 渲染文本组件
+    UIText_Render(&button->text_component);
 }
 
 // 清理按钮
 void UIButton_Shutdown(ui_button_t *button) {
     if (!button) return;
+    // 清理文本组件
+    UIText_Shutdown(&button->text_component);
     memset(button, 0, sizeof(ui_button_t));
 }

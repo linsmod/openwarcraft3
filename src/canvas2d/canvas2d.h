@@ -81,6 +81,9 @@ void canvas2d_stroke_circle(canvas2d_context_t *ctx, float x, float y, float rad
 void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, float y);
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y);
 
+// Text measurement
+float canvas2d_measure_text(canvas2d_context_t *ctx, const char *text);
+
 // Image operations
 void canvas2d_draw_image(canvas2d_context_t *ctx, LPCTEXTURE texture, float x, float y);
 void canvas2d_draw_image_scaled(canvas2d_context_t *ctx, LPCTEXTURE texture, float x, float y, float width, float height);
