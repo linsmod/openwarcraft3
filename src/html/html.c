@@ -1930,12 +1930,8 @@ void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar
     if (width <= 0 || height <= 0) return;
     
     // 归一化坐标
-    RECT rect = {
-        NORM(x), 
-        NORM(y),
-        NORM(width),
-        NORM(height)
-    };
+	size2_t vpsize = R_GetViewPortSize();
+    RECT rect = NORM_HTML_RECT(rect, vpsize);
     
     R_DrawWireRect(&rect, color);
 }
@@ -1944,13 +1940,10 @@ void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar
 void render_rect_fill(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, COLOR32 color) {
     if (width <= 0 || height <= 0) return;
     
+	
     // 归一化坐标
-    RECT rect = {
-        NORM(x), 
-        NORM(y),
-        NORM(width),
-        NORM(height)
-    };
+	size2_t vpsize = R_GetViewPortSize();
+    RECT rect = NORM_HTML_RECT(rect, vpsize);
     
     RECT uv = {0, 0, 1, 1};
     DRAWIMAGE drawImg = {
@@ -2217,7 +2210,7 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
 }
 
 extern LPFONT g_default_text_font;
-void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_scalar y, COLOR32 default_color)
+void html_render_textnode(xmlNode* textnode, const char *text, lay_scalar x, lay_scalar y, COLOR32 default_color)
 {
     if (!text || strlen(text) == 0) return;
     
@@ -2266,8 +2259,15 @@ void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_sca
     }
 
 	// layout_text_html(render_color,arg.rect,)
-    RECT rect = MAKE(RECT, NORM(x), NORM(y),1,1);
+	size2_t vpsize = R_GetViewPortSize();
+    RECT rect = MAKE(RECT, x*1.0/vpsize.width, y*1.0/vpsize.height,1,1);
     R_DrawUtf8Text2(text,rect,render_color,render_font,NULL);
+}
+
+void render_text(const char *text, lay_scalar x, lay_scalar y, COLOR32 render_color){
+	size2_t vpsize = R_GetViewPortSize();
+    RECT rect = MAKE(RECT, x*1.0/vpsize.width, y*1.0/vpsize.height,1,1);
+    R_DrawUtf8Text2(text,rect,render_color,g_default_text_font,NULL);
 }
 
 // 渲染图片
@@ -2275,12 +2275,8 @@ void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar heigh
     if (!texture || width <= 0 || height <= 0) return;
     
     // 归一化坐标
-    RECT rect = {
-        NORM(x), 
-        NORM(y),
-        NORM(width),
-        NORM(height)
-    };
+	size2_t vpsize = R_GetViewPortSize();
+    RECT rect = NORM_HTML_RECT(rect, vpsize);
     
     RECT uv = {0, 0, 1, 1};
     DRAWIMAGE drawImg = {
@@ -2736,19 +2732,19 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         // 移除了调试边框，让渲染更美观
         if (strcmp(element_name, "p") == 0) {
             // 段落元素 - 无边框
-			html_render_text(node, element_name, x + 5, y + 5, (COLOR32){0, 0, 0, 255});
+			html_render_textnode(node, element_name, x + 5, y + 5, (COLOR32){0, 0, 0, 255});
         } else if (strcmp(element_name, "h1") == 0 || strcmp(element_name, "h2") == 0 ||
                    strcmp(element_name, "h3") == 0 || strcmp(element_name, "h4") == 0 ||
                    strcmp(element_name, "h5") == 0 || strcmp(element_name, "h6") == 0) {
             // 标题元素 - 无边框
-			html_render_text(node, element_name, x + 5, y + 5, (COLOR32){0, 0, 0, 255});
+			html_render_textnode(node, element_name, x + 5, y + 5, (COLOR32){0, 0, 0, 255});
         } else if (strcmp(element_name, "img") == 0) {
             // 渲染图片占位符
             COLOR32 img_fill_color = (COLOR32){200, 200, 200, 255};
             COLOR32 img_border_color = (COLOR32){100, 100, 100, 255};
             render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(img_fill_color, animated_opacity)); // 灰色背景
             render_rect_border(x, y, width, height, APPLY_ANIMATED_OPACITY(img_border_color, animated_opacity)); // 深灰色边框
-            html_render_text(node,"[IMAGE]",x + 5, y + 5,  APPLY_ANIMATED_OPACITY(img_border_color, animated_opacity)); // 图片标记
+            html_render_textnode(node,"[IMAGE]",x + 5, y + 5,  APPLY_ANIMATED_OPACITY(img_border_color, animated_opacity)); // 图片标记
         } else if (strcmp(element_name, "input") == 0 ||
                    strcmp(element_name, "textarea") == 0 ||
                    strcmp(element_name, "select") == 0) {
@@ -2758,7 +2754,7 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
             COLOR32 form_text_color = (COLOR32){64, 64, 64, 255};
             render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(form_fill_color, animated_opacity)); // 浅灰色背景
             render_rect_border(x, y, width, height, APPLY_ANIMATED_OPACITY(form_border_color, animated_opacity)); // 灰色边框
-            html_render_text(node,"[FORM]", x + 5, y + 5, APPLY_ANIMATED_OPACITY(form_text_color, animated_opacity)); // 表单标记
+            html_render_textnode(node,"[FORM]", x + 5, y + 5, APPLY_ANIMATED_OPACITY(form_text_color, animated_opacity)); // 表单标记
         } else if (strcmp(element_name, "table") == 0) {
             // 表格元素 - 无边框
         } else if (strcmp(element_name, "ul") == 0 || strcmp(element_name, "ol") == 0) {
@@ -2808,7 +2804,7 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
                 
                 // 如果文本不为空，则渲染
                 if (strlen(start) > 0) {
-                    html_render_text(node, start,x + 5, y + 5,  (COLOR32){0, 0, 0, 255}); // 黑色文本
+                    html_render_textnode(node, start,x + 5, y + 5,  (COLOR32){0, 0, 0, 255}); // 黑色文本
                 }
                 
                 free(clean_text);
@@ -3201,9 +3197,6 @@ void html_reapply_all_animations(void) {
 void draw_html_background(context *ctx) {
     if (!ctx || !ctx->document) return;
     
-    // 获取窗口大小
-    size2_t vpsize = R_GetViewPortSize();
-    
     // 尝试从body元素获取背景色
     COLOR32 bg_color = (COLOR32){255, 255, 255, 255}; 
     
@@ -3222,10 +3215,27 @@ void draw_html_background(context *ctx) {
         }
     }
     
-    // 渲染背景
-    render_rect_fill(0, 0, 400, 600, bg_color);
-    printf("Drawing HTML background: %dx%d, color=(%d,%d,%d,%d)\n", 
-           vpsize.width, vpsize.height, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
+    // 渲染背景渐变
+	int blocks = 20;
+	for(int i=blocks;i>=1;i--){
+		// 使用线性插值计算渐变颜色
+		float ratio = (float)i / blocks;
+		COLOR32 current_color = {
+			(uint8_t)(bg_color.r * ratio),
+			(uint8_t)(bg_color.g * ratio),
+			(uint8_t)(bg_color.b * ratio),
+			(uint8_t)(bg_color.a * ratio * 0.95f) // 添加alpha渐变，使末端更透明
+		};
+		render_rect_fill(0, 0, 40*i, 30*i, current_color);
+	}
+	for(int i=blocks;i>=0;i--){
+		char info[100];
+		snprintf(info, 100, "%d\n",40*i);
+		render_text(info, 40*i, 0, COLOR32_RED);
+
+		snprintf(info, 100, "%d\n",30*i);
+		render_text(info, 0, 30*i, COLOR32_RED);
+	}
 }
 
 
@@ -3270,7 +3280,7 @@ void html_render(){
 		context *ctx = g_html_render_context[i];
 		 xmlNode *root = xmlDocGetRootElement(ctx->document);
         if (root) {
-		    // draw_html_background(ctx);
+		    draw_html_background(ctx);
             render_html_element(ctx, root, 0);
         }
 	}

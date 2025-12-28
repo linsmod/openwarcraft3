@@ -27,9 +27,22 @@
 
 #define MAKE(TYPE,...)(TYPE){__VA_ARGS__}
 
-#define COLOR32_WHITE MAKE(COLOR32,255,255,255,255)
-#define COLOR32_BLACK MAKE(COLOR32,0,0,0,255)
-#define COLOR32_GREEN MAKE(COLOR32,0,255,0,255)
+// 格式：MAKE(COLOR32, R, G, B, A)
+#define COLOR32_WHITE         MAKE(COLOR32, 255, 255, 255, 255)  // 白色
+#define COLOR32_BLACK         MAKE(COLOR32, 0, 0, 0, 255)        // 黑色
+#define COLOR32_RED           MAKE(COLOR32, 255, 0, 0, 255)      // 红色
+#define COLOR32_GREEN         MAKE(COLOR32, 0, 255, 0, 255)      // 绿色
+#define COLOR32_BLUE          MAKE(COLOR32, 0, 0, 255, 255)      // 蓝色
+#define COLOR32_YELLOW        MAKE(COLOR32, 255, 255, 0, 255)    // 黄色
+#define COLOR32_CYAN          MAKE(COLOR32, 0, 255, 255, 255)    // 青色
+#define COLOR32_MAGENTA       MAKE(COLOR32, 255, 0, 255, 255)    // 洋红/品红
+#define COLOR32_GRAY          MAKE(COLOR32, 128, 128, 128, 255)  // 灰色
+#define COLOR32_LIGHT_GRAY    MAKE(COLOR32, 192, 192, 192, 255)  // 浅灰
+#define COLOR32_DARK_GRAY     MAKE(COLOR32, 64, 64, 64, 255)     // 深灰
+#define COLOR32_ORANGE        MAKE(COLOR32, 255, 165, 0, 255)    // 橙色 ✓
+#define COLOR32_PURPLE        MAKE(COLOR32, 128, 0, 128, 255)    // 紫色 ✓
+#define COLOR32_BROWN         MAKE(COLOR32, 165, 42, 42, 255)    // 棕色 ✓
+#define COLOR32_PINK          MAKE(COLOR32, 255, 192, 203, 255)  // 粉色 ✓
 
 #ifndef __cplusplus
   #define bool char
@@ -473,6 +486,13 @@ typedef enum {
 } uiFontJustificationV_t;
 
 #define NORM(v) (v)*1.0/1000.0
+
+#define NORM_HTML_RECT(rect,vpsize) { \
+        rect.x * 1.0/vpsize.width, \
+        rect.y* 1.0/vpsize.height,\
+        width* 1.0/vpsize.width,\
+        height* 1.0/vpsize.height\
+    }
 
 
 #define UI_FRAMEPOINT_SCALE 32767.0
