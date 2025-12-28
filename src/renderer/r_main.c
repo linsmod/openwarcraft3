@@ -311,6 +311,8 @@ void R_Shutdown(void) {
 }
 
 void R_SetupViewport(LPCRECT r) {
+    // 使用windowSize，支持以小分辨率渲染，
+    // 比如，re.Init(启动窗口1024x768),但在scale=2.5的高分屏幕自动缩放2560x1920显示。
     size2_t windowSize = R_GetWindowSize();
     R_Call(glViewport,
            r->x * windowSize.width,

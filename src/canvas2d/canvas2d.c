@@ -537,7 +537,7 @@ void canvas2d_draw_debug_grid(canvas2d_context_t *ctx, float x, float y, float w
     canvas2d_save(ctx);
     
     // 设置裁剪区域，防止网格超出指定范围
-    canvas2d_begin_clip(ctx, x, y, width, height);
+    // canvas2d_begin_clip(ctx, x, y, width, height);
     
     // 绘制半透明背景
     canvas2d_set_fill_style(ctx, (COLOR32){30, 30, 30, 200});
@@ -612,7 +612,7 @@ void canvas2d_draw_debug_grid(canvas2d_context_t *ctx, float x, float y, float w
     canvas2d_stroke_rect(ctx, x, y, width, height);
     
     // 结束裁剪区域
-    canvas2d_end_clip(ctx);
+    // canvas2d_end_clip(ctx);
     
     // 恢复状态
     canvas2d_restore(ctx);
@@ -624,9 +624,10 @@ void canvas2d_begin_clip(canvas2d_context_t *ctx, float x, float y, float width,
 
     // 创建裁剪矩形，需要将坐标转换为视口坐标
     size2_t vpsize = R_GetViewPortSize();
+    int realY = vpsize.height - height - y; // 翻转y轴坐标
     RECT clip_rect = {
         x * 1.0f / vpsize.width,
-        y * 1.0f / vpsize.height,
+        realY * 1.0f / vpsize.height,
         width * 1.0f / vpsize.width,
         height * 1.0f / vpsize.height
     };

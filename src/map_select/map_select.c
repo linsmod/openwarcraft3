@@ -903,6 +903,7 @@ void MapSelect_Render(void) {
     // 清除背景
     canvas2d_set_fill_style(g_ctx, (COLOR32){30, 30, 40, 255});
     canvas2d_fill_rect(g_ctx, 0, 0, 1024, 768);
+    canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
 
     // 渲染 UI 列表
     UIList_Render(&g_ui_list);
@@ -949,7 +950,7 @@ void MapSelect_Render(void) {
     UIText_Render(&g_path_text);
     UIText_Render(&g_hint_text1);
     UIText_Render(&g_hint_text2);
-    canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 64, 64, true);
+    
 }
 
 // 进入文件夹

@@ -1,4 +1,5 @@
 #include "ui_list.h"
+#include "common/shared.h"
 #include <string.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
@@ -257,11 +258,8 @@ void UIList_Render(ui_list_t *list) {
     canvas2d_set_fill_style(list->ctx, cfg->bg_color);
     canvas2d_fill_rect(list->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
 
-    // 绘制边框
-    canvas2d_set_stroke_style(list->ctx, cfg->border_color);
-    canvas2d_set_line_width(list->ctx, 1.0f);
-    canvas2d_stroke_rect(list->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
-
+    
+    // 先绘制滚动区域
     // 启用裁减区域，确保超出列表部分不渲染
     canvas2d_begin_clip(list->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
 
@@ -310,6 +308,11 @@ void UIList_Render(ui_list_t *list) {
 
     // 结束裁减
     canvas2d_end_clip(list->ctx);
+
+    // 绘制边框
+    canvas2d_set_stroke_style(list->ctx, cfg->border_color);
+    canvas2d_set_line_width(list->ctx, 1.0f);
+    canvas2d_stroke_rect(list->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
 
     // 绘制滚动条
     if (cfg->show_scrollbar && list->item_count > list->visible_count) {
