@@ -19,9 +19,8 @@ static VERTEX simp[256 * 6];
     }
     
     DWORD num_vertices = (DWORD)(it - simp);
-    size2_t window = R_GetViewPortSize();
     MATRIX4 ui_matrix,model_matrix;
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, 1.0, 1.0, 0.0f, 0.0f, 100.0f);
     
     if(!transform)
         Matrix4_identity(&model_matrix);

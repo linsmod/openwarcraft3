@@ -139,7 +139,6 @@ void R_ReleaseRenderTexture(LPRENDERTARGET rt) {
 }
 
 static void R_SetupGL(bool drawLight) {
-    size2_t const window = R_GetWindowSize();
     
     MATRIX4 model_matrix;
     MATRIX3 normal_matrix;
@@ -153,7 +152,7 @@ static void R_SetupGL(bool drawLight) {
     } else {
         Matrix4_identity(&tr.viewDef.textureMatrix);
     }
-    Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
+    Matrix4_ortho(&ui_matrix, 0.0f, 1.0, 1.0, 0.0f, 0.0f, 100.0f);
 
     Matrix3_normal(&normal_matrix, &model_matrix);
 

@@ -499,7 +499,7 @@ DRAWTEXT get_drawtext_html(
                 uiFontJustificationH_t alignh,
                 uiFontJustificationV_t alignv);
 void R_DrawUtf8Text2(LPCSTR text, RECT rect, COLOR32 color,LPFONT font, LPMATRIX4 transform){
-     assert(rect.x<1 && rect.y<1);
+    //  assert(rect.x<1 && rect.y<1);
     DRAWTEXT drawtext =  get_drawtext_html(NULL, color,rect.w,text,
         FONT_JUSTIFYLEFT,
         FONT_JUSTIFYTOP

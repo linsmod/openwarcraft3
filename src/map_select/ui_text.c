@@ -145,6 +145,7 @@ void UIText_Render(ui_text_t *text) {
     const ui_text_config_t *cfg = &text->config;
 
     canvas2d_set_fill_style(text->ctx, cfg->color);
+    canvas2d_set_font_size(text->ctx, cfg->font_size);
 
     if (cfg->wrap && cfg->wrap_width > 0) {
         // 简单的自动换行实现

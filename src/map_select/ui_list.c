@@ -262,9 +262,15 @@ void UIList_Render(ui_list_t *list) {
     canvas2d_set_line_width(list->ctx, 1.0f);
     canvas2d_stroke_rect(list->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
 
-    // 计算可见项
+    // 启用裁减区域，确保超出列表部分不渲染
+    canvas2d_begin_clip(list->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
+
+    // 计算可见项：动态计算以确保部分可见的最后一个item也能渲染
     int start_index = list->scroll_offset;
-    int end_index = start_index + list->visible_count;
+    // 计算当前可以显示多少个完整item
+    int max_visible = (int)(cfg->height / total_item_height);
+    // 多加一个item，以确保最后一个部分可见的item也能被渲染
+    int end_index = start_index + max_visible + 1;
     if (end_index > list->item_count) {
         end_index = list->item_count;
     }
@@ -302,6 +308,9 @@ void UIList_Render(ui_list_t *list) {
         }
     }
 
+    // 结束裁减
+    canvas2d_end_clip(list->ctx);
+
     // 绘制滚动条
     if (cfg->show_scrollbar && list->item_count > list->visible_count) {
         UIList_DrawScrollbar(list);
@@ -316,15 +325,31 @@ static void UIList_DrawScrollbar(ui_list_t *list) {
     float scrollbar_x = cfg->x + cfg->width - scrollbar_width;
     float scrollbar_height = cfg->height;
 
-    // 计算滚动条滑块大小
-    float thumb_height = (float)list->visible_count / list->item_count * scrollbar_height;
-    if (thumb_height < 20.0f) {
-        thumb_height = 20.0f;
-    }
+    // 滚动条滑块高度固定为单个列表项高度（item_height + item_spacing）
+    float total_item_height = cfg->item_height + cfg->item_spacing;
+    float thumb_height = total_item_height;
+
+    // 计算可滚动的内容范围：从第一个item到最后一个item的总高度
+    float total_content_height = list->item_count * total_item_height;
+    // 可滚动范围 = 总内容高度 - 容器高度
+    float scrollable_height = total_content_height - cfg->height;
+    if (scrollable_height < 0) scrollable_height = 0;
 
     // 计算滚动条滑块位置
-    float max_scroll = list->item_count - list->visible_count;
-    float thumb_y = cfg->y + (float)list->scroll_offset / max_scroll * (scrollbar_height - thumb_height);
+    float thumb_y;
+    if (scrollable_height > 0) {
+        // 当前滚动偏移的像素位置
+        float scroll_offset_pixels = list->scroll_offset * total_item_height;
+        // 滚动条可用移动范围 = 容器高度 - 滚动条滑块自身高度
+        float scrollbar_range = scrollbar_height - thumb_height;
+        // 滑块Y坐标 = 容器顶部 + (滚动偏移 / 可滚动范围) * 滚动条可用范围
+        thumb_y = cfg->y + (scroll_offset_pixels / scrollable_height) * scrollbar_range;
+        // 限制滑块在滚动条范围内
+        if (thumb_y < cfg->y) thumb_y = cfg->y;
+        if (thumb_y > cfg->y + scrollbar_range) thumb_y = cfg->y + scrollbar_range;
+    } else {
+        thumb_y = cfg->y;
+    }
 
     // 绘制滚动条背景
     canvas2d_set_fill_style(list->ctx, (COLOR32){60, 60, 60, 255});

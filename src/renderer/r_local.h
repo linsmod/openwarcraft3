@@ -190,6 +190,8 @@ void R_ReleaseShader(LPSHADER shader);
 // r_main.c
 void R_RenderShadowMap(void);
 void R_RenderView(void);
+void R_SetupScissor(LPCRECT r);
+void R_RevertSettings(void);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);

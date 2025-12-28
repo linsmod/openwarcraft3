@@ -47,6 +47,7 @@ typedef struct {
     int pathPointsCount;
     int pathPointsCapacity;
     bool pathOpen;
+    float fontSize; // 字体大小
 } canvas2d_state_t;
 
 struct canvas2d_t {
@@ -98,8 +99,17 @@ void canvas2d_restore(canvas2d_context_t *ctx);
 void canvas2d_set_stroke_style(canvas2d_context_t *ctx, COLOR32 color);
 void canvas2d_set_fill_style(canvas2d_context_t *ctx, COLOR32 color);
 void canvas2d_set_line_width(canvas2d_context_t *ctx, float width);
+void canvas2d_set_font_size(canvas2d_context_t *ctx, float fontSize);
 
 // Utility
 const char* canvas2d_get_error_string(void);
+
+// Clipping operations
+void canvas2d_begin_clip(canvas2d_context_t *ctx, float x, float y, float width, float height);
+void canvas2d_end_clip(canvas2d_context_t *ctx);
+
+// Debug utilities
+void canvas2d_draw_debug_grid(canvas2d_context_t *ctx, float x, float y, float width, float height,
+                              float cell_width, float cell_height, bool show_coordinates);
 
 #endif // CANVAS2D_H

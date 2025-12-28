@@ -13,10 +13,11 @@
 #define MemFree(ptr) free(ptr)
 
 RECT* NormRect(RECT* rect){
-    rect->x = NORM(rect->x);
-    rect->y = NORM(rect->y);
-    rect->w = NORM(rect->w);
-    rect->h = NORM(rect->h);
+    size2_t vpsize = R_GetViewPortSize();
+    rect->x = rect->x * 1.0f / vpsize.width;
+    rect->y = rect->y * 1.0f / vpsize.height;
+    rect->w = rect->w * 1.0f / vpsize.width;
+    rect->h = rect->h * 1.0f / vpsize.height;
     return rect;
 }
 // 修改 DRAWIMAGE 宏以接受变换矩阵和混合模式
@@ -79,6 +80,9 @@ canvas2d_t* canvas2d_create(int width, int height) {
     
     // Initialize transform matrix to identity
     Matrix4_identity(&canvas->context->state.transformMatrix);
+
+    // Initialize font size to default
+    canvas->context->state.fontSize = 14.0f;
 
     // Path
     canvas->context->state.pathPoints = NULL;           // 初始为空指针
@@ -242,8 +246,11 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
     // R_DrawUtf8TextEx(&drawtext);
 
     // 使用UTF8版本的渲染函数，支持中文显示
-    RECT box = (RECT){NORM(x), NORM(y), 1, 1};
-    R_DrawUtf8Text2(text, box, ctx->state.fillStyle,NULL, &ctx->state.transformMatrix);
+    size2_t vpsize = R_GetViewPortSize();
+    RECT box = (RECT){x * 1.0f / vpsize.width, y * 1.0f / vpsize.height, 1, 1};
+    // 使用状态中的字体大小获取字体
+    LPFONT font = R_FontCacheGet(DEFAULT_TEXTFONT_NAME, (DWORD)ctx->state.fontSize);
+    R_DrawUtf8Text2(text, box, ctx->state.fillStyle, font, &ctx->state.transformMatrix);
 }
 
 void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, float y) {
@@ -255,15 +262,16 @@ void canvas2d_stroke_text(canvas2d_context_t *ctx, const char *text, float x, fl
     // 简化的描边文本：在多个偏移位置绘制文本
     float offset = ctx->state.lineWidth;
     COLOR32 strokeColor = ctx->state.strokeStyle;
+    size2_t vpsize = R_GetViewPortSize();
     
     for (float dx = -offset; dx <= offset; dx += offset/2) {
         for (float dy = -offset; dy <= offset; dy += offset/2) {
             if (dx == 0 && dy == 0) continue;
-            RECT rect = MAKE(RECT,NORM(x + dx),NORM(y + dy),1-NORM(x + dx),1-NORM(x + dx));
+            RECT rect = MAKE(RECT,(x + dx) * 1.0f / vpsize.width,(y + dy) * 1.0f / vpsize.height,1,1);
             R_DrawUtf8Text2(text, rect, strokeColor,NULL,&ctx->state.transformMatrix);
         }
     }
-    RECT rect = MAKE(RECT,NORM(x) ,NORM(y) ,1-NORM(x),1-NORM(y));
+    RECT rect = MAKE(RECT,x * 1.0f / vpsize.width ,y * 1.0f / vpsize.height ,1,1);
     // 绘制主体文本
     R_DrawUtf8Text2(text, rect,
     ctx->state.fillStyle,NULL, &ctx->state.transformMatrix);
@@ -294,9 +302,10 @@ void canvas2d_draw_image_scaled(canvas2d_context_t *ctx, LPCTEXTURE texture, flo
 void canvas2d_translate(canvas2d_context_t *ctx, float x, float y) {
     if (!ctx) return;
     
+    size2_t vpsize = R_GetViewPortSize();
     MATRIX4 translation;
     Matrix4_identity(&translation);
-    Matrix4_translate(&translation, &(VECTOR3){NORM(x), NORM(y), 0});
+    Matrix4_translate(&translation, &(VECTOR3){x * 1.0f / vpsize.width, y * 1.0f / vpsize.height, 0});
     Matrix4_multiply(&ctx->state.transformMatrix, &translation, &ctx->state.transformMatrix);
 }
 
@@ -314,7 +323,7 @@ void canvas2d_scale(canvas2d_context_t *ctx, float x, float y) {
     
     MATRIX4 scaling;
     Matrix4_identity(&scaling);
-    Matrix4_scale(&scaling, &(VECTOR3){NORM(x), NORM(y), 1});
+    Matrix4_scale(&scaling, &(VECTOR3){x, y, 1});
     Matrix4_multiply(&ctx->state.transformMatrix, &scaling, &ctx->state.transformMatrix);
 }
 
@@ -428,6 +437,11 @@ void canvas2d_set_line_width(canvas2d_context_t *ctx, float width) {
     if (!ctx) return;
     ctx->state.lineWidth = width;
 }
+
+void canvas2d_set_font_size(canvas2d_context_t *ctx, float fontSize) {
+    if (!ctx) return;
+    ctx->state.fontSize = fontSize;
+}
 // 路径操作函数
 void canvas2d_begin_path(canvas2d_context_t *ctx) {
     if (!ctx) return;
@@ -444,7 +458,8 @@ void canvas2d_move_to(canvas2d_context_t *ctx, float x, float y) {
         ctx->state.pathPoints = realloc(ctx->state.pathPoints, ctx->state.pathPointsCapacity * sizeof(VECTOR2));
     }
     
-    ctx->state.pathPoints[ctx->state.pathPointsCount++] = (VECTOR2){NORM(x), NORM(y)};
+    size2_t vpsize = R_GetViewPortSize();
+    ctx->state.pathPoints[ctx->state.pathPointsCount++] = (VECTOR2){x * 1.0f / vpsize.width, y * 1.0f / vpsize.height};
 }
 
 void canvas2d_line_to(canvas2d_context_t *ctx, float x, float y) {
@@ -496,7 +511,7 @@ void canvas2d_stroke_path(canvas2d_context_t *ctx) {
         // 平移到起点
         MATRIX4 translation;
         Matrix4_identity(&translation);
-        Matrix4_translate(&translation, &(VECTOR3){NORM(p1.x), NORM(p1.y) , 0});
+        Matrix4_translate(&translation, &(VECTOR3){p1.x, p1.y , 0});
         Matrix4_multiply(&transform, &translation, &transform);
         
         // 旋转
@@ -511,4 +526,118 @@ void canvas2d_stroke_path(canvas2d_context_t *ctx) {
         RECT uv = {0, 0, 1, 1};
         DRAWIMAGE(tr.texture[TEX_WHITE], &lineRect, &uv, ctx->state.strokeStyle, &transform);
     }
+}
+
+// 绘制调试网格
+void canvas2d_draw_debug_grid(canvas2d_context_t *ctx, float x, float y, float width, float height,
+                              float cell_width, float cell_height, bool show_coordinates) {
+    if (!ctx) return;
+
+    // 保存当前状态
+    canvas2d_save(ctx);
+    
+    // 设置裁剪区域，防止网格超出指定范围
+    canvas2d_begin_clip(ctx, x, y, width, height);
+    
+    // 绘制半透明背景
+    canvas2d_set_fill_style(ctx, (COLOR32){30, 30, 30, 200});
+    canvas2d_fill_rect(ctx, x, y, width, height);
+    
+    // 计算网格的行列数
+    int cols = (int)(width / cell_width);
+    int rows = (int)(height / cell_height);
+    
+    // 绘制垂直线
+    canvas2d_set_stroke_style(ctx, (COLOR32){100, 100, 100, 255});
+    canvas2d_set_line_width(ctx, 1.0f);
+    for (int i = 0; i <= cols; i++) {
+        float line_x = x + i * cell_width;
+        canvas2d_stroke_rect(ctx, line_x, y, 1.0f, height);
+    }
+    
+    // 绘制水平线
+    for (int j = 0; j <= rows; j++) {
+        float line_y = y + j * cell_height;
+        canvas2d_stroke_rect(ctx, x, line_y, width, 1.0f);
+    }
+    
+    // 绘制坐标标签
+    if (show_coordinates) {
+        canvas2d_set_font_size(ctx, 12.0f);
+        
+        // 绘制列坐标（X轴）
+        for (int i = 0; i <= cols; i++) {
+            float label_x = x + i * cell_width;
+            char label[16];
+            snprintf(label, sizeof(label), "%.0f", i * cell_width);
+            
+            // 设置文本颜色
+            canvas2d_set_fill_style(ctx, (COLOR32){200, 200, 200, 255});
+            canvas2d_fill_text(ctx, label, label_x + 2, y + height - 15);
+        }
+        
+        // 绘制行坐标（Y轴）
+        for (int j = 0; j <= rows; j++) {
+            float label_y = y + j * cell_height;
+            char label[16];
+            snprintf(label, sizeof(label), "%.0f", j * cell_height);
+            
+            // 设置文本颜色
+            canvas2d_set_fill_style(ctx, (COLOR32){200, 200, 200, 255});
+            canvas2d_fill_text(ctx, label, x + 2, label_y + 12);
+        }
+        
+        // 打印网格信息到控制台
+        printf("Debug Grid Info:\n");
+        printf("  Position: (%.1f, %.1f)\n", x, y);
+        printf("  Size: %.1f x %.1f\n", width, height);
+        printf("  Grid: %d x %d cells\n", cols, rows);
+        printf("  Cell size: %.1f x %.1f\n", cell_width, cell_height);
+        printf("  Total cells: %d\n", cols * rows);
+        
+        // 打印关键坐标点
+        printf("  Key coordinates:\n");
+        for (int i = 0; i <= cols; i += (cols > 10 ? cols / 10 : 1)) {
+            for (int j = 0; j <= rows; j += (rows > 10 ? rows / 10 : 1)) {
+                float coord_x = x + i * cell_width;
+                float coord_y = y + j * cell_height;
+                printf("    (%.1f, %.1f)\n", coord_x, coord_y);
+            }
+        }
+    }
+    
+    // 绘制边框
+    canvas2d_set_stroke_style(ctx, (COLOR32){255, 255, 255, 255});
+    canvas2d_set_line_width(ctx, 2.0f);
+    canvas2d_stroke_rect(ctx, x, y, width, height);
+    
+    // 结束裁剪区域
+    canvas2d_end_clip(ctx);
+    
+    // 恢复状态
+    canvas2d_restore(ctx);
+}
+
+// Clipping operations
+void canvas2d_begin_clip(canvas2d_context_t *ctx, float x, float y, float width, float height) {
+    if (!ctx) return;
+
+    // 创建裁剪矩形，需要将坐标转换为视口坐标
+    size2_t vpsize = R_GetViewPortSize();
+    RECT clip_rect = {
+        x * 1.0f / vpsize.width,
+        y * 1.0f / vpsize.height,
+        width * 1.0f / vpsize.width,
+        height * 1.0f / vpsize.height
+    };
+    
+    R_SetupScissor(&clip_rect);
+}
+
+void canvas2d_end_clip(canvas2d_context_t *ctx) {
+    if (!ctx) return;
+
+    // 重置裁减区域到整个视口
+    RECT full_rect = {0, 0, 1, 1};
+    R_SetupScissor(&full_rect);
 }

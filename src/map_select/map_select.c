@@ -377,7 +377,7 @@ int MapSelect_Init(void) {
     printf("Initializing Map Selection Screen...\n");
     
     // 创建 Canvas
-    g_canvas = canvas2d_create(800, 600);
+    g_canvas = canvas2d_create(1024, 768);
     if (!g_canvas) {
         printf("Failed to create canvas for map selection\n");
         return -1;
@@ -389,10 +389,10 @@ int MapSelect_Init(void) {
     ui_list_config_t list_config = {
         .x = 30.0f,
         .y = 80.0f,
-        .width = 300.0f,
-        .height = 450.0f,
-        .item_height = 40.0f,
-        .item_spacing = 4.0f,
+        .width = 380.0f,
+        .height = 580.0f,
+        .item_height = 50.0f,
+        .item_spacing = 5.0f,
         .bg_color = {30, 30, 40, 255},
         .selected_bg_color = {100, 150, 255, 200},
         .border_color = {200, 200, 200, 255},
@@ -410,10 +410,10 @@ int MapSelect_Init(void) {
     
     // 初始化 START GAME 按钮
     ui_button_config_t button_config = {
-        .x = 360.0f,
-        .y = 380.0f,
-        .width = 160.0f,
-        .height = 40.0f,
+        .x = 440.0f,
+        .y = 500.0f,
+        .width = 200.0f,
+        .height = 50.0f,
         .text = "START GAME [ENTER]",
         .bg_color = {
             {0, 150, 0, 255},      // 正常
@@ -447,11 +447,11 @@ int MapSelect_Init(void) {
     
     // 初始化标题文本
     ui_text_config_t title_config = {
-        .x = 320.0f,
+        .x = 450.0f,
         .y = 20.0f,
         .text = "SELECT MAP",
         .color = {255, 215, 0, 255},
-        .font_size = 14.0f,
+        .font_size = 30.0f,
         .align = UI_TEXT_ALIGN_CENTER,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -469,7 +469,7 @@ int MapSelect_Init(void) {
         .y = 50.0f,
         .text = "Root",
         .color = {200, 200, 200, 255},
-        .font_size = 14.0f,
+        .font_size = 18.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -484,10 +484,10 @@ int MapSelect_Init(void) {
     // 初始化提示文本1
     ui_text_config_t hint1_config = {
         .x = 30.0f,
-        .y = 560.0f,
+        .y = 710.0f,
         .text = "UP/DOWN to navigate, ENTER to select",
         .color = {200, 200, 200, 255},
-        .font_size = 12.0f,
+        .font_size = 16.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -501,11 +501,11 @@ int MapSelect_Init(void) {
     
     // 初始化提示文本2
     ui_text_config_t hint2_config = {
-        .x = 700.0f,
-        .y = 560.0f,
+        .x = 900.0f,
+        .y = 710.0f,
         .text = "ESC to quit",
         .color = {200, 200, 200, 255},
-        .font_size = 12.0f,
+        .font_size = 16.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -519,10 +519,10 @@ int MapSelect_Init(void) {
     
     // 初始化地图预览容器
     ui_container_config_t preview_config = {
-        .x = 360.0f,
+        .x = 440.0f,
         .y = 80.0f,
-        .width = 400.0f,
-        .height = 270.0f,
+        .width = 524.0f,
+        .height = 380.0f,
         .bg_color = {40, 40, 50, 230},
         .border_color = {255, 215, 0, 255},
         .border_width = 2.0f,
@@ -537,11 +537,11 @@ int MapSelect_Init(void) {
     
     // 初始化预览文本组件（标题 "Map Preview"）
     ui_text_config_t preview_title_config = {
-        .x = 380.0f,
+        .x = 460.0f,
         .y = 105.0f,
         .text = "Map Preview",
         .color = {255, 215, 0, 255},
-        .font_size = 14.0f,
+        .font_size = 18.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -552,11 +552,11 @@ int MapSelect_Init(void) {
     
     // 初始化预览文本组件（文件名）
     ui_text_config_t preview_filename_config = {
-        .x = 380.0f,
+        .x = 460.0f,
         .y = 135.0f,
         .text = "",
         .color = {200, 200, 200, 255},
-        .font_size = 14.0f,
+        .font_size = 18.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -567,11 +567,11 @@ int MapSelect_Init(void) {
     
     // 初始化预览文本组件（地图名称）
     ui_text_config_t preview_name_config = {
-        .x = 380.0f,
+        .x = 460.0f,
         .y = 160.0f,
         .text = "",
         .color = {180, 180, 180, 255},
-        .font_size = 14.0f,
+        .font_size = 18.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -582,11 +582,11 @@ int MapSelect_Init(void) {
     
     // 初始化预览文本组件（作者）
     ui_text_config_t preview_author_config = {
-        .x = 380.0f,
+        .x = 460.0f,
         .y = 185.0f,
         .text = "",
         .color = {160, 160, 160, 255},
-        .font_size = 14.0f,
+        .font_size = 18.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -597,11 +597,11 @@ int MapSelect_Init(void) {
     
     // 初始化预览文本组件（推荐玩家数）
     ui_text_config_t preview_players_config = {
-        .x = 380.0f,
+        .x = 460.0f,
         .y = 210.0f,
         .text = "",
         .color = {140, 140, 140, 255},
-        .font_size = 14.0f,
+        .font_size = 18.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -612,11 +612,11 @@ int MapSelect_Init(void) {
     
     // 初始化预览文本组件（文件类型）
     ui_text_config_t preview_type_config = {
-        .x = 380.0f,
+        .x = 460.0f,
         .y = 235.0f,
         .text = "",
         .color = {150, 150, 150, 255},
-        .font_size = 14.0f,
+        .font_size = 18.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -627,11 +627,11 @@ int MapSelect_Init(void) {
     
     // 初始化预览文本组件（完整路径）
     ui_text_config_t preview_path_config = {
-        .x = 380.0f,
+        .x = 460.0f,
         .y = 260.0f,
         .text = "",
         .color = {100, 100, 100, 255},
-        .font_size = 14.0f,
+        .font_size = 16.0f,
         .align = UI_TEXT_ALIGN_LEFT,
         .valign = UI_TEXT_VALIGN_TOP,
         .wrap = false,
@@ -902,21 +902,8 @@ void MapSelect_Render(void) {
     
     // 清除背景
     canvas2d_set_fill_style(g_ctx, (COLOR32){30, 30, 40, 255});
-    canvas2d_fill_rect(g_ctx, 0, 0, 800, 600);
-    
-    // 标题和当前路径
-    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 215, 0, 255});
-    canvas2d_fill_text(g_ctx, "SELECT MAP", 320, 20);
-    
-    // 显示当前路径
-    if (g_at_root) {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){200, 200, 200, 255});
-        canvas2d_fill_text(g_ctx, "Root", 30, 50);
-    } else {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){200, 200, 200, 255});
-        canvas2d_fill_text(g_ctx, g_current_path, 30, 50);
-    }
-    
+    canvas2d_fill_rect(g_ctx, 0, 0, 1024, 768);
+
     // 渲染 UI 列表
     UIList_Render(&g_ui_list);
     
@@ -962,6 +949,7 @@ void MapSelect_Render(void) {
     UIText_Render(&g_path_text);
     UIText_Render(&g_hint_text1);
     UIText_Render(&g_hint_text2);
+    canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 64, 64, true);
 }
 
 // 进入文件夹
