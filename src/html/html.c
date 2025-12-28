@@ -9,6 +9,7 @@
 
 #include "common/common.h"
 #include "common/shared.h"
+#include "libcss/errors.h"
 #include "libcss/stylesheet.h"
 #include "libxml/tree.h"
 #include "r_local.h"
@@ -1962,6 +1963,30 @@ void render_rect_fill(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar h
 }
 
 #include "css.h"
+css_error css_resolve_url(void *pw,
+		const char *base, lwc_string *rel, lwc_string **abs)
+{
+	UNUSED(pw);
+	UNUSED(base);
+
+	/* About as useless as possible */
+	*abs = lwc_string_ref(rel);
+
+	return CSS_OK;
+}
+css_error css_handle_resolve_color(void *pw,
+		lwc_string *name, css_color *color){
+			return CSS_OK;
+		}
+css_error css_handle_resolve_font(void *pw,
+		lwc_string *name, css_system_font *system_font){
+			return CSS_OK;
+		}		
+
+css_error css_handle_import(void *pw,
+		css_stylesheet *parent, lwc_string *url){
+return CSS_OK;
+		}	
 /**
  * @brief Get computed node style using CSS parser
  */
@@ -2025,13 +2050,13 @@ LPCSS html_getnodestyle(context *ctx, xmlNode* node)
             .title = "inline-style",
             .allow_quirks = false,
             .inline_style = true,
-            .resolve = NULL,
+            .resolve = css_resolve_url,
             .resolve_pw = NULL,
-            .import = NULL,
+            .import = css_handle_import,
             .import_pw = NULL,
-            .color = NULL,
+            .color = css_handle_resolve_color,
             .color_pw = NULL,
-            .font = NULL,
+            .font = css_handle_resolve_font,
             .font_pw = NULL
         };
         
@@ -2440,6 +2465,14 @@ static void traverse_collect(
 void process_style_node(context *ctx, xmlNode *node, int depth) {
 	if (!ctx || !node) return;
 	
+	// 检查节点是否已处理过（使用私有数据标记）
+	if (node->_private) {
+		userdata *ud = (userdata *)node->_private;
+		if (ud->refcount & 0x80000000) {  // 使用最高位标记已处理
+			return;  // 已处理过，跳过
+		}
+	}
+	
 	// 获取style节点的文本内容
 	xmlChar *style_content = xmlNodeGetContent(node);
 	if (style_content && ctx->css_select_ctx) {
@@ -2450,17 +2483,17 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 			.params_version = CSS_STYLESHEET_PARAMS_VERSION_1,
 			.level = CSS_LEVEL_21,
 			.charset = "UTF-8",
-			.url = "style",
+			.url = "style-tag",
 			.title = "stylesheet",
 			.allow_quirks = false,
 			.inline_style = false,
-			.resolve = NULL,
+			.resolve = css_resolve_url,
 			.resolve_pw = NULL,
-			.import = NULL,
+			.import = css_handle_import,
 			.import_pw = NULL,
-			.color = NULL,
+			.color = css_handle_resolve_color,
 			.color_pw = NULL,
-			.font = NULL,
+			.font = css_handle_resolve_font,
 			.font_pw = NULL
 		};
 		
@@ -2485,6 +2518,11 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 							css_stylesheet_destroy(ctx->css_stylesheet);
 						}
 						ctx->css_stylesheet = stylesheet;
+						// 标记该节点已处理（使用refcount最高位）
+						if (node->_private) {
+							userdata *ud = (userdata *)node->_private;
+							ud->refcount |= 0x80000000;
+						}
 					} else {
 						fprintf(stderr, "Failed to append stylesheet to select context\n");
 						css_stylesheet_destroy(stylesheet);
