@@ -135,7 +135,7 @@ void SplashScene_Render(scene_t *scene) {
 }
 
 // Scene 输入处理
-void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
+scene_transition_t* SplashScene_OnInput(scene_t *scene, input_event_t *event) {
     splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
     if (!data || data->is_finished) return;
     
@@ -177,6 +177,7 @@ void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
         default:
             break;
     }
+    return NULL;  // 不跳转场景
 }
 
 // 获取场景实例

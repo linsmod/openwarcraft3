@@ -1749,10 +1749,10 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			printf("DEBUG: width is percentage, calculated: %d\n", width);
 		}
 		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Current size before setting width: (%.2f,%.2f)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Current size before setting width: (%d,%d)\n", current_size[0], current_size[1]);
 		lay_set_size_xy(c->layout_ctx, layout_id, width, current_size[1]);
 		current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Size after setting width: (%.2f,%.2f)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Size after setting width: (%d,%d)\n", current_size[0], current_size[1]);
 	}
 	
 	if (strstr(css, "height:")) {
@@ -1769,10 +1769,10 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			printf("DEBUG: height is percentage, calculated: %d\n", height);
 		}
 		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Current size before setting height: (%.2f,%.2f)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Current size before setting height: (%d,%d)\n", current_size[0], current_size[1]);
 		lay_set_size_xy(c->layout_ctx, layout_id, current_size[0], height);
 		current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Size after setting height: (%.2f,%.2f)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Size after setting height: (%d,%d)\n", current_size[0], current_size[1]);
 	}
 	
 	/* Background color support */
@@ -2545,8 +2545,33 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         // 根据元素类型进行渲染
         // First, draw background if it exists
         userdata *ud = (userdata *)node->_private;
-        printf("DEBUG: Rendering element '%s' at (%.2f,%.2f) size=(%.2fx%.2f), ud=%p, has_bg_color=%d\n", 
-               element_name, x, y, width, height, ud, ud ? ud->has_bg_color : -1);
+        
+        // 获取元素的 id 和 class 属性用于标识
+        xmlChar *id_attr = xmlGetProp(node, BAD_CAST "id");
+        xmlChar *class_attr = xmlGetProp(node, BAD_CAST "class");
+        
+        // 构建元素标识字符串
+        char elem_id[256];
+        elem_id[0] = '\0';
+        if (id_attr) {
+            snprintf(elem_id, sizeof(elem_id), "#%s", (char*)id_attr);
+            xmlFree(id_attr);
+        }
+        if (class_attr) {
+            size_t len = strlen(elem_id);
+            snprintf(elem_id + len, sizeof(elem_id) - len, ".%s", (char*)class_attr);
+            xmlFree(class_attr);
+        }
+        
+        // 打印带层级、标识和ID的调试信息
+        char indent[64];
+        indent[0] = '\0';
+        for (int i = 0; i < depth && i < 15; i++) {
+            strcat(indent, "  ");
+        }
+        printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), ud=%p, has_bg_color=%d\n", 
+               indent, element_name, elem_id, layout_id, (int)x, (int)y, (int)width, (int)height, 
+               ud, ud ? ud->has_bg_color : -1);
         if (ud && ud->has_bg_color) {
             printf("DEBUG: Drawing bg_color=(%d,%d,%d,%d) for '%s'\n", 
                    ud->bg_color.r, ud->bg_color.g, ud->bg_color.b, ud->bg_color.a, element_name);
