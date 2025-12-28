@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// 外部HTML渲染函数
-extern void html_update_and_layout(float delta_time);
-extern int html_destroy();
 
 // ========================================
 // Splash 场景数据结构
@@ -105,7 +102,7 @@ scene_transition_t* SplashScene_Update(scene_t *scene, int msec) {
     
     // 更新HTML渲染
     float delta_time = (float)msec / 1000.0f;  // 毫秒转秒
-    html_update_and_layout(delta_time);
+    html_update_and_layout(delta_time, 0);
     
     // 累加时间（仅用于调试信息）
     data->elapsed_time += (float)msec;

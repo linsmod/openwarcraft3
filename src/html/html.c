@@ -1878,7 +1878,9 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 }
 
 // 全局变量定义
-static context *g_html_render_context = NULL;
+#define MAX_HTML_PAGES 32
+static int g_html_pages_count = 0;
+static context *g_html_render_context[MAX_HTML_PAGES];
 static int g_html_frame_count = 0;
 static bool g_html_render_enabled = true;
 static float g_html_last_time = 0.0f;  // 用于计算delta_time
@@ -2476,9 +2478,10 @@ int html_init(LPCSTR filename)
 	// printf("=== Layout Information ===\n");
 	// print_layout_info(c->layout_ctx, c->document, c);
 	// printf("=========================\n");
-	
-	
-    g_html_render_context = c;
+
+
+    g_html_render_context[g_html_pages_count] = c;
+	g_html_pages_count++;
     g_html_frame_count = 0;
 
     /* Scan and store @keyframes rules */
@@ -2493,13 +2496,21 @@ int html_init(LPCSTR filename)
 }
 
 int html_destroy(){
-	destroy_context(g_html_render_context);
+	for (int i = 0; i < g_html_pages_count; i++) {
+		context *ctx = g_html_render_context[i];
+		if (ctx) {
+			destroy_context(ctx);
+			g_html_render_context[i] = NULL;
+		}
+	}
+	g_html_pages_count = 0;
+	return 0;
 }
 
 /**
  * 递归处理XML节点的keyframes扫描
  */
-static void scan_node_for_keyframes(xmlNode *node) {
+static void scan_node_for_keyframes(context *ctx, xmlNode *node) {
 	if (!node) return;
 
 	// 查找style标签
@@ -2515,7 +2526,7 @@ static void scan_node_for_keyframes(xmlNode *node) {
 				// 扫描@keyframes规则
 				const char *keyframes_pos = strstr(css_content, "@keyframes");
 				const char *block_end = NULL; // 提前声明，以便在循环外使用
-				while (keyframes_pos && g_html_render_context->num_keyframes < MAX_KEYFRAMES) {
+				while (keyframes_pos && ctx->num_keyframes < MAX_KEYFRAMES) {
 					// 查找@keyframes后的名称
 					const char *name_start = keyframes_pos + 10; // 跳过"@keyframes"
 					while (*name_start && isspace(*name_start)) name_start++;
@@ -2527,9 +2538,9 @@ static void scan_node_for_keyframes(xmlNode *node) {
 					// 提取动画名称
 					int name_len = name_end - name_start;
 					if (name_len > 0 && name_len < 64) {
-						strncpy(g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name,
+						strncpy(ctx->keyframes_store[ctx->num_keyframes].name,
 							   name_start, name_len);
-						g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name[name_len] = '\0';
+						ctx->keyframes_store[ctx->num_keyframes].name[name_len] = '\0';
 
 						// 提取完整的@keyframes内容
 						const char *block_start = name_end;
@@ -2557,16 +2568,16 @@ static void scan_node_for_keyframes(xmlNode *node) {
 							// 使用css_parse_keyframes解析
 							int count = css_parse_keyframes(
 								keyframes_text,
-								g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name,
-								g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].keyframes,
+								ctx->keyframes_store[ctx->num_keyframes].name,
+								ctx->keyframes_store[ctx->num_keyframes].keyframes,
 								32
 							);
 
 							if (count > 0) {
-								g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].keyframe_count = count;
+								ctx->keyframes_store[ctx->num_keyframes].keyframe_count = count;
 								printf("  -> Stored keyframes: '%s' with %d keyframes\n",
-								   g_html_render_context->keyframes_store[g_html_render_context->num_keyframes].name, count);
-								g_html_render_context->num_keyframes++;
+								   ctx->keyframes_store[ctx->num_keyframes].name, count);
+								ctx->num_keyframes++;
 							}
 
 							free(keyframes_text);
@@ -2590,7 +2601,7 @@ static void scan_node_for_keyframes(xmlNode *node) {
 	if (node->children) {
 		xmlNode *child = node->children;
 		while (child) {
-			scan_node_for_keyframes(child);
+			scan_node_for_keyframes(ctx, child);
 			child = child->next;
 		}
 	}
@@ -2601,30 +2612,28 @@ static void scan_node_for_keyframes(xmlNode *node) {
  * 遍历DOM树查找<style>标签，提取@keyframes并存储到context中
  */
 void html_scan_and_store_keyframes(void) {
-	if (!g_html_render_context || !g_html_render_context->document) {
-		return;
+	FOR_LOOP(i, g_html_pages_count) {
+		context *ctx = g_html_render_context[i];
+		if (!ctx || !ctx->document) {
+			continue;
+		}
+		ctx->num_keyframes = 0;
+		memset(ctx->keyframes_store, 0, sizeof(ctx->keyframes_store));
+
+		printf("Scanning for @keyframes in page %d...\n", i);
+		xmlNode *root = xmlDocGetRootElement(ctx->document);
+		if (root) {
+			scan_node_for_keyframes(ctx, root);
+		}
+		printf("Total keyframes stored in page %d: %d\n", i, ctx->num_keyframes);
 	}
-
-	// 重置keyframes存储
-	g_html_render_context->num_keyframes = 0;
-	memset(g_html_render_context->keyframes_store, 0, sizeof(g_html_render_context->keyframes_store));
-
-	printf("Scanning for @keyframes in HTML document...\n");
-
-	// 从根节点开始扫描
-	xmlNode *root = xmlDocGetRootElement(g_html_render_context->document);
-	if (root) {
-		scan_node_for_keyframes(root);
-	}
-
-	printf("Total keyframes stored: %d\n", g_html_render_context->num_keyframes);
 }
 
 /**
  * @brief 重新应用节点上的动画属性
  * 在keyframes加载完成后调用此函数
  */
-static void reapply_node_animations(xmlNode *node) {
+static void reapply_node_animations(context *ctx, xmlNode *node) {
 	if (!node || node->type != XML_ELEMENT_NODE) {
 		return;
 	}
@@ -2637,7 +2646,7 @@ static void reapply_node_animations(xmlNode *node) {
 			const char *attr_value = (const char *)xmlNodeGetContent(attr->children);
 			if (attr_value) {
 				printf("Reapplying animation attribute: '%s'\n", attr_value);
-				apply_animation_attribute(g_html_render_context, node, attr_value);
+				apply_animation_attribute(ctx, node, attr_value);
 			}
 		}
 		attr = attr->next;
@@ -2651,7 +2660,7 @@ static void reapply_node_animations(xmlNode *node) {
 			const char *attr_value = (const char *)xmlNodeGetContent(attr->children);
 			if (attr_value && strstr(attr_value, "animation:")) {
 				printf("Reapplying animation from style: '%s'\n", attr_value);
-				apply_css_to_layout(g_html_render_context, node, attr_value);
+				apply_css_to_layout(ctx, node, attr_value);
 			}
 		}
 		attr = attr->next;
@@ -2661,7 +2670,7 @@ static void reapply_node_animations(xmlNode *node) {
 	if (node->children) {
 		xmlNode *child = node->children;
 		while (child) {
-			reapply_node_animations(child);
+			reapply_node_animations(ctx, child);
 			child = child->next;
 		}
 	}
@@ -2671,14 +2680,16 @@ static void reapply_node_animations(xmlNode *node) {
  * @brief 在加载keyframes后重新应用所有动画
  */
 void html_reapply_all_animations(void) {
-	if (!g_html_render_context || !g_html_render_context->document) {
-		return;
-	}
-
-	printf("Reapplying all animations after keyframes loaded...\n");
-	xmlNode *root = xmlDocGetRootElement(g_html_render_context->document);
-	if (root) {
-		reapply_node_animations(root);
+	FOR_LOOP(i, g_html_pages_count) {
+		context *ctx = g_html_render_context[i];
+		if (!ctx || !ctx->document) {
+			continue;
+		}
+		printf("Reapplying all animations for page %d after keyframes loaded...\n", i);
+		xmlNode *root = xmlDocGetRootElement(ctx->document);
+		if (root) {
+			reapply_node_animations(ctx,root);
+		}
 	}
 }
 
@@ -2714,49 +2725,78 @@ void draw_html_background(context *ctx) {
     //        vpsize.width, vpsize.height, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
 }
 
-// 主要的HTML渲染帧函数
-void html_update_and_layout(float delta_time) {
-    if (!g_html_render_context || !g_html_render_enabled) {
-        return;
-    }
 
-    g_html_frame_count++;
+// 主要的HTML渲染帧函数
+void html_update_and_layout(float delta_time,int page_index) {
+
+	context *ctx = g_html_render_context[page_index];
+	if (!ctx || !ctx->document) {
+		return;
+	}
 
     // 0. 更新动画管理器（如果提供了delta_time）
-    if (delta_time > 0.0f && g_html_render_context->anim_mgr) {
-        anim_manager_update(g_html_render_context->anim_mgr, delta_time);
+    if (delta_time > 0.0f && ctx->anim_mgr) {
+        anim_manager_update(ctx->anim_mgr, delta_time);
     }
     
     // 1. 渲染背景
-    draw_html_background(g_html_render_context);
+    draw_html_background(ctx);
     
     // 2. 重新计算布局（总是需要）
-    lay_run_context(g_html_render_context->layout_ctx);
-    
+    lay_run_context(ctx->layout_ctx);
+
+
+	/* Print layout information */
+	// printf("=== Layout Information ===\n");
+	print_layout_info(ctx->layout_ctx, ctx->document, ctx);
+	// printf("=========================\n");
     
 }
+
+
+void html_update(float delta_time) {
+	FOR_LOOP(i, g_html_pages_count) {
+		html_update_and_layout(delta_time,i);
+	}
+}
+
 void html_render(){
 	// 3. 渲染HTML元素
-    if (g_html_render_context->document) {
-        xmlNode *root = xmlDocGetRootElement(g_html_render_context->document);
+	FOR_LOOP(i, g_html_pages_count){
+		context *ctx = g_html_render_context[i];
+		 xmlNode *root = xmlDocGetRootElement(ctx->document);
         if (root) {
-            render_html_element(g_html_render_context, root, 0);
+            render_html_element(ctx, root, 0);
         }
-    }
-    
-    // 4. 渲染信息面板
-    render_html_info_panel(g_html_render_context);
-    // printf("HTML Render Frame %d completed\n", g_html_frame_count);
+
+		// 4. 渲染信息面板
+		render_html_info_panel(ctx);
+		// printf("HTML Render Frame %d completed\n", g_html_frame_count);
+	}
 }
 
 // 清理HTML渲染
 void html_render_cleanup() {
-    if (g_html_render_context) {
-        printf("Cleaning up HTML Render...\n");
-        g_html_render_context = NULL;
-        g_html_frame_count = 0;
-        g_html_render_enabled = false;
-    }
+    printf("Cleaning up HTML Render...\n");
+	FOR_LOOP(i, g_html_pages_count) {
+		context *ctx = g_html_render_context[i];
+		if (ctx->document) {
+			xmlFreeDoc(ctx->document);
+			ctx->document = NULL;
+		}
+		if (ctx->layout_ctx) {
+			lay_destroy_context(ctx->layout_ctx);
+			free(ctx->layout_ctx);
+			ctx->layout_ctx = NULL;
+		}
+		if (ctx->anim_mgr) {
+			anim_manager_cleanup(ctx->anim_mgr);
+			free(ctx->anim_mgr);
+			ctx->anim_mgr = NULL;
+		}
+	}
+    g_html_frame_count = 0;
+    g_html_render_enabled = false;
 }
 
 // 设置HTML渲染模式

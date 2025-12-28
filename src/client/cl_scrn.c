@@ -711,7 +711,7 @@ void SCR_DrawOverlays(void) {
     }
 }
 
-void html_update_and_layout(float delta_time);
+void html_update_and_layout(float delta_time, int page_index);
 
 void SCR_UpdateScreen(void) {
 

@@ -7,7 +7,7 @@ typedef struct _xmlNode xmlNode;
 
 int html_init(LPCSTR filename);
 int html_destroy();
-void html_update_and_layout(float delta_time);
+void html_update_and_layout(float delta_time, int page_index);
 void html_render();
 
 // HTML渲染字体管理
