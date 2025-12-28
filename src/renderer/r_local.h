@@ -209,7 +209,8 @@ void R_ReleaseModel(LPMODEL model);
 
 size2_t R_GetViewPortSize(void);
 size2_t R_GetWindowSize(void);
-FLOAT R_GetScaleFactor(void);
+FLOAT R_GetDisplayScaleFactor(void);
+VECTOR2 R_GetDisplayScale(void);
 
 // r_buffer.c
 VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, float z);

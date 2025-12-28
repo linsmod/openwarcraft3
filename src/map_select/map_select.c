@@ -958,6 +958,30 @@ void MapSelect_Render(void) {
     // 渲染 START GAME 按钮
     UIButton_Render(&g_start_button);
     
+    // 在右下角显示鼠标位置和调试信息
+    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 0, 255});
+    canvas2d_set_font_size(g_ctx, 14.0f);
+    
+    char mouse_pos_text[128];
+    snprintf(mouse_pos_text, sizeof(mouse_pos_text), 
+             "Mouse: (%d, %d) | Event: %d | Button: %d", 
+             (int)mouse.origin.x, (int)mouse.origin.y, mouse.event, mouse.button);
+    canvas2d_fill_text(g_ctx, mouse_pos_text, 1024 - 400, 768 - 30);
+    
+    // 检查鼠标是否在按钮内
+    bool in_button = (mouse.origin.x >= g_start_button.config.x && 
+                      mouse.origin.x < g_start_button.config.x + g_start_button.config.width &&
+                      mouse.origin.y >= g_start_button.config.y && 
+                      mouse.origin.y < g_start_button.config.y + g_start_button.config.height);
+    char button_state_text[128];
+    snprintf(button_state_text, sizeof(button_state_text), 
+             "Button Rect: (%.0f, %.0f) w=%.0f h=%.0f | InButton: %s | State: %d",
+             g_start_button.config.x, g_start_button.config.y, 
+             g_start_button.config.width, g_start_button.config.height,
+             in_button ? "YES" : "NO",
+             g_start_button.state);
+    canvas2d_fill_text(g_ctx, button_state_text, 1024 - 600, 768 - 55);
+    
     // 渲染文本组件
     // 更新路径文本
     if (g_at_root) {
@@ -1058,10 +1082,20 @@ bool MapSelect_HandleMouseEvent(void) {
     
     bool handled = false;
     
-    // 处理按钮鼠标事件
+    printf("[Mouse] Event=%d, Pos=(%d,%d), Button=%d\n", 
+           mouse.event, (int)mouse.origin.x, (int)mouse.origin.y, mouse.button);
+    
+    // 处理按钮鼠标事件（按下和释放）
     bool down = (mouse.event == UI_LEFT_MOUSE_DOWN);
-    if (UIButton_HandleMouseClick(&g_start_button, mouse.origin.x, mouse.origin.y, down)) {
-        handled = true;
+    bool up = (mouse.event == UI_LEFT_MOUSE_UP);
+    if (down || up) {
+        printf("[Button] Calling HandleMouseClick with down=%s\n", down ? "true" : "false");
+        if (UIButton_HandleMouseClick(&g_start_button, mouse.origin.x, mouse.origin.y, down)) {
+            printf("[Button] Click handled!\n");
+            handled = true;
+        } else {
+            printf("[Button] Click NOT handled\n");
+        }
     }
     
     // 处理 UI 列表鼠标事件（只处理左键按下）
@@ -1258,9 +1292,10 @@ scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event)
             break;
             
         case INPUT_EVENT_MOUSE_DOWN: {
-            // 鼠标按下事件
-            mouse.origin.x = event->mouse.x;
-            mouse.origin.y = event->mouse.y;
+            // 鼠标按下事件 - 缩放坐标到画布坐标系
+            VECTOR2 displayScale = re.GetDisplayScale();
+            mouse.origin.x = event->mouse.x / displayScale.x;
+            mouse.origin.y = event->mouse.y / displayScale.y;
             mouse.button = event->mouse.button;
             mouse.event = UI_LEFT_MOUSE_DOWN;
             
@@ -1269,9 +1304,10 @@ scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event)
         }
             
         case INPUT_EVENT_MOUSE_UP: {
-            // 鼠标释放事件
-            mouse.origin.x = event->mouse.x;
-            mouse.origin.y = event->mouse.y;
+            // 鼠标释放事件 - 缩放坐标到画布坐标系
+            VECTOR2 displayScale = re.GetDisplayScale();
+            mouse.origin.x = event->mouse.x / displayScale.x;
+            mouse.origin.y = event->mouse.y / displayScale.y;
             mouse.button = 0;
             mouse.event = UI_LEFT_MOUSE_UP;
             
@@ -1279,11 +1315,17 @@ scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event)
             break;
         }
             
-        case INPUT_EVENT_MOUSE_MOTION:
-            // 鼠标移动事件
-            mouse.origin.x = event->motion.x;
-            mouse.origin.y = event->motion.y;
+        case INPUT_EVENT_MOUSE_MOTION: {
+            // 鼠标移动事件 - 缩放坐标到画布坐标系并检测按钮悬停
+            VECTOR2 displayScale = re.GetDisplayScale();
+            mouse.origin.x = event->motion.x / displayScale.x;
+            mouse.origin.y = event->motion.y / displayScale.y;
+            UIButton_HandleMouseMove(&g_start_button, mouse.origin.x, mouse.origin.y);
+            if (g_start_button.is_hovered) {
+                printf("[MouseMotion] Button is hovered\n");
+            }
             break;
+        }
             
         default:
             break;

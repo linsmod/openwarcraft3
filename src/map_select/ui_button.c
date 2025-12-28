@@ -219,7 +219,18 @@ void UIButton_Render(ui_button_t *button) {
 
     // 更新文本组件的颜色和位置（如果按钮位置或大小改变了）
     UIText_SetColor(&button->text_component, text_color);
-    UIText_SetPosition(&button->text_component, cfg->x + cfg->width / 2.0f, cfg->y + cfg->height / 2.0f);
+    
+    // 按下状态时文本向右下偏移，产生按压效果
+    float text_offset_x = 0;
+    float text_offset_y = 0;
+    if (button->state == UI_BUTTON_STATE_PRESSED) {
+        text_offset_x = 1.0f;
+        text_offset_y = 2.0f;
+    }
+    
+    UIText_SetPosition(&button->text_component, 
+                     cfg->x + cfg->width / 2.0f + text_offset_x, 
+                     cfg->y + cfg->height / 2.0f + text_offset_y);
     UIText_SetFontSize(&button->text_component, cfg->font_size);
     
     // 渲染文本组件

@@ -424,12 +424,19 @@ void R_EndFrame(void) {
     SDL_Delay(1);
 }
 
-FLOAT R_GetScaleFactor(void) {
+FLOAT R_GetDisplayScaleFactor(void) {
     float ddpi, hdpi, vdpi;
     if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) == 0) {
         return hdpi / 96.0f;
     }
     return 1;
+}
+VECTOR2 R_GetDisplayScale(void) {
+    float ddpi, hdpi, vdpi;
+    if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) == 0) {
+        return (VECTOR2) { .x = hdpi / 96.0f, .y = vdpi / 96.0f };
+    }
+    return (VECTOR2) { .x = 1, .y = 1 };
 }
 size2_t R_GetViewPortSize(void) {
     return tr.initialSize;
@@ -479,6 +486,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawSelectionRect = R_DrawSelectionRect,
         .PrintSysText = R_PrintSysText,
         .GetWindowSize = R_GetWindowSize,
+        .GetDisplayScale = R_GetDisplayScale,
         .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
         .DrawText = R_DrawUtf8TextEx,

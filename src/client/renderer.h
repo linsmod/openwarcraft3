@@ -117,6 +117,8 @@ typedef struct {
     LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD fontsize);
     size2_t (*GetWindowSize)(void);
+    float (*GetDisplayScaleFactor)(void);
+    VECTOR2 (*GetDisplayScale)(void);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
     void (*ReleaseModel)(LPMODEL model);
     void (*BeginFrame)(void);
