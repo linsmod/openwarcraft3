@@ -98,6 +98,7 @@ struct drawImage_s {
     LPCTEXTURE texture;
     SHADERTYPE shader;
     BLEND_MODE alphamode;
+    // Normalized rect on screen, value number are from 0 to 1 commonly.
     RECT screen;
     RECT uv;
     COLOR32 color;

@@ -224,6 +224,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.scaledSize = (size2_t){width * hdpi / 96, height * vdpi / 96};
     // SDL_SetWindowSize(window, width * hdpi / 96, height * vdpi / 96);
     printf("Scale Factor: %.2f\n", hdpi / 96);
+    tr.displayScaleFactor = hdpi / 96;
 
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
         tr.scaledSize.width, tr.scaledSize.height, 
@@ -233,6 +234,9 @@ void R_Init(DWORD width, DWORD height) {
     SDL_SetWindowMinimumSize(window, 640, 480);
     context = SDL_GL_CreateContext(window);
     
+    // 如果是高清屏幕，比如我的屏幕的hdpi=240，
+    // 比如我们使用R_Init(1024,768), 且放大倍数为2.5, 那么可绘制的尺寸就是2560x1920
+    // 需要考虑渲染功能如何实现才能正确将画面映射到可绘制尺寸上
     SDL_GL_GetDrawableSize(window, (int *)&tr.drawableSize.width, (int *)&tr.drawableSize.height);
 
     

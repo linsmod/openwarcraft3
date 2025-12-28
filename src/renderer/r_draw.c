@@ -76,6 +76,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     //    size2_t screensize = R_GetWindowSize();
     MATRIX4 ui_matrix, model_matrix;
     Matrix4_ortho(&ui_matrix, 0.0f, 0.8, 0.6, 0.0f, 0.0f, 100.0f);
+    
 
     // Matrix4_identity(&model_matrix);
     if(!drawImage->model_matrix)

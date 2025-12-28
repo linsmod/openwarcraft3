@@ -1930,14 +1930,14 @@ void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar
     if (width <= 0 || height <= 0) return;
     
     // 归一化坐标
-    RECT screen = {
-        x * 0.8f,  // 转换为0-1范围
-        y * 0.6f,  // 转换为0-1范围
-        width * 0.8f,
-        height * 0.6f
+    RECT rect = {
+        NORM(x), 
+        NORM(y),
+        NORM(width),
+        NORM(height)
     };
     
-    R_DrawWireRect(&screen, color);
+    R_DrawWireRect(&rect, color);
 }
 
 // 渲染填充矩形
@@ -1945,17 +1945,17 @@ void render_rect_fill(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar h
     if (width <= 0 || height <= 0) return;
     
     // 归一化坐标
-    RECT screen = {
-        x * 0.8f,  // 转换为0-1范围
-        y * 0.6f,  // 转换为0-1范围
-        width * 0.8f,
-        height * 0.6f
+    RECT rect = {
+        NORM(x), 
+        NORM(y),
+        NORM(width),
+        NORM(height)
     };
     
     RECT uv = {0, 0, 1, 1};
     DRAWIMAGE drawImg = {
         .texture = tr.texture[TEX_WHITE],
-        .screen = screen,
+        .screen = rect,
         .uv = uv,
         .color = color,
         .rotate = false,
@@ -2266,8 +2266,8 @@ void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_sca
     }
 
 	// layout_text_html(render_color,arg.rect,)
-    RECT box = MAKE(RECT, NORM(x), NORM(y),1,1);
-    R_DrawUtf8Text2(text,box,render_color,render_font,NULL);
+    RECT rect = MAKE(RECT, NORM(x), NORM(y),1,1);
+    R_DrawUtf8Text2(text,rect,render_color,render_font,NULL);
 }
 
 // 渲染图片
@@ -2275,17 +2275,17 @@ void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar heigh
     if (!texture || width <= 0 || height <= 0) return;
     
     // 归一化坐标
-    RECT screen = {
-        x * 0.8f,  // 转换为0-1范围
-        y * 0.6f,  // 转换为0-1范围
-        width * 0.8f,
-        height * 0.6f
+    RECT rect = {
+        NORM(x), 
+        NORM(y),
+        NORM(width),
+        NORM(height)
     };
     
     RECT uv = {0, 0, 1, 1};
     DRAWIMAGE drawImg = {
         .texture = texture,
-        .screen = screen,
+        .screen = rect,
         .uv = uv,
         .color = COLOR32_WHITE,
         .rotate = false,
@@ -2776,8 +2776,6 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
             } else {
                 render_rect_border(x, y, width, height, (COLOR32){200, 200, 200, 255});
             }
-        } else if (strcmp(element_name, "head") == 0) {
-            // return;
         }
         
         // 递归渲染子元素
@@ -3207,7 +3205,7 @@ void draw_html_background(context *ctx) {
     size2_t vpsize = R_GetViewPortSize();
     
     // 尝试从body元素获取背景色
-    COLOR32 bg_color = (COLOR32){0, 0, 0, 255}; // 默认黑色背景
+    COLOR32 bg_color = (COLOR32){255, 255, 255, 255}; 
     
     xmlNode *root = xmlDocGetRootElement(ctx->document);
     if (root) {
@@ -3225,10 +3223,9 @@ void draw_html_background(context *ctx) {
     }
     
     // 渲染背景
-    render_rect_fill(0, 0, vpsize.width, vpsize.height, bg_color);
-    
-    // printf("Drawing HTML background: %dx%d, color=(%d,%d,%d,%d)\n", 
-    //        vpsize.width, vpsize.height, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
+    render_rect_fill(0, 0, 400, 600, bg_color);
+    printf("Drawing HTML background: %dx%d, color=(%d,%d,%d,%d)\n", 
+           vpsize.width, vpsize.height, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
 }
 
 
@@ -3249,9 +3246,6 @@ void html_update_and_layout(float delta_time,int page_index) {
     if (delta_time > 0.0f && ctx->anim_mgr) {
         anim_manager_update(ctx->anim_mgr, delta_time);
     }
-    
-    // 1. 渲染背景
-    draw_html_background(ctx);
     
     // 2. 重新计算布局（总是需要）
     lay_run_context(ctx->layout_ctx);
@@ -3276,6 +3270,7 @@ void html_render(){
 		context *ctx = g_html_render_context[i];
 		 xmlNode *root = xmlDocGetRootElement(ctx->document);
         if (root) {
+		    // draw_html_background(ctx);
             render_html_element(ctx, root, 0);
         }
 	}

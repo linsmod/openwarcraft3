@@ -5,6 +5,7 @@
 #include "common/shared.h"
 #include <SDL2/SDL.h>
 #include <StormLib.h>
+#include <math.h>
 
 // TODO: M1 doesn't link without these includes
 
@@ -161,6 +162,7 @@ struct render_globals {
     size2_t drawableSize;
     size2_t initialSize;
     size2_t scaledSize;
+    double_t displayScaleFactor; // 屏幕显示时对像素尺寸的放大倍数
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
