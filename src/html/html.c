@@ -233,6 +233,7 @@ static color32_t parse_css_color(const char *color_str);
 void apply_css_to_layout(context *c, xmlNode *node, const char *css);
 void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c);
 static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c);
+static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_select_results *results);
 
 
 
@@ -1202,7 +1203,9 @@ hubbub_error add_attributes(void *ctx, void *node,
 		if (name != NULL && strcmp(name, "style") == 0) {
             if (value != NULL) {
                 printf("DEBUG: style attribute found: '%s'\n", value);
-                apply_css_to_layout(c, n, value);
+                /* Note: Inline style is now handled by html_getnodestyle() via css_select_style
+                   No need to apply it separately here */
+                // apply_css_to_layout(c, n, value); // REMOVED - handled by libcss
             }
         }
 
@@ -2091,12 +2094,126 @@ LPCSS html_getnodestyle(context *ctx, xmlNode* node)
         ud->parsedStyle = results;
         ud->computedStyle = results;
         printf("DEBUG: Computed style for element '%s'\n", node->name ? (char*)node->name : "unknown");
+        
+        /* Apply computed style to lay layout system */
+        apply_computed_style_to_lay(css_ctx, node, results);
     } else {
         printf("DEBUG: Failed to compute style for element '%s': %s\n", 
                node->name ? (char*)node->name : "unknown", css_error_to_string(code));
     }
     
     return ud->computedStyle;
+}
+
+/**
+ * @brief Apply CSS computed style to lay layout system
+ * This function converts libcss computed style values to lay item properties
+ */
+static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_select_results *results)
+{
+    if (!ctx || !node || !results) return;
+    
+    lay_id layout_id = GETLAYID(node);
+    if (layout_id == LAY_INVALID_ID) return;
+    
+    const css_computed_style *style = results->styles[CSS_PSEUDO_ELEMENT_NONE];
+    if (!style) return;
+    
+    printf("DEBUG: apply_computed_style_to_lay for element '%s'\n", node->name ? (char*)node->name : "unknown");
+    
+    /* === 1. Handle Display Property === */
+    uint8_t display_type = css_computed_display(style, false);
+    if (display_type != CSS_DISPLAY_NONE) {
+        switch(display_type) {
+            case CSS_DISPLAY_FLEX:
+            case CSS_DISPLAY_BLOCK:
+                /* Default to column flex layout for flex containers */
+                lay_set_contain(ctx->layout_ctx, layout_id, LAY_COLUMN);
+                break;
+            case CSS_DISPLAY_INLINE:
+            case CSS_DISPLAY_INLINE_BLOCK:
+                /* Inline elements - use default stacking */
+                lay_set_contain(ctx->layout_ctx, layout_id, LAY_LAYOUT);
+                break;
+            default:
+                /* Default layout */
+                break;
+        }
+    }
+    
+    /* === 2. Handle Width and Height === */
+    css_fixed width_fixed;
+    css_unit width_unit;
+    uint8_t width_type = css_computed_width(style, &width_fixed, &width_unit);
+    
+    if (width_type == CSS_WIDTH_SET && width_unit == CSS_UNIT_PX) {
+        int width_px = (int)(width_fixed >> 10); /* Convert from fixed (16.16) to int */
+        if (width_px > 0) {
+            lay_scalar current_height = lay_get_size(ctx->layout_ctx, layout_id)[1];
+            lay_set_size_xy(ctx->layout_ctx, layout_id, width_px, current_height);
+            printf("DEBUG:   Set width=%dpx\n", width_px);
+        }
+    }
+    
+    css_fixed height_fixed;
+    css_unit height_unit;
+    uint8_t height_type = css_computed_height(style, &height_fixed, &height_unit);
+    
+    if (height_type == CSS_HEIGHT_SET && height_unit == CSS_UNIT_PX) {
+        int height_px = (int)(height_fixed >> 10); /* Convert from fixed (16.16) to int */
+        if (height_px > 0) {
+            lay_scalar current_width = lay_get_size(ctx->layout_ctx, layout_id)[0];
+            lay_set_size_xy(ctx->layout_ctx, layout_id, current_width, height_px);
+            printf("DEBUG:   Set height=%dpx\n", height_px);
+        }
+    }
+    
+    /* === 3. Handle Margins === */
+    css_fixed margin_top_fixed, margin_right_fixed, margin_bottom_fixed, margin_left_fixed;
+    css_unit margin_top_unit, margin_right_unit, margin_bottom_unit, margin_left_unit;
+    
+    uint8_t margin_top_type = css_computed_margin_top(style, &margin_top_fixed, &margin_top_unit);
+    uint8_t margin_right_type = css_computed_margin_right(style, &margin_right_fixed, &margin_right_unit);
+    uint8_t margin_bottom_type = css_computed_margin_bottom(style, &margin_bottom_fixed, &margin_bottom_unit);
+    uint8_t margin_left_type = css_computed_margin_left(style, &margin_left_fixed, &margin_left_unit);
+    
+    if (margin_top_type == CSS_MARGIN_SET && margin_right_type == CSS_MARGIN_SET &&
+        margin_bottom_type == CSS_MARGIN_SET && margin_left_type == CSS_MARGIN_SET) {
+        
+        /* Convert fixed point to pixels (assuming all are PX for now) */
+        int margin_top_px = (int)(margin_top_fixed >> 10);
+        int margin_right_px = (int)(margin_right_fixed >> 10);
+        int margin_bottom_px = (int)(margin_bottom_fixed >> 10);
+        int margin_left_px = (int)(margin_left_fixed >> 10);
+        
+        lay_set_margins_ltrb(ctx->layout_ctx, layout_id, margin_top_px, margin_right_px, margin_bottom_px, margin_left_px);
+        printf("DEBUG:   Set margins: t=%d, r=%d, b=%d, l=%d\n", 
+               margin_top_px, margin_right_px, margin_bottom_px, margin_left_px);
+    }
+    
+    /* === 4. Handle Background Color === */
+    css_color bg_color;
+    uint8_t bg_color_type = css_computed_background_color(style, &bg_color);
+    
+    if (bg_color_type == CSS_COLOR_COLOR) {
+        /* Convert libcss color to our COLOR32 format */
+        COLOR32 color;
+        color.r = (uint8_t)((bg_color >> 16) & 0xFF);
+        color.g = (uint8_t)((bg_color >> 8) & 0xFF);
+        color.b = (uint8_t)(bg_color & 0xFF);
+        color.a = (uint8_t)((bg_color >> 24) & 0xFF);
+        
+        /* Store in userdata for rendering */
+        userdata *ud = (userdata *)node->_private;
+        if (ud) {
+            ud->bg_color = color;
+            ud->has_bg_color = true;
+            printf("DEBUG:   Set bg_color=(%d,%d,%d,%d)\n", color.r, color.g, color.b, color.a);
+        }
+    }
+    
+    /* Note: Padding is not fully supported by lay system
+       We could simulate it by adjusting element size and content offset */
 }
 
 extern LPFONT g_default_text_font;
@@ -2748,45 +2865,6 @@ void html_process_styles_and_scripts(context *ctx, xmlNode *node, int depth) {
     }
 }
 
-// 渲染HTML文档信息面板
-void render_html_info_panel(context *ctx) {
-    if (!ctx) return;
-    
-    // 在右上角渲染信息面板
-    size2_t vpsize = R_GetViewPortSize();
-    lay_scalar panel_x = vpsize.width - 300;
-    lay_scalar panel_y = 10;
-    lay_scalar panel_width = 290;
-    lay_scalar panel_height = 120;
-    
-    // 渲染面板背景
-    render_rect_fill(panel_x, panel_y, panel_width, panel_height, (COLOR32){0, 0, 0, 180}); // 半透明黑色背景
-    
-    // 渲染面板边框
-    render_rect_border(panel_x, panel_y, panel_width, panel_height, (COLOR32){255, 255, 255, 255}); // 白色边框
-    
-    // 渲染信息文本
-    char info_text[256];
-    snprintf(info_text, sizeof(info_text), "HTML Renderer - Frame: %d", g_html_frame_count);
-    R_DrawUtf8Text(info_text,panel_x + 10, panel_y + 10,  (COLOR32){255, 255, 255, 255}); // 白色文本
-    
-    const char *mode_str = "ANIMATED";
-    if (g_html_render_mode == HTML_RENDER_MODE_ANIMATED) mode_str = "ANIMATED";
-    else if (g_html_render_mode == HTML_RENDER_MODE_INTERACTIVE) mode_str = "INTERACTIVE";
-    
-    snprintf(info_text, sizeof(info_text), "Mode: %s", mode_str);
-    R_DrawUtf8Text( info_text,panel_x + 10, panel_y + 30, (COLOR32){255, 255, 255, 255});
-    
-    snprintf(info_text, sizeof(info_text), "Layout Items: %d", lay_items_count(ctx->layout_ctx));
-    R_DrawUtf8Text(info_text,panel_x + 10, panel_y + 50,  (COLOR32){255, 255, 255, 255});
-    
-    snprintf(info_text, sizeof(info_text), "Status: %s", g_html_render_enabled ? "Enabled" : "Disabled");
-    R_DrawUtf8Text(info_text, panel_x + 10, panel_y + 70, (COLOR32){255, 255, 255, 255});
-    
-    // 渲染控制说明
-    R_DrawUtf8Text("Press 1/2/3 to change mode",panel_x + 10, panel_y + 90,  (COLOR32){200, 200, 200, 255});
-}
-
 // 初始化HTML渲染
 
 int html_init(LPCSTR filename)
@@ -3086,7 +3164,9 @@ static void reapply_node_animations(context *ctx, xmlNode *node) {
 			const char *attr_value = (const char *)xmlNodeGetContent(attr->children);
 			if (attr_value && strstr(attr_value, "animation:")) {
 				printf("Reapplying animation from style: '%s'\n", attr_value);
-				apply_css_to_layout(ctx, node, attr_value);
+				/* Note: Inline style is now handled by html_getnodestyle() via css_select_style
+				   Animation will be extracted and applied there too */
+				// apply_css_to_layout(ctx, node, attr_value); // REMOVED - handled by libcss
 			}
 		}
 		attr = attr->next;
@@ -3192,17 +3272,12 @@ void html_update(float delta_time) {
 }
 
 void html_render(){
-	// 3. 渲染HTML元素
 	FOR_LOOP(i, g_html_pages_count){
 		context *ctx = g_html_render_context[i];
 		 xmlNode *root = xmlDocGetRootElement(ctx->document);
         if (root) {
             render_html_element(ctx, root, 0);
         }
-
-		// 4. 渲染信息面板
-		render_html_info_panel(ctx);
-		// printf("HTML Render Frame %d completed\n", g_html_frame_count);
 	}
 }
 
