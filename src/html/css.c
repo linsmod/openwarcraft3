@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
 /* HTML/CSS integration headers */
 #include "common/shared.h"
 #include "libwapcaplet/libwapcaplet.h"
@@ -129,7 +130,7 @@ static css_unit_ctx unit_len_ctx = {
 	.measure           = NULL, /* We're not implementing measure callback */
 };
 /* Table of function pointers for the LibCSS Select API. */
-static css_select_handler select_handler = {
+css_select_handler select_handler = {
 	CSS_SELECT_HANDLER_VERSION_1,
 
 	node_name,
@@ -332,12 +333,16 @@ void die(const char *text, css_error code)
  * data or false attributes. */
 css_error node_name(void *pw, void *n, css_qname *qname)
 {
-	lwc_string *node = n;
-
-	UNUSED(pw);
-
-	qname->name = lwc_string_ref(node);
-
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
+	if (!node || !node->name) {
+		qname->name = NULL;
+		return CSS_OK;
+	}
+	
+	lwc_intern_string((const char*)node->name, strlen((const char*)node->name), &qname->name);
+	
 	return CSS_OK;
 }
 
@@ -418,9 +423,24 @@ css_error node_classes(void *pw, void *n,
 
 css_error node_id(void *pw, void *n, lwc_string **id)
 {
-	UNUSED(pw);
-	UNUSED(n);
-	*id = NULL;
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
+	if (!node) {
+		*id = NULL;
+		return CSS_OK;
+	}
+	
+	/* Get id attribute from HTML element */
+	xmlChar *id_attr = xmlGetProp(node, BAD_CAST "id");
+	if (!id_attr) {
+		*id = NULL;
+		return CSS_OK;
+	}
+	
+	lwc_intern_string((const char*)id_attr, strlen((const char*)id_attr), id);
+	xmlFree(id_attr);
+	
 	return CSS_OK;
 }
 
@@ -470,9 +490,15 @@ css_error named_sibling_node(void *pw, void *n,
 
 css_error parent_node(void *pw, void *n, void **parent)
 {
-	UNUSED(pw);
-	UNUSED(n);
-	*parent = NULL;
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
+	if (!node) {
+		*parent = NULL;
+		return CSS_OK;
+	}
+	
+	*parent = node->parent;
 	return CSS_OK;
 }
 
@@ -488,10 +514,16 @@ css_error node_has_name(void *pw, void *n,
 		const css_qname *qname,
 		bool *match)
 {
-	lwc_string *node = n;
-	UNUSED(pw);
-	assert(lwc_string_caseless_isequal(node, qname->name, match) ==
-			lwc_error_ok);
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
+	if (!node || !node->name || !qname->name) {
+		*match = false;
+		return CSS_OK;
+	}
+	
+	lwc_string_caseless_isequal(qname->name,
+			qname->name, match);
 	return CSS_OK;
 }
 
@@ -499,10 +531,43 @@ css_error node_has_class(void *pw, void *n,
 		lwc_string *name,
 		bool *match)
 {
-	UNUSED(pw);
-	UNUSED(n);
-	UNUSED(name);
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
+	if (!node || !name) {
+		*match = false;
+		return CSS_OK;
+	}
+	
+	/* Get class attribute from HTML element */
+	xmlChar *class_attr = xmlGetProp(node, BAD_CAST "class");
+	if (!class_attr) {
+		*match = false;
+		return CSS_OK;
+	}
+	
+	/* Check if the class name is in the class attribute */
+	const char *class_str = (const char*)class_attr;
+	const char *target = lwc_string_data(name);
+	size_t target_len = lwc_string_length(name);
+	
 	*match = false;
+	const char *pos = class_str;
+	while (*pos) {
+		while (*pos && isspace(*pos)) pos++;
+		if (*pos) {
+			const char *token_start = pos;
+			while (*pos && !isspace(*pos)) pos++;
+			size_t token_len = pos - token_start;
+			if (token_len == target_len &&
+				strncasecmp(token_start, target, token_len) == 0) {
+				*match = true;
+				break;
+			}
+		}
+	}
+	
+	xmlFree(class_attr);
 	return CSS_OK;
 }
 
@@ -510,10 +575,27 @@ css_error node_has_id(void *pw, void *n,
 		lwc_string *name,
 		bool *match)
 {
-	UNUSED(pw);
-	UNUSED(n);
-	UNUSED(name);
-	*match = false;
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
+	if (!node || !name) {
+		*match = false;
+		return CSS_OK;
+	}
+	
+	/* Get id attribute from HTML element */
+	xmlChar *id_attr = xmlGetProp(node, BAD_CAST "id");
+	if (!id_attr) {
+		*match = false;
+		return CSS_OK;
+	}
+	
+	/* Compare id with the given name */
+	const char *id_str = (const char*)id_attr;
+	const char *target = lwc_string_data(name);
+	*match = (strcasecmp(id_str, target) == 0);
+	
+	xmlFree(id_attr);
 	return CSS_OK;
 }
 
@@ -763,23 +845,32 @@ css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint)
 static css_error set_libcss_node_data(void *pw, void *n,
 		void *libcss_node_data)
 {
-	UNUSED(pw);
+context *c = (context *)pw;
+	
 	UNUSED(n);
-
-	/* Since we're not storing it, ensure node data gets deleted */
-	css_libcss_node_data_handler(&select_handler, CSS_NODE_DELETED,
-			pw, n, NULL, libcss_node_data);
-
+	UNUSED(pw);
+	
+	/* We store computed style directly in html_getnodestyle, not using libcss node data */
+	if (libcss_node_data) {
+		/* Discard libcss node data since we manage styles ourselves */
+		css_libcss_node_data_handler(&select_handler, CSS_NODE_DELETED,
+				pw, NULL, NULL, libcss_node_data);
+	}
+	
 	return CSS_OK;
 }
 
 static css_error get_libcss_node_data(void *pw, void *n,
 		void **libcss_node_data)
 {
-	UNUSED(pw);
-	UNUSED(n);
+	context *c = (context *)pw;
+	xmlNode *node = (xmlNode *)n;
+	
+	if (!node) return CSS_OK;
+	
+	/* We store computedStyle directly in userdata, not using libcss node data */
 	*libcss_node_data = NULL;
-
+	
 	return CSS_OK;
 }
 
@@ -944,7 +1035,7 @@ static css_parser_t *global_css_parser = NULL;
 /**
  * @brief Parse inline CSS style string
  */
-css_select_results* css_parse_inline_style(const char *style_str, const char *element_name)
+css_select_results* css_parse_style(const char *style_str, const char *element_name)
 {
     if (!global_css_parser || !style_str || !element_name) return NULL;
     
@@ -1288,4 +1379,9 @@ int css_get_property_int(css_select_results *results, uint32_t property, int def
         default:
             return default_value;
     }
+}
+
+css_unit_ctx* css_get_unit_ctx(void)
+{
+	return &unit_len_ctx;
 }

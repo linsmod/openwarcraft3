@@ -32,12 +32,14 @@
 #include <hubbub/parser.h>
 #include <hubbub/tree.h>
 #include <libcss/libcss.h>
+#include <libcss/select.h>
 #define LAY_IMPLEMENTATION
 #include "layout.h"
 
 #include "html.h"
 #include "animation/anim_state.h"
 #include "css/css_animation.h"
+#include "css.h"
 
 #define UNUSED(x) ((x)=(x))
 
@@ -98,6 +100,10 @@ typedef struct context {
 		keyframe_t keyframes[32];	/**< Keyframe data */
 		int keyframe_count;		/**< Number of keyframes */
 	} keyframes_store[MAX_KEYFRAMES];
+
+	// CSS selection context
+	css_select_ctx *css_select_ctx;	/**< CSS selection context */
+	css_stylesheet *css_stylesheet;	/**< Parsed stylesheet from <style> tags */
 
 	int inhead;
 } context;
@@ -290,6 +296,18 @@ error_code create_context(const char *charset, context **ctx)
 	}
 	anim_manager_init(c->anim_mgr);
 
+	// CSS selection context
+	css_error css_err = css_select_ctx_create(&c->css_select_ctx);
+	if (css_err != CSS_OK) {
+		anim_manager_cleanup(c->anim_mgr);
+		free(c->anim_mgr);
+		lay_destroy_context(c->layout_ctx);
+		free(c->layout_ctx);
+		hubbub_parser_destroy(c->parser);
+		free(c);
+		return NOMEM;
+	}
+	c->css_stylesheet = NULL;
 
 	/* Allocate userdata for document */
 	ALLOCUD(c,doc_ud);
@@ -363,6 +381,16 @@ void destroy_context(context *c)
 		anim_manager_cleanup(c->anim_mgr);
 		free(c->anim_mgr);
 		c->anim_mgr = NULL;
+	}
+
+	/* Clean up CSS resources */
+	if (c->css_stylesheet != NULL) {
+		css_stylesheet_destroy(c->css_stylesheet);
+		c->css_stylesheet = NULL;
+	}
+	if (c->css_select_ctx != NULL) {
+		css_select_ctx_destroy(c->css_select_ctx);
+		c->css_select_ctx = NULL;
 	}
 
 	c->parser = NULL;
@@ -1935,40 +1963,115 @@ void render_rect_fill(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar h
 
 #include "css.h"
 /**
- * @brief Get node style using CSS parser
+ * @brief Get computed node style using CSS parser
  */
-LPCSS html_getnodestyle(xmlNode* node)
+LPCSS html_getnodestyle(context *ctx, xmlNode* node)
 {
     userdata* ud = node->_private;
     if (!ud) return NULL;
     
-    /* Check if we already parsed the style */
-    if (ud->parsedStyle) {
-        return ud->parsedStyle;
+    /* Check if we already computed the style */
+    if (ud->computedStyle) {
+        return ud->computedStyle;
     }
     
-    /* Get inline style attribute */
-    xmlChar* style_str = xmlGetProp(node, BAD_CAST "style");
-    if (!style_str) {
-        style_str = xmlGetNsProp(node, BAD_CAST "style", NULL);
+    /* Get context - use global HTML context if ctx is NULL */
+    context *css_ctx = ctx ? ctx : g_html_render_context[0];
+    if (!css_ctx || !css_ctx->css_select_ctx) {
+        /* Fall back to inline style only */
+		if(!ud->parsedStyle){
+			xmlChar* style_str = xmlGetProp(node, BAD_CAST "style");
+			if (!style_str) {
+				style_str = xmlGetNsProp(node, BAD_CAST "style", NULL);
+			}
+			
+			if (style_str) {
+				const char *element_name = (const char*)node->name;
+				if (!element_name) element_name = "div";
+				
+				css_select_results *results = css_parse_style((const char*)style_str, element_name);
+				if (results) {
+					ud->parsedStyle = results;
+					ud->computedStyle = results;
+				}
+				
+				xmlFree(style_str);
+			}
+		}
+        return ud->computedStyle;
     }
     
-    if (style_str) {
-        /* Get element name for context */
+    /* Prepare inline style if exists */
+    css_stylesheet *inline_style = NULL;
+    xmlChar* inline_style_str = xmlGetProp(node, BAD_CAST "style");
+    if (!inline_style_str) {
+        inline_style_str = xmlGetNsProp(node, BAD_CAST "style", NULL);
+    }
+    
+    if (inline_style_str && strlen((const char*)inline_style_str) > 0) {
         const char *element_name = (const char*)node->name;
-        if (!element_name) element_name = "div"; /* Default */
+        if (!element_name) element_name = "div";
         
-        /* Parse inline style using CSS parser */
-        css_select_results *results = css_parse_inline_style((const char*)style_str, element_name);
-        if (results) {
-            /* Store the parsed style results */
-            ud->parsedStyle = results;
+        /* Create CSS rule from inline style */
+        char css_buffer[2048];
+        snprintf(css_buffer, sizeof(css_buffer), "%s { %s }", element_name, (const char*)inline_style_str);
+        
+        /* Create stylesheet parameters */
+        css_stylesheet_params params = {
+            .params_version = CSS_STYLESHEET_PARAMS_VERSION_1,
+            .level = CSS_LEVEL_21,
+            .charset = "UTF-8",
+            .url = "inline",
+            .title = "inline-style",
+            .allow_quirks = false,
+            .inline_style = true,
+            .resolve = NULL,
+            .resolve_pw = NULL,
+            .import = NULL,
+            .import_pw = NULL,
+            .color = NULL,
+            .color_pw = NULL,
+            .font = NULL,
+            .font_pw = NULL
+        };
+        
+        /* Parse inline style */
+        css_error code = css_stylesheet_create(&params, &inline_style);
+        if (code == CSS_OK) {
+            code = css_stylesheet_append_data(inline_style, 
+                                        (const uint8_t *)css_buffer, strlen(css_buffer));
+            if (code == CSS_OK || code == CSS_NEEDDATA) {
+                code = css_stylesheet_data_done(inline_style);
+            }
         }
         
-        xmlFree(style_str);
+        xmlFree(inline_style_str);
     }
     
-    return ud->parsedStyle;
+    /* Use css_select_style to get computed style */
+    css_media media = { .type = CSS_MEDIA_SCREEN };
+    css_select_results *results = NULL;
+    
+    css_error code = css_select_style(css_ctx->css_select_ctx, node,
+                                    css_get_unit_ctx(), &media, inline_style,
+                                    &select_handler, css_ctx, &results);
+    
+    /* Clean up inline style if created */
+    if (inline_style) {
+        css_stylesheet_destroy(inline_style);
+    }
+    
+    if (code == CSS_OK && results) {
+        /* Store computed style */
+        ud->parsedStyle = results;
+        ud->computedStyle = results;
+        printf("DEBUG: Computed style for element '%s'\n", node->name ? (char*)node->name : "unknown");
+    } else {
+        printf("DEBUG: Failed to compute style for element '%s': %s\n", 
+               node->name ? (char*)node->name : "unknown", css_error_to_string(code));
+    }
+    
+    return ud->computedStyle;
 }
 
 extern LPFONT g_default_text_font;
@@ -1984,10 +2087,10 @@ void html_render_text(xmlNode* textnode, const char *text, lay_scalar x, lay_sca
     
     /* Try to get style from parent element */
 	xmlNode* style_node = textnode;
-	LPCSS style = html_getnodestyle(style_node);
+	LPCSS style = html_getnodestyle(NULL, style_node);
     while (!style && style_node->parent) {
 		style_node = style_node->parent;
-		style = html_getnodestyle(style_node);
+		style = html_getnodestyle(NULL, style_node);
 	}
     if (style) {
         /* Get color from style */
@@ -2171,40 +2274,85 @@ const char *selector_value;
     
     // 第三阶段：将收集到的样式合并到parsedStyle
     printf("DEBUG: Phase 2 - Merging %d collected styles to parsedStyle\n", match_count);
+    
+    // 创建一个映射来跟踪每个节点已收集的所有选择器样式
+    typedef struct {
+        xmlNode *node;
+        int style_count;
+        char styles[2048];
+    } node_styles_t;
+    
+    node_styles_t node_styles[MAX_MATCHES];
+    int node_style_count = 0;
+    
+    // 第一步：收集所有匹配的样式到对应的节点
     for (int i = 0; i < match_count; i++) {
-        printf("DEBUG: Merging style #%d to element '%s'\n", i, matches[i].node->name ? (char*)matches[i].node->name : "NULL");
+        printf("DEBUG: Collecting style #%d for element '%s'\n", i, matches[i].node->name ? (char*)matches[i].node->name : "NULL");
         
         userdata *ud = (userdata *)matches[i].node->_private;
         if (!ud) continue;
         
-        // 收集所有样式源：内联样式 + 选择器样式
-        // 创建合并的CSS字符串
-        char merged_css[2048] = {0};
+        // 查找是否已经为这个节点创建了收集器
+        int idx = -1;
+        for (int j = 0; j < node_style_count; j++) {
+            if (node_styles[j].node == matches[i].node) {
+                idx = j;
+                break;
+            }
+        }
         
-        // 1. 获取内联样式（如果存在）
-        xmlChar* inline_style = xmlGetProp(matches[i].node, BAD_CAST "style");
+        if (idx == -1 && node_style_count < MAX_MATCHES) {
+            // 创建新的节点样式收集器
+            node_styles[node_style_count].node = matches[i].node;
+            node_styles[node_style_count].style_count = 0;
+            node_styles[node_style_count].styles[0] = '\0';
+            idx = node_style_count;
+            node_style_count++;
+        }
+        
+        if (idx >= 0 && matches[i].style[0] != '\0') {
+            // 追加选择器样式
+            if (node_styles[idx].style_count > 0) {
+                strncat(node_styles[idx].styles, "; ", sizeof(node_styles[idx].styles) - 1);
+            }
+            strncat(node_styles[idx].styles, matches[i].style, sizeof(node_styles[idx].styles) - 1);
+            node_styles[idx].style_count++;
+        }
+    }
+    
+    // 第二步：为每个节点合并内联样式和选择器样式，然后解析
+    for (int i = 0; i < node_style_count; i++) {
+        node_styles_t *ns = &node_styles[i];
+        userdata *ud = (userdata *)ns->node->_private;
+        if (!ud) continue;
+        
+        // 合并所有样式
+        char merged_css[4096] = {0};
+        
+        // 1. 获取内联样式（只获取一次）
+        xmlChar* inline_style = xmlGetProp(ns->node, BAD_CAST "style");
         if (inline_style) {
             strncat(merged_css, (const char*)inline_style, sizeof(merged_css) - 1);
             xmlFree(inline_style);
         }
         
-        // 2. 添加选择器样式
-        if (matches[i].style[0] != '\0') {
+        // 2. 添加所有收集到的选择器样式
+        if (ns->styles[0] != '\0') {
             if (merged_css[0] != '\0') {
                 strncat(merged_css, "; ", sizeof(merged_css) - strlen(merged_css) - 1);
             }
-            strncat(merged_css, matches[i].style, sizeof(merged_css) - strlen(merged_css) - 1);
+            strncat(merged_css, ns->styles, sizeof(merged_css) - strlen(merged_css) - 1);
         }
         
         // 3. 使用CSS解析器解析合并的样式
-        const char *element_name = (const char*)matches[i].node->name;
+        const char *element_name = (const char*)ns->node->name;
         if (!element_name) element_name = "div";
         
         if (merged_css[0] != '\0') {
-            printf("DEBUG: Merged CSS for '%s': '%s'\n", element_name, merged_css);
+            printf("DEBUG: Final merged CSS for '%s': '%s'\n", element_name, merged_css);
             
             // 使用CSS解析器解析样式
-            css_select_results *results = css_parse_inline_style(merged_css, element_name);
+            css_select_results *results = css_parse_style(merged_css, element_name);
             if (results) {
                 // 释放旧的parsedStyle（如果存在）
                 if (ud->parsedStyle) {
@@ -2294,12 +2442,64 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 	
 	// 获取style节点的文本内容
 	xmlChar *style_content = xmlNodeGetContent(node);
-	if (style_content) {
-		// 解析并应用CSS样式（包括类选择器）
-		const char *css = (const char *)style_content;
+	if (style_content && ctx->css_select_ctx) {
+		const char *css_data = (const char *)style_content;
 		
-		// 先处理CSS类选择器
-		apply_css_class_selectors(ctx, xmlDocGetRootElement(ctx->document), css);
+		// Create stylesheet parameters
+		css_stylesheet_params params = {
+			.params_version = CSS_STYLESHEET_PARAMS_VERSION_1,
+			.level = CSS_LEVEL_21,
+			.charset = "UTF-8",
+			.url = "style",
+			.title = "stylesheet",
+			.allow_quirks = false,
+			.inline_style = false,
+			.resolve = NULL,
+			.resolve_pw = NULL,
+			.import = NULL,
+			.import_pw = NULL,
+			.color = NULL,
+			.color_pw = NULL,
+			.font = NULL,
+			.font_pw = NULL
+		};
+		
+		// Parse stylesheet
+		css_stylesheet *stylesheet = NULL;
+		css_error code = css_stylesheet_create(&params, &stylesheet);
+		if (code == CSS_OK) {
+			// Append CSS data
+			size_t data_len = strlen(css_data);
+			code = css_stylesheet_append_data(stylesheet, 
+											(const uint8_t *)css_data, data_len);
+			if (code == CSS_OK || code == CSS_NEEDDATA) {
+				code = css_stylesheet_data_done(stylesheet);
+				if (code == CSS_OK) {
+					// Add stylesheet to select context
+					code = css_select_ctx_append_sheet(ctx->css_select_ctx, 
+											stylesheet, CSS_ORIGIN_AUTHOR, NULL);
+					if (code == CSS_OK) {
+						printf("DEBUG: Added stylesheet to CSS select context\n");
+						// Store stylesheet for cleanup
+						if (ctx->css_stylesheet) {
+							css_stylesheet_destroy(ctx->css_stylesheet);
+						}
+						ctx->css_stylesheet = stylesheet;
+					} else {
+						fprintf(stderr, "Failed to append stylesheet to select context\n");
+						css_stylesheet_destroy(stylesheet);
+					}
+				} else {
+					fprintf(stderr, "Failed to complete stylesheet parsing\n");
+					css_stylesheet_destroy(stylesheet);
+				}
+			} else {
+				fprintf(stderr, "Failed to append stylesheet data\n");
+				css_stylesheet_destroy(stylesheet);
+			}
+		} else {
+			fprintf(stderr, "Failed to create stylesheet\n");
+		}
 		
 		xmlFree(style_content);
 	}
