@@ -2049,18 +2049,49 @@ void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar heigh
     };
     R_DrawImageEx(&drawImg);
 }
+// CSS匹配收集辅助结构
+typedef struct {
+    xmlNode *node;
+    char style[1024];
+} css_match_t;
+
+// 独立的DOM遍历收集函数
+static void traverse_collect(
+    xmlNode *node,
+    bool is_tag_selector,
+    bool is_id_selector,
+    bool is_class_selector,
+    const char *selector_value,
+    const char *style,
+    css_match_t *matches,
+    int *match_count,
+    int max_matches
+);
+
 // 简单的CSS类选择器匹配和应用
 static void apply_css_class_selectors(context *ctx, xmlNode *root, const char *css) {
     if (!ctx || !root || !css) return;
     
     printf("DEBUG: CSS Class Selector - Starting to parse CSS...\n");
+    
+    // 关注点分离：使用结构存储匹配结果
+    #define MAX_MATCHES 128
+    css_match_t matches[MAX_MATCHES];
+    int match_count = 0;
+    
     const char *pos = css;
+    
+// 第一阶段：收集所有选择器（body、.class、#id、tagname）
+    while (*pos) {
+    
+    // 第二阶段：收集所有选择器的匹配（.class、#id、tagname）
+    printf("DEBUG: Phase 1 - Collecting matches for . and # selectors\n");
+    pos = css;  // 重置到CSS开头
     
     while (*pos) {
         // 跳过空白和@keyframes
         while (*pos && (*pos == ' ' || *pos == '\n' || *pos == '\r' || *pos == '\t')) pos++;
         if (*pos == '@') {
-            // 跳过@规则（如@keyframes）
             pos++;
             while (*pos && *pos != '{') pos++;
             if (*pos == '{') {
@@ -2077,13 +2108,12 @@ static void apply_css_class_selectors(context *ctx, xmlNode *root, const char *c
         
         if (!*pos) break;
         
-        // 提取选择器（如.splash-container或body）
+        // 提取选择器和样式
         const char *selector_start = pos;
         while (*pos && *pos != '{') pos++;
         if (*pos != '{') break;
         const char *selector_end = pos;
         
-        // 提取样式块
         pos++;
         const char *style_start = pos;
         int brace_count = 1;
@@ -2094,83 +2124,168 @@ static void apply_css_class_selectors(context *ctx, xmlNode *root, const char *c
         }
         const char *style_end = pos - 1;
         
-        // 复制选择器
+        // 复制选择器和样式
         char selector[64] = {0};
         int selector_len = selector_end - selector_start;
         if (selector_len > 0) {
-            // 去除选择器前后的空白
             while (selector_len > 0 && (selector_start[selector_len-1] == ' ' || selector_start[selector_len-1] == '\n')) selector_len--;
             if (selector_len > 0) {
                 strncpy(selector, selector_start, selector_len < 63 ? selector_len : 63);
                 selector[selector_len < 63 ? selector_len : 63] = '\0';
-                printf("DEBUG: Extracted selector='%s', selector_len=%d\n", selector, selector_len);
             }
         }
         
-        // 复制样式
         char style[1024] = {0};
         int style_len = style_end - style_start;
         if (style_len > 0 && style_len < sizeof(style) - 1) {
             strncpy(style, style_start, style_len);
             style[style_len] = '\0';
-            printf("DEBUG: Extracted style for selector '%s': '%s'\n", selector, style);
+        }
+        
+// 判断选择器类型：.class、#id、tagname
+        bool is_class_selector = (selector[0] == '.');
+        bool is_id_selector = (selector[0] == '#');
+        bool is_tag_selector = (!is_class_selector && !is_id_selector);
+        
+const char *selector_value;
+            if (is_tag_selector) {
+                selector_value = selector;
+            } else {
+                selector_value = selector + 1;
+            }
             
-            // 遍历DOM树，查找匹配的元素
-            xmlNode *current = root;
-            printf("DEBUG: Determining selector type for '%s'\n", selector);
-            if (strcmp(selector, "body") == 0) {
-                printf("DEBUG: Selector type is 'body'\n");
-                // 查找body元素
-                xmlNode *body = xmlDocGetRootElement(ctx->document);
-                if (body) {
-                    body = body->children;
-                    while (body) {
-                        if (body->type == XML_ELEMENT_NODE && strcmp((char*)body->name, "body") == 0) {
-                            apply_enhanced_css_to_layout(ctx, body, style);
-                            break;
-                        }
-                        body = body->next;
-                    }
+            // 遍历DOM树，收集匹配的节点
+            traverse_collect(
+                xmlDocGetRootElement(ctx->document),
+                is_tag_selector,
+                is_id_selector,
+                is_class_selector,
+                selector_value,
+                style,
+                matches,
+                &match_count,
+                MAX_MATCHES
+            );
+        }
+    }
+    
+    // 第三阶段：将收集到的样式合并到parsedStyle
+    printf("DEBUG: Phase 2 - Merging %d collected styles to parsedStyle\n", match_count);
+    for (int i = 0; i < match_count; i++) {
+        printf("DEBUG: Merging style #%d to element '%s'\n", i, matches[i].node->name ? (char*)matches[i].node->name : "NULL");
+        
+        userdata *ud = (userdata *)matches[i].node->_private;
+        if (!ud) continue;
+        
+        // 收集所有样式源：内联样式 + 选择器样式
+        // 创建合并的CSS字符串
+        char merged_css[2048] = {0};
+        
+        // 1. 获取内联样式（如果存在）
+        xmlChar* inline_style = xmlGetProp(matches[i].node, BAD_CAST "style");
+        if (inline_style) {
+            strncat(merged_css, (const char*)inline_style, sizeof(merged_css) - 1);
+            xmlFree(inline_style);
+        }
+        
+        // 2. 添加选择器样式
+        if (matches[i].style[0] != '\0') {
+            if (merged_css[0] != '\0') {
+                strncat(merged_css, "; ", sizeof(merged_css) - strlen(merged_css) - 1);
+            }
+            strncat(merged_css, matches[i].style, sizeof(merged_css) - strlen(merged_css) - 1);
+        }
+        
+        // 3. 使用CSS解析器解析合并的样式
+        const char *element_name = (const char*)matches[i].node->name;
+        if (!element_name) element_name = "div";
+        
+        if (merged_css[0] != '\0') {
+            printf("DEBUG: Merged CSS for '%s': '%s'\n", element_name, merged_css);
+            
+            // 使用CSS解析器解析样式
+            css_select_results *results = css_parse_inline_style(merged_css, element_name);
+            if (results) {
+                // 释放旧的parsedStyle（如果存在）
+                if (ud->parsedStyle) {
+                    // TODO: 需要实现释放css_select_results的函数
+                    // css_select_results_destroy(ud->parsedStyle);
+                    ud->parsedStyle = NULL;
                 }
-            } else if (selector[0] == '.') {
-                printf("DEBUG: Selector type is class selector (starts with '.')\n");
-                // 类选择器（如.splash-container）
-                const char *class_name = selector + 1;
-                
-                // 递归遍历DOM树
-                void traverse_and_apply(xmlNode *node) {
-                    if (!node) return;
-                    
-                    if (node->type == XML_ELEMENT_NODE) {
-                        // 检查class属性
-                        for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
-                            if (attr->name && strcmp((char*)attr->name, "class") == 0) {
-                                if (attr->children && attr->children->content) {
-                                    const char *attr_class = (char*)attr->children->content;
-                                    printf("DEBUG: Checking element '%s', class='%s', looking for '%s'\n", 
-                                           (char*)node->name, attr_class, class_name);
-                                    if (strstr(attr_class, class_name) != NULL) {
-                                        printf("DEBUG: MATCH! Applying style to element '%s'\n", (char*)node->name);
-                                        // 匹配成功，应用样式
-                                        apply_enhanced_css_to_layout(ctx, node, style);
-                                        // printf("DEBUG: Applied class selector '%s' to element\n", selector);
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // 递归处理子节点
-                    for (xmlNode *child = node->children; child; child = child->next) {
-						traverse_and_apply(child);
-					}
-                }
-                
-                traverse_and_apply(xmlDocGetRootElement(ctx->document));
+                // 存储新的parsedStyle
+                ud->parsedStyle = results;
+                printf("DEBUG: Stored parsedStyle for '%s'\n", element_name);
             }
         }
+    }
+}
+
+// 独立的DOM遍历收集函数实现
+static void traverse_collect(
+    xmlNode *node,
+    bool is_tag_selector,
+    bool is_id_selector,
+    bool is_class_selector,
+    const char *selector_value,
+    const char *style,
+    css_match_t *matches,
+    int *match_count,
+    int max_matches
+) {
+    if (!node) return;
+    
+    bool match = false;
+    if (is_tag_selector && node->type == XML_ELEMENT_NODE) {
+        // tagname 选择器：匹配元素名称
+        const char *element_name = (char*)node->name;
+        if (element_name && strcmp(element_name, selector_value) == 0) {
+            match = true;
+        }
+    } else if (node->type == XML_ELEMENT_NODE) {
+        for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
+            if (attr->name) {
+                const char *attr_name = (char*)attr->name;
+                bool match = false;
+                
+                if (is_class_selector && strcmp(attr_name, "class") == 0) {
+                    if (attr->children && attr->children->content) {
+                        const char *attr_class = (char*)attr->children->content;
+                        if (strstr(attr_class, selector_value) != NULL) {
+                            match = true;
+                        }
+                    }
+                } else if (is_id_selector && strcmp(attr_name, "id") == 0) {
+                    if (attr->children && attr->children->content) {
+                        const char *attr_id = (char*)attr->children->content;
+                        if (strcmp(attr_id, selector_value) == 0) {
+                            match = true;
+                        }
+                    }
+                }
+                
+                if (match) {
+                    // 存储匹配结果（避免重复）
+                    int i;
+                    for (i = 0; i < *match_count; i++) {
+                        if (matches[i].node == node) {
+                            break;
+                        }
+                    }
+                    if (i >= *match_count && *match_count < max_matches) {
+                        matches[*match_count].node = node;
+                        strncpy(matches[*match_count].style, style, sizeof(matches[*match_count].style) - 1);
+                        matches[*match_count].style[sizeof(matches[*match_count].style) - 1] = '\0';
+                        (*match_count)++;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 递归遍历子节点
+    for (xmlNode *child = node->children; child; child = child->next) {
+        traverse_collect(child, is_tag_selector, is_id_selector, is_class_selector, selector_value, style, matches, match_count, max_matches);
     }
 }
 
@@ -2241,10 +2356,12 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         // 移除了调试边框，让渲染更美观
         if (strcmp(element_name, "p") == 0) {
             // 段落元素 - 无边框
+			html_render_text(node, element_name, x + 5, y + 5, (COLOR32){0, 0, 0, 255});
         } else if (strcmp(element_name, "h1") == 0 || strcmp(element_name, "h2") == 0 ||
                    strcmp(element_name, "h3") == 0 || strcmp(element_name, "h4") == 0 ||
                    strcmp(element_name, "h5") == 0 || strcmp(element_name, "h6") == 0) {
             // 标题元素 - 无边框
+			html_render_text(node, element_name, x + 5, y + 5, (COLOR32){0, 0, 0, 255});
         } else if (strcmp(element_name, "img") == 0) {
             // 渲染图片占位符
             COLOR32 img_fill_color = (COLOR32){200, 200, 200, 255};
@@ -2318,6 +2435,52 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
                 
                 free(clean_text);
             }
+        }else{
+			printf("DEBUG: Empty text node content\n");
+		}
+    }
+}
+
+
+// 渲染HTML元素
+void html_process_styles_and_scripts(context *ctx, xmlNode *node, int depth) {
+    if (!ctx || !node) return;
+    
+    lay_id layout_id = GETLAYID(node);
+    if (layout_id == LAY_INVALID_ID) return;
+    
+    // 获取元素布局信息
+    lay_scalar x, y, width, height;
+    lay_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
+    
+    if (node->type == XML_ELEMENT_NODE) {
+        const char *element_name = node->name ? (char*)node->name : "unknown";
+
+        // Check if element has animation and apply animated values
+        anim_value_t anim_value;
+        bool has_animation = get_element_animation_value(ctx, node, 0, &anim_value);
+        float animated_opacity = 1.0f; // Default to full opacity
+        if (has_animation) {
+            // Apply opacity animation (anim_value.number is used for opacity)
+            animated_opacity = anim_value.number;
+        }
+
+        // 根据元素类型进行渲染
+        // First, draw background if it exists
+        userdata *ud = (userdata *)node->_private;
+
+        if (strcmp(element_name, "style") == 0) {
+			process_style_node(ctx, node, depth);
+            return;
+        } else if (strcmp(element_name, "script") == 0) {
+			process_script_node(ctx, node, depth);
+            return;
+        }
+        // 递归渲染子元素
+        xmlNode *child = node->children;
+        while (child != NULL) {
+            html_process_styles_and_scripts(ctx, child, depth + 1);
+            child = child->next;
         }
     }
 }
@@ -2733,6 +2896,11 @@ void html_update_and_layout(float delta_time,int page_index) {
 	if (!ctx || !ctx->document) {
 		return;
 	}
+	
+	xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (root) {
+        html_process_styles_and_scripts(ctx, root, 0);
+	}
 
     // 0. 更新动画管理器（如果提供了delta_time）
     if (delta_time > 0.0f && ctx->anim_mgr) {
@@ -2747,7 +2915,7 @@ void html_update_and_layout(float delta_time,int page_index) {
 
 
 	/* Print layout information */
-	// printf("=== Layout Information ===\n");
+	printf("=== Layout Information ===\n");
 	print_layout_info(ctx->layout_ctx, ctx->document, ctx);
 	// printf("=========================\n");
     
