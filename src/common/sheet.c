@@ -7,7 +7,6 @@
 #include "../common/common.h"
 #include "common/shared.h"
 #include "parser.h"
-#include "../libs/mystr.h"
 
 #define MAX_INI_LINE 1024
 #define MAX_SHEET_COLUMNS 256

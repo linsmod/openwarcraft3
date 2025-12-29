@@ -3,6 +3,7 @@
 
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
+#include "ui_component.h"
 #include "ui_text.h"
 
 // UI 按钮状态
@@ -13,45 +14,49 @@ typedef enum {
     UI_BUTTON_STATE_DISABLED   // 禁用状态
 } ui_button_state_t;
 
-// UI 按钮点击回调
-typedef void (*ui_button_click_callback_t)(void *user_data);
-
 // UI 按钮配置
 typedef struct {
-    float x;                          // 按钮 X 位置
-    float y;                          // 按钮 Y 位置
-    float width;                      // 按钮宽度
-    float height;                     // 按钮高度
     char text[128];                   // 按钮文本
     COLOR32 bg_color[4];              // 背景色 [正常, 悬停, 按下, 禁用]
     COLOR32 border_color[4];         // 边框色 [正常, 悬停, 按下, 禁用]
     COLOR32 text_color[4];            // 文本颜色 [正常, 悬停, 按下, 禁用]
-    float font_size;                  // 字体大小 (默认 16.0f)
+    float font_size;                  // 字体大小
     float border_width;               // 边框宽度
-    ui_button_click_callback_t on_click;  // 点击回调函数
-    void *user_data;                  // 用户数据
-    bool enabled;                     // 是否启用
-    bool visible;                     // 是否可见 (默认 true)
+    bool double_click_enabled;        // 是否启用双击
 } ui_button_config_t;
 
-// UI 按钮状态
+// UI 按钮组件（继承自 ui_component_t）
 typedef struct {
-    ui_button_state_t state;
-    ui_button_config_t config;
-    bool is_hovered;
-    bool is_pressed;
-    canvas2d_context_t *ctx;
-    ui_text_t text_component;  // 文本组件
+    ui_component_t base;              // 基础组件
+    ui_button_state_t state;         // 按钮状态
+    ui_button_config_t config;       // 按钮配置
+    ui_text_t text_component;        // 文本组件
 } ui_button_t;
 
 // 创建默认按钮配置
 ui_button_config_t UIButton_GetDefaultConfig(void);
 
-// 初始化 UI 按钮
+// 创建按钮（简单版）
+ui_button_t* UIButton_Create(float x, float y, float width, float height, canvas2d_context_t *ctx);
+
+// 创建按钮（带配置）
+ui_button_t* UIButton_CreateWithConfig(float x, float y, float width, float height,
+                                      const ui_button_config_t *config, canvas2d_context_t *ctx);
+
+// 初始化按钮
 int UIButton_Init(ui_button_t *button, const ui_button_config_t *config, canvas2d_context_t *ctx);
+
+// 清理按钮
+void UIButton_Shutdown(ui_button_t *button);
+
+// 销毁按钮
+void UIButton_Destroy(ui_button_t *button);
 
 // 设置按钮文本
 void UIButton_SetText(ui_button_t *button, const char *text);
+
+// 获取按钮文本
+const char* UIButton_GetText(ui_button_t *button);
 
 // 设置按钮位置
 void UIButton_SetPosition(ui_button_t *button, float x, float y);
@@ -65,22 +70,25 @@ void UIButton_SetEnabled(ui_button_t *button, bool enabled);
 // 获取按钮启用状态
 bool UIButton_IsEnabled(const ui_button_t *button);
 
-// 检查点是否在按钮区域内
-bool UIButton_IsPointInButton(const ui_button_t *button, float x, float y);
+// 获取按钮状态
+ui_button_state_t UIButton_GetState(ui_button_t *button);
 
-// 处理鼠标移动（悬停检测）
-bool UIButton_HandleMouseMove(ui_button_t *button, float x, float y);
+// 添加单击事件处理器
+bool UIButton_AddOnClick(ui_button_t *button, ui_event_handler_t handler, void *user_data);
 
-// 处理鼠标点击
-bool UIButton_HandleMouseClick(ui_button_t *button, float x, float y, bool down);
+// 添加双击事件处理器
+bool UIButton_AddOnDoubleClick(ui_button_t *button, ui_event_handler_t handler, void *user_data);
 
-// 更新按钮（处理动画等）
+// 添加鼠标悬停事件处理器
+bool UIButton_AddOnMouseEnter(ui_button_t *button, ui_event_handler_t handler, void *user_data);
+
+// 添加鼠标离开事件处理器
+bool UIButton_AddOnMouseLeave(ui_button_t *button, ui_event_handler_t handler, void *user_data);
+
+// 更新按钮
 void UIButton_Update(ui_button_t *button, int msec);
 
 // 渲染按钮
 void UIButton_Render(ui_button_t *button);
-
-// 清理按钮
-void UIButton_Shutdown(ui_button_t *button);
 
 #endif // __UI_BUTTON_H__

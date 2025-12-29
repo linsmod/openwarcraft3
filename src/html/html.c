@@ -23,7 +23,7 @@
 #include <wchar.h>
 #define _GNU_SOURCE /* for strndup */
 #include <assert.h>
-#include <stdbool.h>
+// #include <stdbool.h>
 #include <string.h>
 
 #include <libxml/HTMLparser.h>

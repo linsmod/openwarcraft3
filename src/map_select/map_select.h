@@ -86,8 +86,7 @@ scene_transition_t* MapSelectScene_Update(scene_t *scene, int msec);
 void MapSelectScene_Render(scene_t *scene);
 
 // Scene 输入处理
-// 返回值：scene_transition_t* - 如果需要跳转场景，返回跳转请求
-scene_transition_t* MapSelectScene_OnInput(scene_t *scene, input_event_t *event);
+void MapSelectScene_OnInput(scene_t *scene, input_event_t *event);
 
 // ========================================
 // 获取场景实例

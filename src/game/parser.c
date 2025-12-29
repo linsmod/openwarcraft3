@@ -1,7 +1,6 @@
 #include "parser.h"
 #include "common/shared.h"
 #include "g_local.h"
-#include "libs/mystr.h"
 #include <string.h>
 #define MAX_SEGMENT_SIZE 1024
 
@@ -42,25 +41,38 @@ void setln(LPPARSER p, LPCSTR start) {
 }
 
 LPCSTR read_inlinecomment(LPPARSER p) {
+    static char comment[MAX_SEGMENT_SIZE];
     LPCSTR start = p->buffer;
-    size_t segmentLength = 0;
+    size_t len = 0;
+    
     if (*p->buffer == '/' && *(p->buffer+1) == '/') {
-        p->buffer+=2;
-        mstr_t* str = mstr_new_with_capacity(MAX_SEGMENT_SIZE);
-        while (*p->buffer!='\n' && *p->buffer!='\0') {
-            mstr_append_char(str, *(p->buffer++));
+        p->buffer += 2;
+        
+        while (*p->buffer != '\n' && *p->buffer != '\0' && len < MAX_SEGMENT_SIZE - 1) {
+            comment[len++] = *(p->buffer++);
         }
-        LPCSTR ret = mstr_cstr(str);
-        mstr_free(str);
+        comment[len] = '\0';
         setln(p, start);
-        return ret;
+        return comment;
     }
     return NULL;
 }
-LPCSTR parser_sline(LPPARSER p){
-    mstr_t* at =mstr_new_from_cstr(p->location->file);
-    mstr_append(at, ":%d:%d", p->location->line,p->location->column);
-    return mstr_cstr_dupfree(at);
+LPCSTR parser_sline(LPPARSER p) {
+    size_t file_len = p->location->file ? strlen(p->location->file) : 0;
+    // 估算行号和列号的最大长度（每个最多10位）
+    size_t extra_len = 30; // 冒号和数字
+    size_t total_len = file_len + extra_len + 1; // +1 for null terminator
+    
+    char* result = (char*)malloc(total_len);
+    if (!result) return NULL;
+    
+    if (p->location->file) {
+        sprintf(result, "%s:%d:%d", p->location->file, p->location->line, p->location->column);
+    } else {
+        sprintf(result, ":%d:%d", p->location->line, p->location->column);
+    }
+    
+    return result;
 }
 LPCSTR parse_token_dup(LPPARSER p) {
     LPCSTR tok = parse_token(p);

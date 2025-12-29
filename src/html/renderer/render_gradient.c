@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <GLES3/gl3.h>
+#include "common/shared.h"
 #define MAX_CACHED_GRADIENTS 32
 // Cache entry
 typedef struct {

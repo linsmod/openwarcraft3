@@ -150,23 +150,27 @@ int main(int argc, LPSTR argv[]) {
                     input_event.key.down = false;
                     break;
                 case INPUT_EVENT_MOUSE_DOWN:
+                case INPUT_EVENT_MOUSE_UP: {
+                    // 鼠标按键事件 - 在转换时就进行归一化
+                    VECTOR2 displayScale = re.GetDisplayScale();
+                    printf("[Main] Mouse button: raw=(%d,%d), scale=(%.2f,%.2f), normalized=(%.2f,%.2f)\n",
+                           event.button.x, event.button.y, displayScale.x, displayScale.y,
+                           event.button.x / displayScale.x, event.button.y / displayScale.y);
                     input_event.mouse.button = event.button.button;
-                    input_event.mouse.x = event.button.x;
-                    input_event.mouse.y = event.button.y;
-                    input_event.mouse.down = true;
+                    input_event.mouse.x = event.button.x / displayScale.x;
+                    input_event.mouse.y = event.button.y / displayScale.y;
+                    input_event.mouse.down = (input_event.type == INPUT_EVENT_MOUSE_DOWN);
                     break;
-                case INPUT_EVENT_MOUSE_UP:
-                    input_event.mouse.button = event.button.button;
-                    input_event.mouse.x = event.button.x;
-                    input_event.mouse.y = event.button.y;
-                    input_event.mouse.down = false;
+                }
+                case INPUT_EVENT_MOUSE_MOTION: {
+                    // 鼠标移动事件 - 在转换时就进行归一化
+                    VECTOR2 displayScale = re.GetDisplayScale();
+                    input_event.motion.x = event.motion.x / displayScale.x;
+                    input_event.motion.y = event.motion.y / displayScale.y;
+                    input_event.motion.dx = event.motion.xrel / displayScale.x;
+                    input_event.motion.dy = event.motion.yrel / displayScale.y;
                     break;
-                case INPUT_EVENT_MOUSE_MOTION:
-                    input_event.motion.x = event.motion.x;
-                    input_event.motion.y = event.motion.y;
-                    input_event.motion.dx = event.motion.xrel;
-                    input_event.motion.dy = event.motion.yrel;
-                    break;
+                }
                 case INPUT_EVENT_MOUSE_WHEEL:
                     input_event.wheel.delta = event.wheel.y;
                     break;

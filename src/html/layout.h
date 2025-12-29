@@ -446,7 +446,7 @@ LAY_STATIC_INLINE void lay_get_rect_xywh(
 #ifdef LAY_IMPLEMENTATION
 
 #include <stddef.h>
-#include <stdbool.h>
+// #include <stdbool.h>
 
 // Users of this library can define LAY_REALLOC to use a custom (re)allocator
 // instead of stdlib's realloc. It should have the same behavior as realloc --

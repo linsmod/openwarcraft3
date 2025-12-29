@@ -2,7 +2,7 @@
 #ifndef CANVAS2D_H
 #define CANVAS2D_H
 
-#include <stdbool.h>
+// #include <stdbool.h>
 #include "r_local.h"
 
 typedef struct canvas2d_t canvas2d_t;

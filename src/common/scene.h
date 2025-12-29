@@ -8,6 +8,7 @@ typedef struct scene_t scene_t;
 typedef struct scene_manager_t scene_manager_t;
 typedef struct scene_params_t scene_params_t;
 typedef struct scene_transition_t scene_transition_t;
+typedef struct ui_component_t ui_component_t;
 
 // ========================================
 // 场景参数系统 - 支持场景间参数传递
@@ -107,17 +108,40 @@ typedef enum {
 // 输入事件
 // ========================================
 typedef enum {
+    // 基础事件（来自主循环）
     INPUT_EVENT_KEY_DOWN,
     INPUT_EVENT_KEY_UP,
     INPUT_EVENT_MOUSE_DOWN,
     INPUT_EVENT_MOUSE_UP,
     INPUT_EVENT_MOUSE_MOTION,
     INPUT_EVENT_MOUSE_WHEEL,
-    INPUT_EVENT_QUIT
+    INPUT_EVENT_QUIT,
+    
+    // 细化的事件（由场景管理器生成）
+    INPUT_EVENT_CLICK,           // 单击
+    INPUT_EVENT_DOUBLE_CLICK,    // 双击
+    INPUT_EVENT_DRAG_START,      // 拖拽开始
+    INPUT_EVENT_DRAG,            // 拖拽中
+    INPUT_EVENT_DRAG_END,        // 拖拽结束
+    INPUT_EVENT_MOUSE_ENTER,     // 鼠标进入组件
+    INPUT_EVENT_MOUSE_LEAVE      // 鼠标离开组件
 } input_event_type_t;
 
 typedef struct {
     input_event_type_t type;
+    
+    // 目标组件（由场景管理器的hitTest填充）
+    ui_component_t *target;
+    
+    // 当前目标（用于事件冒泡）
+    ui_component_t *current_target;
+    
+    // 时间戳（毫秒）
+    int timestamp;
+    
+    // 是否停止传播
+    bool propagation_stopped;
+    
     union {
         struct {
             int key;
@@ -127,7 +151,10 @@ typedef struct {
             int button;
             float x;
             float y;
+            float start_x;      // 拖拽起始位置（用于拖拽事件）
+            float start_y;
             bool down;
+            int click_count;    // 点击次数（用于单击/双击）
         } mouse;
         struct {
             float x;
@@ -139,7 +166,9 @@ typedef struct {
             float delta;
         } wheel;
     };
-    bool handled;  // 事件是否已被处理，用于事件冒泡控制
+    
+    // 向后兼容字段
+    bool handled;
 } input_event_t;
 
 // ========================================
@@ -151,7 +180,7 @@ typedef scene_transition_t* (*scene_update_fn)(scene_t *scene, int msec);
 typedef void (*scene_render_fn)(scene_t *scene);
 typedef void (*scene_pause_fn)(scene_t *scene, const scene_params_t *result);
 typedef void (*scene_resume_fn)(scene_t *scene);
-typedef scene_transition_t* (*scene_on_input_fn)(scene_t *scene, input_event_t *event);
+typedef void (*scene_on_input_fn)(scene_t *scene, input_event_t *event);
 
 // ========================================
 // 场景结构
@@ -163,6 +192,9 @@ struct scene_t {
     
     // 启动参数（由SceneManager管理）
     const scene_params_t *launch_params;
+    
+    // UI根容器组件（可选）- 用于组织场景中的所有UI组件
+    ui_component_t *root_component;
     
     // 场景接口函数
     scene_init_fn init;
@@ -195,6 +227,20 @@ struct scene_manager_t {
     // 当前输入事件
     input_event_t current_input_event;
     bool input_event_valid;
+    
+    // 鼠标状态追踪（用于生成细化的事件）
+    ui_component_t *mouse_target;       // 当前鼠标命中的组件
+    ui_component_t *dragging_component;  // 当前拖拽的组件
+    float drag_start_x;                  // 拖拽起始X
+    float drag_start_y;                  // 拖拽起始Y
+    bool is_dragging;                   // 是否正在拖拽
+    bool mouse_buttons[5];               // 鼠标按钮状态
+    ui_component_t *last_clicked;       // 上次点击的组件
+    int last_click_time;                 // 上次点击时间
+    float last_click_x;                 // 上次点击X
+    float last_click_y;                 // 上次点击Y
+    int double_click_time;               // 双击检测时间间隔（毫秒）
+    float drag_threshold;               // 拖拽阈值（像素）
 };
 
 // ========================================
@@ -311,6 +357,21 @@ void SceneTransition_Destroy(scene_transition_t *transition);
 #define SCENE_ON_INPUT(scene, event) \
     ((scene)->on_input ? (scene)->on_input(scene, event) : NULL)
 
+// ========================================
+// 场景管理器事件处理辅助函数
+// ========================================
+// 初始化场景管理器的鼠标状态
+void SceneManager_InitMouseState(scene_manager_t *mgr);
+
+// 执行hitTest（返回鼠标命中的组件）
+ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y);
+
+// 处理事件细化
+void SceneManager_ProcessEvent(scene_manager_t *mgr, input_event_t *event);
+
+// 递归处理事件冒泡
+bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event);
+
 // 场景构造宏（新版）
 #define DEFINE_SCENE(name, init_fn, shutdown_fn, update_fn, render_fn, on_input_fn) \
     scene_t name = { \
@@ -318,6 +379,7 @@ void SceneTransition_Destroy(scene_transition_t *transition);
         .state = SCENE_STATE_UNINITIALIZED, \
         .user_data = NULL, \
         .launch_params = NULL, \
+        .root_component = NULL, \
         .manager = NULL, \
         .init = init_fn, \
         .shutdown = shutdown_fn, \
@@ -327,5 +389,23 @@ void SceneTransition_Destroy(scene_transition_t *transition);
         .pause = NULL, \
         .resume = NULL \
     }
+
+// ========================================
+// 场景UI辅助函数
+// ========================================
+// 设置场景的根容器组件
+void Scene_SetRootComponent(scene_t *scene, ui_component_t *root);
+
+// 获取场景的根容器组件
+ui_component_t* Scene_GetRootComponent(scene_t *scene);
+
+// 更新场景的所有UI组件
+void Scene_UpdateUI(scene_t *scene, int msec);
+
+// 渲染场景的所有UI组件
+void Scene_RenderUI(scene_t *scene);
+
+// 将输入事件分发到场景的UI组件
+bool Scene_DispatchInputToUI(scene_t *scene, input_event_t *event);
 
 #endif // __SCENE_H__

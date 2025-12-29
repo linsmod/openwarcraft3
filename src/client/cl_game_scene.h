@@ -23,8 +23,7 @@ scene_transition_t* GameScene_Update(scene_t *scene, int msec);
 void GameScene_Render(scene_t *scene);
 
 // Scene 输入处理
-// 返回值：scene_transition_t* - 如果需要跳转场景，返回跳转请求
-scene_transition_t* GameScene_OnInput(scene_t *scene, input_event_t *event);
+void GameScene_OnInput(scene_t *scene, input_event_t *event);
 
 // Scene 暂停（例如按ESC打开暂停菜单时）
 void GameScene_Pause(scene_t *scene, const scene_params_t *result);

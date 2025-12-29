@@ -2,7 +2,7 @@
 #define CSS_GRADIENT_H
 
 #include <stdint.h>
-#include <stdbool.h>
+#include "common/shared.h"
 
 /**
  * CSS Gradient Parser and Renderer

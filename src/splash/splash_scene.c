@@ -177,7 +177,6 @@ void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
         default:
             break;
     }
-    return NULL;  // 不跳转场景
 }
 
 // 获取场景实例

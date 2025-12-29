@@ -2,7 +2,7 @@
 #define ANIM_STATE_H
 
 #include <stdint.h>
-#include <stdbool.h>
+#include "../common/shared.h"
 
 /**
  * CSS Animation State Management

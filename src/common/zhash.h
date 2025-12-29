@@ -1,7 +1,7 @@
 #ifndef ZHASH_H
 #define ZHASH_H
 
-#include <stdbool.h>
+#include "shared.h"
 
 // hash table
 // keys are strings

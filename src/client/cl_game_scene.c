@@ -143,9 +143,9 @@ void GameScene_Render(scene_t *scene) {
 }
 
 // Scene 输入处理
-scene_transition_t* GameScene_OnInput(scene_t *scene, input_event_t *event) {
+void GameScene_OnInput(scene_t *scene, input_event_t *event) {
     game_scene_data_t *data = (game_scene_data_t*)scene->user_data;
-    if (!data) return NULL;
+    if (!data) return;
     
     switch (event->type) {
         case INPUT_EVENT_KEY_DOWN: {
@@ -186,7 +186,7 @@ scene_transition_t* GameScene_OnInput(scene_t *scene, input_event_t *event) {
                             NULL
                         );
                         
-                        return transition;
+                        scene->manager->pending_transition = transition;
                     }
                     break;
                 }
@@ -329,8 +329,6 @@ scene_transition_t* GameScene_OnInput(scene_t *scene, input_event_t *event) {
         default:
             break;
     }
-    
-    return NULL;
 }
 
 // Scene 暂停（从暂停菜单返回时调用）

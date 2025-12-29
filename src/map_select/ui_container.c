@@ -1,234 +1,338 @@
 #include "ui_container.h"
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-// 创建默认容器配置
-ui_container_config_t UIContainer_GetDefaultConfig(void) {
-    ui_container_config_t config = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = 100.0f,
-        .height = 100.0f,
-        .bg_color = {40, 40, 50, 255},
-        .border_color = {200, 200, 200, 255},
-        .border_width = 1.0f,
-        .visible = true,
-        .max_items = 10
-    };
-    return config;
+// 子组件数组初始容量
+#define CONTAINER_INITIAL_CAPACITY 8
+
+// ==================== 虚函数实现 ====================
+
+static void container_init(ui_component_t *component, canvas2d_context_t *ctx) {
+    (void)component;
+    (void)ctx;
 }
 
-// 初始化 UI 容器
-int UIContainer_Init(ui_container_t *container, const ui_container_config_t *config, canvas2d_context_t *ctx) {
-    if (!container || !config || !ctx) {
+static void container_shutdown(ui_component_t *component) {
+    // 注意：不释放子组件，只释放数组
+    if (component->children) {
+        free(component->children);
+        component->children = NULL;
+    }
+    component->child_count = 0;
+    component->child_capacity = 0;
+}
+
+static void container_update(ui_component_t *component, int msec) {
+    ui_container_t *container = (ui_container_t *)component;
+    if (!container) return;
+
+    // 更新所有子组件
+    for (int i = 0; i < component->child_count; i++) {
+        ui_component_t *child = component->children[i];
+        if (child && child->vtable && child->vtable->update) {
+            child->vtable->update(child, msec);
+        }
+    }
+}
+
+static void container_render(ui_component_t *component) {
+    ui_container_t *container = (ui_container_t *)component;
+    if (!container || !UIComponent_IsVisible(component)) return;
+
+    // 使用基础组件背景渲染
+    UIComponent_RenderBackground(component);
+
+    // 绘制边框
+    if (container->border_width > 0) {
+        canvas2d_set_stroke_style(component->ctx, container->border_color);
+        canvas2d_set_line_width(component->ctx, container->border_width);
+        canvas2d_stroke_rect(component->ctx, component->x, component->y, component->width, component->height);
+    }
+
+    // 裁剪区域（如果需要）
+    if (component->flags & UI_FLAG_CLIPPING) {
+        // canvas2d_save(component->ctx);
+        // canvas2d_begin_path(component->ctx);
+        // canvas2d_rect(component->ctx, component->x, component->y, component->width, component->height);
+        // canvas2d_clip(component->ctx);
+    }
+
+    // 渲染所有子组件
+    for (int i = 0; i < component->child_count; i++) {
+        ui_component_t *child = component->children[i];
+        if (child && child->vtable && child->vtable->render) {
+            child->vtable->render(child);
+        }
+    }
+
+    // 恢复裁剪
+    if (component->flags & UI_FLAG_CLIPPING) {
+        // canvas2d_restore(component->ctx);
+    }
+}
+
+static void container_set_position(ui_component_t *component, float x, float y) {
+    component->x = x;
+    component->y = y;
+}
+
+static void container_set_size(ui_component_t *component, float width, float height) {
+    component->width = width;
+    component->height = height;
+}
+
+static void container_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
+    component->x = x;
+    component->y = y;
+    component->width = width;
+    component->height = height;
+}
+
+static bool container_hit_test(ui_component_t *component, float x, float y) {
+    return x >= component->x && x < component->x + component->width &&
+           y >= component->y && y < component->y + component->height;
+}
+
+// 容器特定的虚函数
+static int container_add_child(ui_component_t *component, ui_component_t *child) {
+    if (!component || !child) return -1;
+
+    // 检查容量
+    if (component->child_count >= component->child_capacity) {
+        int new_capacity = component->child_capacity > 0 ? component->child_capacity * 2 : CONTAINER_INITIAL_CAPACITY;
+
+        // 检查最大限制
+        ui_container_t *container = (ui_container_t *)component;
+        if (container->max_children > 0 && new_capacity > container->max_children) {
+            new_capacity = container->max_children;
+        }
+
+        if (new_capacity <= component->child_capacity) {
+            return -1; // 无法扩容
+        }
+
+        ui_component_t **new_children = realloc(component->children, sizeof(ui_component_t *) * new_capacity);
+        if (!new_children) {
+            return -1; // 内存分配失败
+        }
+
+        component->children = new_children;
+        component->child_capacity = new_capacity;
+    }
+
+    // 添加子组件
+    child->parent = component;
+    component->children[component->child_count] = child;
+    return component->child_count++;
+}
+
+static bool container_remove_child(ui_component_t *component, ui_component_t *child) {
+    if (!component || !child || !component->children) return false;
+
+    // 查找子组件
+    int index = -1;
+    for (int i = 0; i < component->child_count; i++) {
+        if (component->children[i] == child) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) return false;
+
+    // 移动后面的组件
+    for (int i = index; i < component->child_count - 1; i++) {
+        component->children[i] = component->children[i + 1];
+    }
+
+    component->child_count--;
+    child->parent = NULL;
+    return true;
+}
+
+static int container_get_child_count(ui_component_t *component) {
+    return component ? component->child_count : 0;
+}
+
+static ui_component_t* container_get_child(ui_component_t *component, int index) {
+    if (!component || !component->children) return NULL;
+    if (index < 0 || index >= component->child_count) return NULL;
+    return component->children[index];
+}
+
+// ==================== 虚函数表定义 ====================
+
+static const ui_component_vtable_t g_container_vtable = {
+    .init = container_init,
+    .shutdown = container_shutdown,
+    .update = container_update,
+    .render = container_render,
+    .set_position = container_set_position,
+    .set_size = container_set_size,
+    .set_bounds = container_set_bounds,
+    .hit_test = container_hit_test,
+    .on_mouse_enter = NULL,
+    .on_mouse_leave = NULL,
+    .on_mouse_down = NULL,
+    .on_mouse_up = NULL,
+    .on_click = NULL,
+    .on_double_click = NULL,
+    .on_mouse_move = NULL,
+    .on_mouse_wheel = NULL,
+    .on_context_menu = NULL,
+    .on_drag_start = NULL,
+    .on_drag = NULL,
+    .on_drag_end = NULL,
+    .on_key_down = NULL,
+    .on_key_up = NULL,
+    .on_key_press = NULL,
+    .on_focus = NULL,
+    .on_blur = NULL,
+    .on_resize = NULL,
+    .on_scroll = NULL,
+    .add_child = container_add_child,
+    .remove_child = container_remove_child,
+    .get_child_count = container_get_child_count,
+    .get_child = container_get_child,
+    .get_custom_data = NULL,
+    .set_custom_data = NULL,
+};
+
+// ==================== 公共API实现 ====================
+
+ui_container_t* UIContainer_Create(float x, float y, float width, float height,
+                                  COLOR32 bg_color, COLOR32 border_color, canvas2d_context_t *ctx) {
+    ui_container_t *container = malloc(sizeof(ui_container_t));
+    if (!container) return NULL;
+
+    if (UIContainer_Init(container, ctx) != 0) {
+        free(container);
+        return NULL;
+    }
+
+    container->base.x = x;
+    container->base.y = y;
+    container->base.width = width;
+    container->base.height = height;
+    container->base.bg_color = bg_color;
+    container->border_color = border_color;
+    container->border_width = 1.0f;
+    container->max_children = 100;
+
+    // 启用裁剪
+    container->base.flags |= UI_FLAG_CLIPPING;
+
+    return container;
+}
+
+int UIContainer_Init(ui_container_t *container, canvas2d_context_t *ctx) {
+    if (!container || !ctx) {
         return -1;
     }
 
-    memset(container, 0, sizeof(ui_container_t));
-    container->config = *config;
-    container->ctx = ctx;
-    container->item_count = 0;
+    // 使用新的组件系统初始化基础部分
+    UIComponent_InitBase(&container->base, UI_COMPONENT_TYPE_CONTAINER, &g_container_vtable, ctx);
 
-    // 分配子组件数组
-    if (config->max_items > 0) {
-        container->items = (ui_container_item_t *)malloc(sizeof(ui_container_item_t) * config->max_items);
-        if (!container->items) {
-            printf("Failed to allocate memory for container items\n");
-            return -1;
-        }
-        memset(container->items, 0, sizeof(ui_container_item_t) * config->max_items);
-    }
+    // 使用基础组件的bg_color
+    container->base.bg_color = MAKE(COLOR32, 50, 50, 60, 255);
+    container->border_color = MAKE(COLOR32, 100, 100, 100, 255);
+    container->border_width = 1.0f;
+    container->max_children = 100;
 
-    printf("UIContainer initialized: pos=(%.1f,%.1f), size=(%.1fx%.1f), max_items=%d\n",
-           config->x, config->y, config->width, config->height, config->max_items);
+    // 启用裁剪
+    container->base.flags |= UI_FLAG_CLIPPING;
 
     return 0;
 }
 
-// 设置容器位置
 void UIContainer_SetPosition(ui_container_t *container, float x, float y) {
     if (!container) return;
-    container->config.x = x;
-    container->config.y = y;
+    if (container->base.vtable && container->base.vtable->set_position) {
+        container->base.vtable->set_position(&container->base, x, y);
+    }
 }
 
-// 设置容器大小
 void UIContainer_SetSize(ui_container_t *container, float width, float height) {
     if (!container) return;
-    container->config.width = width;
-    container->config.height = height;
+    if (container->base.vtable && container->base.vtable->set_size) {
+        container->base.vtable->set_size(&container->base, width, height);
+    }
 }
 
-// 设置容器背景色
 void UIContainer_SetBgColor(ui_container_t *container, COLOR32 color) {
     if (!container) return;
-    container->config.bg_color = color;
+    container->base.bg_color = color;
 }
 
-// 设置容器边框色
 void UIContainer_SetBorderColor(ui_container_t *container, COLOR32 color) {
     if (!container) return;
-    container->config.border_color = color;
+    container->border_color = color;
 }
 
-// 添加按钮子组件
-int UIContainer_AddButton(ui_container_t *container, ui_button_t *button) {
-    if (!container || !button) return -1;
-    if (container->item_count >= container->config.max_items) return -1;
-
-    ui_container_item_t *item = &container->items[container->item_count];
-    item->type = UI_CONTAINER_ITEM_TYPE_BUTTON;
-    item->widget = button;
-    container->item_count++;
-
-    return container->item_count - 1;
+int UIContainer_AddChild(ui_container_t *container, ui_component_t *child) {
+    if (!container || !container->base.vtable) return -1;
+    return container->base.vtable->add_child(&container->base, child);
 }
 
-// 添加文本子组件
-int UIContainer_AddText(ui_container_t *container, ui_text_t *text) {
-    if (!container || !text) return -1;
-    if (container->item_count >= container->config.max_items) return -1;
-
-    ui_container_item_t *item = &container->items[container->item_count];
-    item->type = UI_CONTAINER_ITEM_TYPE_TEXT;
-    item->widget = text;
-    container->item_count++;
-
-    return container->item_count - 1;
+bool UIContainer_RemoveChild(ui_container_t *container, ui_component_t *child) {
+    if (!container || !container->base.vtable) return false;
+    return container->base.vtable->remove_child(&container->base, child);
 }
 
-// 移除子组件（按索引）
-void UIContainer_RemoveItem(ui_container_t *container, int index) {
-    if (!container || index < 0 || index >= container->item_count) return;
-
-    // 将后面的项前移
-    for (int i = index; i < container->item_count - 1; i++) {
-        container->items[i] = container->items[i + 1];
-    }
-    container->item_count--;
-}
-
-// 清空所有子组件
-void UIContainer_ClearItems(ui_container_t *container) {
-    if (!container) return;
-    container->item_count = 0;
-}
-
-// 设置可见性
-void UIContainer_SetVisible(ui_container_t *container, bool visible) {
-    if (!container) return;
-    container->config.visible = visible;
-}
-
-// 获取可见性
-bool UIContainer_IsVisible(const ui_container_t *container) {
+bool UIContainer_RemoveChildByIndex(ui_container_t *container, int index) {
     if (!container) return false;
-    return container->config.visible;
+    ui_component_t *child = UIContainer_GetChild(container, index);
+    return child ? UIContainer_RemoveChild(container, child) : false;
 }
 
-// 检查点是否在容器区域内
-bool UIContainer_IsPointInContainer(const ui_container_t *container, float x, float y) {
-    if (!container) return false;
-    const ui_container_config_t *cfg = &container->config;
-    return x >= cfg->x && x < cfg->x + cfg->width &&
-           y >= cfg->y && y < cfg->y + cfg->height;
-}
+void UIContainer_ClearChildren(ui_container_t *container) {
+    if (!container) return;
 
-// 处理鼠标移动
-bool UIContainer_HandleMouseMove(ui_container_t *container, float x, float y) {
-    if (!container || !container->config.visible) return false;
-    if (!UIContainer_IsPointInContainer(container, x, y)) return false;
-
-    bool handled = false;
-    // 传递鼠标移动事件给所有子组件
-    for (int i = 0; i < container->item_count; i++) {
-        ui_container_item_t *item = &container->items[i];
-        if (item->type == UI_CONTAINER_ITEM_TYPE_BUTTON) {
-            ui_button_t *button = (ui_button_t *)item->widget;
-            if (UIButton_HandleMouseMove(button, x, y)) {
-                handled = true;
-            }
+    for (int i = 0; i < container->base.child_count; i++) {
+        if (container->base.children[i]) {
+            container->base.children[i]->parent = NULL;
         }
     }
-    return handled;
+    container->base.child_count = 0;
 }
 
-// 处理鼠标点击
-bool UIContainer_HandleMouseClick(ui_container_t *container, float x, float y, bool down) {
-    if (!container || !container->config.visible) return false;
-    if (!UIContainer_IsPointInContainer(container, x, y)) return false;
-
-    bool handled = false;
-    // 传递鼠标点击事件给所有子组件（倒序遍历，先处理上层组件）
-    for (int i = container->item_count - 1; i >= 0; i--) {
-        ui_container_item_t *item = &container->items[i];
-        if (item->type == UI_CONTAINER_ITEM_TYPE_BUTTON) {
-            ui_button_t *button = (ui_button_t *)item->widget;
-            if (UIButton_HandleMouseClick(button, x, y, down)) {
-                handled = true;
-                break;  // 只处理最上层组件的点击
-            }
-        }
-    }
-    return handled;
+int UIContainer_GetChildCount(ui_container_t *container) {
+    if (!container || !container->base.vtable) return 0;
+    return container->base.vtable->get_child_count(&container->base);
 }
 
-// 更新容器
+ui_component_t* UIContainer_GetChild(ui_container_t *container, int index) {
+    if (!container || !container->base.vtable) return NULL;
+    return container->base.vtable->get_child(&container->base, index);
+}
+
 void UIContainer_Update(ui_container_t *container, int msec) {
-    if (!container || !container->config.visible) return;
-
-    // 更新所有子组件
-    for (int i = 0; i < container->item_count; i++) {
-        ui_container_item_t *item = &container->items[i];
-        if (item->type == UI_CONTAINER_ITEM_TYPE_BUTTON) {
-            ui_button_t *button = (ui_button_t *)item->widget;
-            UIButton_Update(button, msec);
-        } else if (item->type == UI_CONTAINER_ITEM_TYPE_TEXT) {
-            ui_text_t *text = (ui_text_t *)item->widget;
-            UIText_Update(text, msec);
-        }
+    if (!container) return;
+    if (container->base.vtable && container->base.vtable->update) {
+        container->base.vtable->update(&container->base, msec);
     }
 }
 
-// 渲染容器
 void UIContainer_Render(ui_container_t *container) {
-    if (!container || !container->config.visible) return;
-
-    const ui_container_config_t *cfg = &container->config;
-
-    // 绘制背景
-    canvas2d_set_fill_style(container->ctx, cfg->bg_color);
-    canvas2d_fill_rect(container->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
-
-    // 绘制边框
-    if (cfg->border_width > 0) {
-        canvas2d_set_stroke_style(container->ctx, cfg->border_color);
-        canvas2d_set_line_width(container->ctx, cfg->border_width);
-        canvas2d_stroke_rect(container->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
-    }
-
-    // 渲染所有子组件
-    for (int i = 0; i < container->item_count; i++) {
-        ui_container_item_t *item = &container->items[i];
-        if (item->type == UI_CONTAINER_ITEM_TYPE_BUTTON) {
-            ui_button_t *button = (ui_button_t *)item->widget;
-            UIButton_Render(button);
-        } else if (item->type == UI_CONTAINER_ITEM_TYPE_TEXT) {
-            ui_text_t *text = (ui_text_t *)item->widget;
-            UIText_Render(text);
-        }
+    if (!container) return;
+    if (container->base.vtable && container->base.vtable->render) {
+        container->base.vtable->render(&container->base);
     }
 }
 
-// 清理容器
 void UIContainer_Shutdown(ui_container_t *container) {
     if (!container) return;
 
-    // 释放子组件数组（不释放子组件本身，由调用者管理）
-    if (container->items) {
-        free(container->items);
-        container->items = NULL;
+    if (container->base.vtable && container->base.vtable->shutdown) {
+        container->base.vtable->shutdown(&container->base);
     }
 
-    memset(container, 0, sizeof(ui_container_t));
+    UIComponent_ShutdownBase(&container->base);
+}
+
+void UIContainer_Destroy(ui_container_t *container) {
+    if (!container) return;
+    UIContainer_Shutdown(container);
+    free(container);
 }

@@ -1,7 +1,7 @@
 #ifndef CSS_ANIMATION_H
 #define CSS_ANIMATION_H
 
-#include <stdbool.h>
+// #include <stdbool.h>
 #include <stdint.h>
 
 #include "../animation/anim_state.h"

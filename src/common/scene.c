@@ -1,8 +1,10 @@
 #include "scene.h"
+#include "../map_select/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <SDL2/SDL.h>
 
 // ========================================
 // 场景参数系统实现
@@ -290,6 +292,10 @@ scene_manager_t* SceneManager_Create(void) {
     
     memset(mgr, 0, sizeof(scene_manager_t));
     mgr->registered_count = 0;
+    
+    // 初始化鼠标状态
+    SceneManager_InitMouseState(mgr);
+    
     return mgr;
 }
 
@@ -556,12 +562,240 @@ void SceneManager_Render(scene_manager_t *mgr) {
     }
 }
 
+// ========================================
+// 场景管理器事件处理辅助函数实现
+// ========================================
+
+void SceneManager_InitMouseState(scene_manager_t *mgr) {
+    if (!mgr) return;
+    
+    mgr->mouse_target = NULL;
+    mgr->dragging_component = NULL;
+    mgr->drag_start_x = 0;
+    mgr->drag_start_y = 0;
+    mgr->is_dragging = false;
+    memset(mgr->mouse_buttons, 0, sizeof(mgr->mouse_buttons));
+    mgr->last_clicked = NULL;
+    mgr->last_click_time = 0;
+    mgr->last_click_x = 0;
+    mgr->last_click_y = 0;
+    mgr->double_click_time = 500;  // 双击时间间隔500ms
+    mgr->drag_threshold = 3.0f;    // 拖拽阈值3像素
+}
+
+ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
+    if (!mgr || !mgr->current_scene || !mgr->current_scene->root_component) {
+        return NULL;
+    }
+    
+    // TODO: 递归遍历根组件及其子组件，找到命中的最深层组件
+    // 暂时返回根组件
+    return mgr->current_scene->root_component;
+}
+
+bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event) {
+    if (!mgr || !target || !event) return false;
+    
+    // 从目标组件开始，向上遍历到根组件
+    ui_component_t *current = target;
+    while (current) {
+        event->current_target = current;
+        
+        // 调用组件的事件处理器（如果有）
+        // TODO: 需要在 ui_component 中实现事件处理机制
+        
+        // 如果事件被标记为停止传播，则停止
+        if (event->propagation_stopped) {
+            return true;
+        }
+        
+        // 移动到父组件（容器组件）
+        // TODO: 需要在 ui_component 中添加 parent 字段
+        current = NULL;  // 暂时停止
+    }
+    
+    return false;
+}
+
+void SceneManager_ProcessEvent(scene_manager_t *mgr, input_event_t *event) {
+    if (!mgr || !event) return;
+    
+    event->timestamp = SDL_GetTicks();
+    event->propagation_stopped = false;
+    event->target = NULL;
+    event->current_target = NULL;
+    
+    ui_component_t *hit_target = NULL;
+    
+    switch (event->type) {
+        case INPUT_EVENT_MOUSE_DOWN: {
+            // 更新鼠标按钮状态
+            int button = event->mouse.button;
+            if (button >= 0 && button < 5) {
+                mgr->mouse_buttons[button] = true;
+            }
+            
+            // 执行hitTest
+            hit_target = SceneManager_HitTest(mgr, event->mouse.x, event->mouse.y);
+            
+            // 记录拖拽起始位置
+            mgr->drag_start_x = event->mouse.x;
+            mgr->drag_start_y = event->mouse.y;
+            
+            // 检测双击
+            if (hit_target == mgr->last_clicked &&
+                event->timestamp - mgr->last_click_time < mgr->double_click_time) {
+                // 双击
+                input_event_t click_event = *event;
+                click_event.type = INPUT_EVENT_DOUBLE_CLICK;
+                click_event.target = hit_target;
+                click_event.mouse.click_count = 2;
+                SceneManager_BubbleEvent(mgr, hit_target, &click_event);
+                if (click_event.propagation_stopped) {
+                    event->handled = true;
+                    return;
+                }
+            } else {
+                // 单击（暂时不生成单击事件，等待mouse_up）
+                event->mouse.click_count = 1;
+            }
+            
+            break;
+        }
+        
+        case INPUT_EVENT_MOUSE_UP: {
+            int button = event->mouse.button;
+            if (button >= 0 && button < 5) {
+                mgr->mouse_buttons[button] = false;
+            }
+            
+            // 检查是否是拖拽结束
+            if (mgr->is_dragging && mgr->dragging_component) {
+                input_event_t drag_end_event = *event;
+                drag_end_event.type = INPUT_EVENT_DRAG_END;
+                drag_end_event.target = mgr->dragging_component;
+                drag_end_event.mouse.start_x = mgr->drag_start_x;
+                drag_end_event.mouse.start_y = mgr->drag_start_y;
+                SceneManager_BubbleEvent(mgr, mgr->dragging_component, &drag_end_event);
+                
+                mgr->is_dragging = false;
+                mgr->dragging_component = NULL;
+                event->handled = drag_end_event.handled;
+                return;
+            }
+            
+            // 生成单击事件
+            hit_target = SceneManager_HitTest(mgr, event->mouse.x, event->mouse.y);
+            if (hit_target) {
+                input_event_t click_event = *event;
+                click_event.type = INPUT_EVENT_CLICK;
+                click_event.target = hit_target;
+                click_event.mouse.click_count = 1;
+                SceneManager_BubbleEvent(mgr, hit_target, &click_event);
+                
+                // 记录点击信息用于双击检测
+                mgr->last_clicked = hit_target;
+                mgr->last_click_time = event->timestamp;
+                mgr->last_click_x = event->mouse.x;
+                mgr->last_click_y = event->mouse.y;
+                
+                if (click_event.propagation_stopped) {
+                    event->handled = true;
+                    return;
+                }
+            }
+            break;
+        }
+        
+        case INPUT_EVENT_MOUSE_MOTION: {
+            float dx = event->motion.x - event->motion.dx;
+            float dy = event->motion.y - event->motion.dy;
+            
+            // 检查是否是拖拽
+            if (mgr->is_dragging && mgr->dragging_component) {
+                input_event_t drag_event = *event;
+                drag_event.type = INPUT_EVENT_DRAG;
+                drag_event.target = mgr->dragging_component;
+                drag_event.mouse.start_x = mgr->drag_start_x;
+                drag_event.mouse.start_y = mgr->drag_start_y;
+                drag_event.mouse.x = event->motion.x;
+                drag_event.mouse.y = event->motion.y;
+                SceneManager_BubbleEvent(mgr, mgr->dragging_component, &drag_event);
+                event->handled = drag_event.handled;
+                return;
+            }
+            
+            // 检查是否开始拖拽
+            if (mgr->mouse_buttons[0] || mgr->mouse_buttons[1] || mgr->mouse_buttons[2]) {
+                float drag_dist_x = event->motion.x - mgr->drag_start_x;
+                float drag_dist_y = event->motion.y - mgr->drag_start_y;
+                float drag_dist = sqrtf(drag_dist_x * drag_dist_x + drag_dist_y * drag_dist_y);
+                
+                if (drag_dist > mgr->drag_threshold && !mgr->is_dragging) {
+                    // 开始拖拽
+                    hit_target = SceneManager_HitTest(mgr, event->motion.x, event->motion.y);
+                    if (hit_target) {
+                        mgr->is_dragging = true;
+                        mgr->dragging_component = hit_target;
+                        
+                        input_event_t drag_start_event = *event;
+                        drag_start_event.type = INPUT_EVENT_DRAG_START;
+                        drag_start_event.target = hit_target;
+                        drag_start_event.mouse.start_x = mgr->drag_start_x;
+                        drag_start_event.mouse.start_y = mgr->drag_start_y;
+                        drag_start_event.mouse.x = event->motion.x;
+                        drag_start_event.mouse.y = event->motion.y;
+                        SceneManager_BubbleEvent(mgr, hit_target, &drag_start_event);
+                        
+                        if (drag_start_event.propagation_stopped) {
+                            event->handled = true;
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // 检测鼠标进入/离开
+            hit_target = SceneManager_HitTest(mgr, event->motion.x, event->motion.y);
+            if (hit_target != mgr->mouse_target) {
+                // 鼠标离开
+                if (mgr->mouse_target) {
+                    input_event_t leave_event = *event;
+                    leave_event.type = INPUT_EVENT_MOUSE_LEAVE;
+                    leave_event.target = mgr->mouse_target;
+                    SceneManager_BubbleEvent(mgr, mgr->mouse_target, &leave_event);
+                }
+                
+                // 鼠标进入
+                if (hit_target) {
+                    input_event_t enter_event = *event;
+                    enter_event.type = INPUT_EVENT_MOUSE_ENTER;
+                    enter_event.target = hit_target;
+                    SceneManager_BubbleEvent(mgr, hit_target, &enter_event);
+                }
+                
+                mgr->mouse_target = hit_target;
+            }
+            break;
+        }
+        
+        default:
+            // 其他事件类型不需要细化
+            break;
+    }
+}
+
 void SceneManager_OnInput(scene_manager_t *mgr, input_event_t *event) {
     if (!mgr || !event) return;
     
-    // 事件从栈顶向栈底分发，支持事件冒泡
-    event->handled = false;
+    // 处理事件细化（生成CLICK、DRAG、ENTER/LEAVE等细化事件）
+    SceneManager_ProcessEvent(mgr, event);
     
+    if (event->handled) {
+        return;  // 事件已被细化逻辑处理
+    }
+    
+    // 事件从栈顶向栈底分发，支持事件冒泡
     for (int i = mgr->stack_size - 1; i >= 0; i--) {
         scene_t *scene = mgr->stack[i];
         if (scene->state == SCENE_STATE_ACTIVE && scene->on_input) {
@@ -571,4 +805,84 @@ void SceneManager_OnInput(scene_manager_t *mgr, input_event_t *event) {
             }
         }
     }
+}
+
+// ========================================
+// 场景UI辅助函数实现
+// ========================================
+
+void Scene_SetRootComponent(scene_t *scene, ui_component_t *root) {
+    if (!scene) return;
+    scene->root_component = root;
+}
+
+ui_component_t* Scene_GetRootComponent(scene_t *scene) {
+    return scene ? scene->root_component : NULL;
+}
+
+void Scene_UpdateUI(scene_t *scene, int msec) {
+    if (!scene || !scene->root_component) return;
+    
+    // 递归更新所有组件
+    ui_component_t **stack[128];
+    int stack_size = 0;
+    stack[stack_size++] = &scene->root_component;
+    
+    while (stack_size > 0) {
+        ui_component_t **comp_ptr = stack[--stack_size];
+        ui_component_t *comp = *comp_ptr;
+        if (!comp) continue;
+        
+        // 调用组件的update方法（如果存在）
+        if (comp->vtable && comp->vtable->update) {
+            comp->vtable->update(comp, msec);
+        }
+        
+        // 添加子组件到栈（用于容器组件）
+        if (comp->children) {
+            for (int i = 0; i < comp->child_count; i++) {
+                if (stack_size < 128) {
+                    stack[stack_size++] = &comp->children[i];
+                }
+            }
+        }
+    }
+}
+
+void Scene_RenderUI(scene_t *scene) {
+    if (!scene || !scene->root_component) return;
+    
+    // 递归渲染所有组件
+    ui_component_t **stack[128];
+    int stack_size = 0;
+    stack[stack_size++] = &scene->root_component;
+    
+    while (stack_size > 0) {
+        ui_component_t **comp_ptr = stack[--stack_size];
+        ui_component_t *comp = *comp_ptr;
+        if (!comp) continue;
+        
+        // 只渲染可见的组件
+        if (comp->flags & UI_FLAG_VISIBLE) {
+            // 调用组件的render方法（如果存在）
+            if (comp->vtable && comp->vtable->render) {
+                comp->vtable->render(comp);
+            }
+        }
+        
+        // 添加子组件到栈（用于容器组件）
+        if (comp->children) {
+            for (int i = 0; i < comp->child_count; i++) {
+                if (stack_size < 128) {
+                    stack[stack_size++] = &comp->children[i];
+                }
+            }
+        }
+    }
+}
+
+bool Scene_DispatchInputToUI(scene_t *scene, input_event_t *event) {
+    // TODO: 实现事件分发到UI组件
+    // 暂时返回false，让旧的处理逻辑继续工作
+    return false;
 }

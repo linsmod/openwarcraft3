@@ -3,47 +3,22 @@
 
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
-#include "ui_button.h"
-#include "ui_text.h"
+#include "ui_component.h"
 
-// UI 容器子组件类型
-typedef enum {
-    UI_CONTAINER_ITEM_TYPE_BUTTON,
-    UI_CONTAINER_ITEM_TYPE_TEXT
-} ui_container_item_type_t;
-
-// UI 容器子组件
+// UI 容器组件（继承自 ui_component_t）
 typedef struct {
-    ui_container_item_type_t type;
-    void *widget;  // 指向 ui_button_t 或 ui_text_t 的指针
-} ui_container_item_t;
-
-// UI 容器配置
-typedef struct {
-    float x;                          // 容器 X 位置
-    float y;                          // 容器 Y 位置
-    float width;                      // 容器宽度
-    float height;                     // 容器高度
-    COLOR32 bg_color;                 // 背景色
+    ui_component_t base;              // 基础组件（包含bg_color）
     COLOR32 border_color;             // 边框色
     float border_width;               // 边框宽度
-    bool visible;                     // 是否可见 (默认 true)
-    int max_items;                   // 最大子组件数量
-} ui_container_config_t;
-
-// UI 容器状态
-typedef struct {
-    ui_container_config_t config;
-    ui_container_item_t *items;        // 子组件数组
-    int item_count;                  // 子组件数量
-    canvas2d_context_t *ctx;
+    int max_children;                 // 最大子组件数量
 } ui_container_t;
 
 // 创建默认容器配置
-ui_container_config_t UIContainer_GetDefaultConfig(void);
+ui_container_t* UIContainer_Create(float x, float y, float width, float height,
+                                  COLOR32 bg_color, COLOR32 border_color, canvas2d_context_t *ctx);
 
 // 初始化 UI 容器
-int UIContainer_Init(ui_container_t *container, const ui_container_config_t *config, canvas2d_context_t *ctx);
+int UIContainer_Init(ui_container_t *container, canvas2d_context_t *ctx);
 
 // 设置容器位置
 void UIContainer_SetPosition(ui_container_t *container, float x, float y);
@@ -57,32 +32,23 @@ void UIContainer_SetBgColor(ui_container_t *container, COLOR32 color);
 // 设置容器边框色
 void UIContainer_SetBorderColor(ui_container_t *container, COLOR32 color);
 
-// 添加按钮子组件
-int UIContainer_AddButton(ui_container_t *container, ui_button_t *button);
+// 添加子组件
+int UIContainer_AddChild(ui_container_t *container, ui_component_t *child);
 
-// 添加文本子组件
-int UIContainer_AddText(ui_container_t *container, ui_text_t *text);
+// 移除子组件
+bool UIContainer_RemoveChild(ui_container_t *container, ui_component_t *child);
 
-// 移除子组件（按索引）
-void UIContainer_RemoveItem(ui_container_t *container, int index);
+// 按索引移除子组件
+bool UIContainer_RemoveChildByIndex(ui_container_t *container, int index);
 
 // 清空所有子组件
-void UIContainer_ClearItems(ui_container_t *container);
+void UIContainer_ClearChildren(ui_container_t *container);
 
-// 设置可见性
-void UIContainer_SetVisible(ui_container_t *container, bool visible);
+// 获取子组件数量
+int UIContainer_GetChildCount(ui_container_t *container);
 
-// 获取可见性
-bool UIContainer_IsVisible(const ui_container_t *container);
-
-// 检查点是否在容器区域内
-bool UIContainer_IsPointInContainer(const ui_container_t *container, float x, float y);
-
-// 处理鼠标移动
-bool UIContainer_HandleMouseMove(ui_container_t *container, float x, float y);
-
-// 处理鼠标点击
-bool UIContainer_HandleMouseClick(ui_container_t *container, float x, float y, bool down);
+// 获取子组件
+ui_component_t* UIContainer_GetChild(ui_container_t *container, int index);
 
 // 更新容器
 void UIContainer_Update(ui_container_t *container, int msec);
@@ -92,5 +58,8 @@ void UIContainer_Render(ui_container_t *container);
 
 // 清理容器
 void UIContainer_Shutdown(ui_container_t *container);
+
+// 销毁容器
+void UIContainer_Destroy(ui_container_t *container);
 
 #endif // __UI_CONTAINER_H__

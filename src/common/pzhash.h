@@ -1,7 +1,7 @@
 #ifndef PZHASH_H
 #define PZHASH_H
 
-#include <stdbool.h>
+#include "shared.h"
 #include <stddef.h>
 
 // 指针哈希表结构

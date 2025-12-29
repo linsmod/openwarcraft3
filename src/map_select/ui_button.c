@@ -1,14 +1,253 @@
 #include "ui_button.h"
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-// 创建默认按钮配置
+// ==================== 虚函数实现 ====================
+
+static void button_init(ui_component_t *component, canvas2d_context_t *ctx) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button) return;
+
+    // 初始化文本组件
+    UIText_Init(&button->text_component, ctx);
+    
+    // 设置文本属性
+    strncpy(button->text_component.text, button->config.text, 511);
+    button->text_component.text[511] = '\0';
+    button->text_component.color = button->config.text_color[UI_BUTTON_STATE_NORMAL];
+    button->text_component.font_size = button->config.font_size;
+    button->text_component.align = UI_TEXT_ALIGN_CENTER;
+    button->text_component.valign = UI_TEXT_VALIGN_MIDDLE;
+    button->text_component.wrap = false;
+    button->text_component.wrap_width = 0;
+}
+
+static void button_shutdown(ui_component_t *component) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button) return;
+
+    UIText_Shutdown(&button->text_component);
+}
+
+static void button_update(ui_component_t *component, int msec) {
+    (void)component;
+    (void)msec;
+    // 可以添加动画逻辑
+}
+
+static void button_render(ui_component_t *component) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button || !UIComponent_IsVisible(component)) return;
+
+    int state_idx = button->state;
+    COLOR32 bg_color = button->config.bg_color[state_idx];
+    COLOR32 border_color = button->config.border_color[state_idx];
+    COLOR32 text_color = button->config.text_color[state_idx];
+
+    // 绘制背景
+    canvas2d_set_fill_style(button->base.ctx, bg_color);
+    canvas2d_fill_rect(button->base.ctx, component->x, component->y, component->width, component->height);
+
+    // 绘制边框
+    if (button->config.border_width > 0) {
+        canvas2d_set_stroke_style(button->base.ctx, border_color);
+        canvas2d_set_line_width(button->base.ctx, button->config.border_width);
+        canvas2d_stroke_rect(button->base.ctx, component->x, component->y, component->width, component->height);
+    }
+
+    // 更新文本组件
+    UIText_SetColor(&button->text_component, text_color);
+
+    // 按下状态时文本向右下偏移
+    float text_offset_x = 0;
+    float text_offset_y = 0;
+    if (button->state == UI_BUTTON_STATE_PRESSED) {
+        text_offset_x = 1.0f;
+        text_offset_y = 2.0f;
+    }
+
+    UIText_SetPosition(&button->text_component,
+                       component->x + component->width / 2.0f + text_offset_x,
+                       component->y + component->height / 2.0f + text_offset_y);
+    UIText_SetFontSize(&button->text_component, button->config.font_size);
+
+    UIText_Render(&button->text_component);
+}
+
+static void button_set_position(ui_component_t *component, float x, float y) {
+    component->x = x;
+    component->y = y;
+}
+
+static void button_set_size(ui_component_t *component, float width, float height) {
+    component->width = width;
+    component->height = height;
+}
+
+static void button_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
+    component->x = x;
+    component->y = y;
+    component->width = width;
+    component->height = height;
+}
+
+static bool button_hit_test(ui_component_t *component, float x, float y) {
+    return x >= component->x && x < component->x + component->width &&
+           y >= component->y && y < component->y + component->height;
+}
+
+static bool button_on_mouse_enter(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button || !UIComponent_IsEnabled(component)) return false;
+
+    if (button->state != UI_BUTTON_STATE_PRESSED) {
+        button->state = UI_BUTTON_STATE_HOVER;
+    }
+    return true;
+}
+
+static bool button_on_mouse_leave(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button) return false;
+
+    if (button->state != UI_BUTTON_STATE_PRESSED && UIComponent_IsEnabled(component)) {
+        button->state = UI_BUTTON_STATE_NORMAL;
+    }
+    return true;
+}
+
+static bool button_on_mouse_down(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button || !UIComponent_IsEnabled(component)) return false;
+
+    button->state = UI_BUTTON_STATE_PRESSED;
+    return true;
+}
+
+static bool button_on_mouse_up(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button || !UIComponent_IsEnabled(component)) return false;
+
+    if (button->state == UI_BUTTON_STATE_PRESSED) {
+        button->state = UI_BUTTON_STATE_HOVER;
+    }
+    return true;
+}
+
+static bool button_on_click(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button || !UIComponent_IsEnabled(component)) return false;
+
+    if (button->state != UI_BUTTON_STATE_DISABLED) {
+        return true;
+    }
+    return false;
+}
+
+static bool button_on_double_click(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button || !UIComponent_IsEnabled(component)) return false;
+
+    if (button->config.double_click_enabled) {
+        return true;
+    }
+    return false;
+}
+
+static bool button_on_mouse_move(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_button_t *button = (ui_button_t *)component;
+    if (!button || !UIComponent_IsEnabled(component)) return false;
+
+    bool is_hovered = button_hit_test(component, event->x, event->y);
+
+    if (is_hovered && button->state != UI_BUTTON_STATE_PRESSED) {
+        button->state = UI_BUTTON_STATE_HOVER;
+    } else if (!is_hovered && button->state != UI_BUTTON_STATE_PRESSED) {
+        button->state = UI_BUTTON_STATE_NORMAL;
+    }
+
+    return false;
+}
+
+// ==================== 虚函数表定义 ====================
+
+static const ui_component_vtable_t g_button_vtable = {
+    .init = button_init,
+    .shutdown = button_shutdown,
+    .update = button_update,
+    .render = button_render,
+    .set_position = button_set_position,
+    .set_size = button_set_size,
+    .set_bounds = button_set_bounds,
+    .hit_test = button_hit_test,
+    .on_mouse_enter = button_on_mouse_enter,
+    .on_mouse_leave = button_on_mouse_leave,
+    .on_mouse_down = button_on_mouse_down,
+    .on_mouse_up = button_on_mouse_up,
+    .on_click = button_on_click,
+    .on_double_click = button_on_double_click,
+    .on_mouse_move = button_on_mouse_move,
+    .on_mouse_wheel = NULL,
+    .on_context_menu = NULL,
+    .on_drag_start = NULL,
+    .on_drag = NULL,
+    .on_drag_end = NULL,
+    .on_key_down = NULL,
+    .on_key_up = NULL,
+    .on_key_press = NULL,
+    .on_focus = NULL,
+    .on_blur = NULL,
+    .on_resize = NULL,
+    .on_scroll = NULL,
+    .add_child = NULL,
+    .remove_child = NULL,
+    .get_child_count = NULL,
+    .get_child = NULL,
+    .get_custom_data = NULL,
+    .set_custom_data = NULL,
+};
+
+// ==================== 公共API实现 ====================
+
+ui_button_t* UIButton_Create(float x, float y, float width, float height, canvas2d_context_t *ctx) {
+    ui_button_config_t config = UIButton_GetDefaultConfig();
+    return UIButton_CreateWithConfig(x, y, width, height, &config, ctx);
+}
+
+ui_button_t* UIButton_CreateWithConfig(float x, float y, float width, float height,
+                                      const ui_button_config_t *config, canvas2d_context_t *ctx) {
+    if (!config || !ctx) {
+        return NULL;
+    }
+
+    ui_button_t *button = malloc(sizeof(ui_button_t));
+    if (!button) {
+        return NULL;
+    }
+
+    if (UIButton_Init(button, config, ctx) != 0) {
+        free(button);
+        return NULL;
+    }
+
+    button->base.x = x;
+    button->base.y = y;
+    button->base.width = width;
+    button->base.height = height;
+
+    printf("UIButton_Create: x=%.1f, y=%.1f, w=%.1f, h=%.1f, text='%s'\n", x, y, width, height, config->text);
+    return button;
+}
+
+void UIButton_Destroy(ui_button_t *button) {
+    if (!button) return;
+    UIButton_Shutdown(button);
+    free(button);
+}
+
 ui_button_config_t UIButton_GetDefaultConfig(void) {
     ui_button_config_t config = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = 100.0f,
-        .height = 30.0f,
         .text = "",
         .bg_color = {
             {60, 60, 70, 255},      // 正常
@@ -30,217 +269,116 @@ ui_button_config_t UIButton_GetDefaultConfig(void) {
         },
         .font_size = 16.0f,
         .border_width = 1.0f,
-        .on_click = NULL,
-        .user_data = NULL,
-        .enabled = true,
-        .visible = true
+        .double_click_enabled = false
     };
     return config;
 }
 
-// 初始化 UI 按钮
 int UIButton_Init(ui_button_t *button, const ui_button_config_t *config, canvas2d_context_t *ctx) {
     if (!button || !config || !ctx) {
         return -1;
     }
 
-    memset(button, 0, sizeof(ui_button_t));
+    // 使用新的组件系统初始化基础部分
+    UIComponent_InitBase(&button->base, UI_COMPONENT_TYPE_BUTTON, &g_button_vtable, ctx);
+
+    // 复制配置
     button->config = *config;
-    button->ctx = ctx;
+
+    // 初始化状态
     button->state = UI_BUTTON_STATE_NORMAL;
-    button->is_hovered = false;
-    button->is_pressed = false;
-    if(config->font_size < 8.0f) {
-        button->config.font_size = 16.0f; // 默认字体大小
+
+    // 调用虚函数init
+    if (button->base.vtable && button->base.vtable->init) {
+        button->base.vtable->init(&button->base, ctx);
     }
 
-    // 初始化文本组件（居中对齐）
-    ui_text_config_t text_config = {
-        .x = config->x + config->width / 2.0f,      // 中心点 X
-        .y = config->y + config->height / 2.0f,     // 中心点 Y
-        .color = config->text_color[0],             // 默认使用正常状态的文本颜色
-        .font_size = config->font_size,
-        .align = UI_TEXT_ALIGN_CENTER,
-        .valign = UI_TEXT_VALIGN_MIDDLE,
-        .wrap = false,
-        .wrap_width = 0,
-        .visible = true
-    };
-    strncpy(text_config.text, config->text, 511);
-    text_config.text[511] = '\0';
-    
-    UIText_Init(&button->text_component, &text_config, ctx);
-
-    printf("UIButton initialized: text='%s', pos=(%.1f,%.1f), size=(%.1fx%.1f)\n",
-           config->text, config->x, config->y, config->width, config->height);
-
+    printf("UIButton initialized: text='%s'\n", config->text);
     return 0;
 }
 
-// 设置按钮文本
+void UIButton_Shutdown(ui_button_t *button) {
+    if (!button) return;
+
+    // 调用虚函数shutdown
+    if (button->base.vtable && button->base.vtable->shutdown) {
+        button->base.vtable->shutdown(&button->base);
+    }
+
+    // 关闭基础组件
+    UIComponent_ShutdownBase(&button->base);
+}
+
 void UIButton_SetText(ui_button_t *button, const char *text) {
     if (!button || !text) return;
     strncpy(button->config.text, text, 127);
     button->config.text[127] = '\0';
-    // 同时更新文本组件
     UIText_SetText(&button->text_component, text);
 }
 
-// 设置按钮位置
+const char* UIButton_GetText(ui_button_t *button) {
+    if (!button) return "";
+    return button->config.text;
+}
+
 void UIButton_SetPosition(ui_button_t *button, float x, float y) {
     if (!button) return;
-    button->config.x = x;
-    button->config.y = y;
+    if (button->base.vtable && button->base.vtable->set_position) {
+        button->base.vtable->set_position(&button->base, x, y);
+    }
 }
 
-// 设置按钮大小
 void UIButton_SetSize(ui_button_t *button, float width, float height) {
     if (!button) return;
-    button->config.width = width;
-    button->config.height = height;
+    if (button->base.vtable && button->base.vtable->set_size) {
+        button->base.vtable->set_size(&button->base, width, height);
+    }
 }
 
-// 设置按钮启用状态
 void UIButton_SetEnabled(ui_button_t *button, bool enabled) {
     if (!button) return;
-    button->config.enabled = enabled;
+    UIComponent_SetEnabled(&button->base, enabled);
     if (!enabled) {
         button->state = UI_BUTTON_STATE_DISABLED;
-        button->is_hovered = false;
-        button->is_pressed = false;
     } else if (button->state == UI_BUTTON_STATE_DISABLED) {
         button->state = UI_BUTTON_STATE_NORMAL;
     }
 }
 
-// 获取按钮启用状态
 bool UIButton_IsEnabled(const ui_button_t *button) {
-    if (!button) return false;
-    return button->config.enabled;
+    return button ? UIComponent_IsEnabled((ui_component_t *)button) : false;
 }
 
-// 检查点是否在按钮区域内
-bool UIButton_IsPointInButton(const ui_button_t *button, float x, float y) {
-    if (!button) return false;
-    const ui_button_config_t *cfg = &button->config;
-    return x >= cfg->x && x < cfg->x + cfg->width &&
-           y >= cfg->y && y < cfg->y + cfg->height;
+ui_button_state_t UIButton_GetState(ui_button_t *button) {
+    return button ? button->state : UI_BUTTON_STATE_DISABLED;
 }
 
-// 处理鼠标移动（悬停检测）
-bool UIButton_HandleMouseMove(ui_button_t *button, float x, float y) {
-    if (!button || !button->config.enabled) return false;
-
-    bool was_hovered = button->is_hovered;
-    button->is_hovered = UIButton_IsPointInButton(button, x, y);
-
-    // 更新状态
-    if (button->is_hovered) {
-        if (!button->is_pressed) {
-            button->state = UI_BUTTON_STATE_HOVER;
-        } else {
-            button->state = UI_BUTTON_STATE_PRESSED;
-        }
-    } else {
-        if (!button->is_pressed) {
-            button->state = UI_BUTTON_STATE_NORMAL;
-        }
-    }
-
-    return button->is_hovered != was_hovered;
+bool UIButton_AddOnClick(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
+    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_CLICK, handler, user_data) : false;
 }
 
-// 处理鼠标点击
-bool UIButton_HandleMouseClick(ui_button_t *button, float x, float y, bool down) {
-    if (!button || !button->config.enabled) return false;
-
-    bool was_hovered = button->is_hovered;
-    button->is_hovered = UIButton_IsPointInButton(button, x, y);
-
-    if (button->is_hovered) {
-        if (down) {
-            button->is_pressed = true;
-            button->state = UI_BUTTON_STATE_PRESSED;
-        } else {
-            // 鼠标释放时，如果之前按下且仍在按钮内，触发点击事件
-            if (button->is_pressed) {
-                button->is_pressed = false;
-                button->state = UI_BUTTON_STATE_HOVER;
-                
-                // 触发点击回调
-                if (button->config.on_click) {
-                    button->config.on_click(button->config.user_data);
-                }
-                return true;
-            } else {
-                button->state = UI_BUTTON_STATE_HOVER;
-            }
-        }
-    } else {
-        if (down) {
-            button->is_pressed = false;
-        } else {
-            button->is_pressed = false;
-        }
-        button->state = UI_BUTTON_STATE_NORMAL;
-    }
-
-    return false;
+bool UIButton_AddOnDoubleClick(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
+    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_DOUBLE_CLICK, handler, user_data) : false;
 }
 
-// 更新按钮
+bool UIButton_AddOnMouseEnter(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
+    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_MOUSE_ENTER, handler, user_data) : false;
+}
+
+bool UIButton_AddOnMouseLeave(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
+    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_MOUSE_LEAVE, handler, user_data) : false;
+}
+
 void UIButton_Update(ui_button_t *button, int msec) {
     if (!button) return;
-    // 这里可以添加按钮动画逻辑，如按下时的缩放效果等
+    if (button->base.vtable && button->base.vtable->update) {
+        button->base.vtable->update(&button->base, msec);
+    }
 }
 
-// 渲染按钮
 void UIButton_Render(ui_button_t *button) {
-    if (!button || !button->config.visible) return;
-
-    const ui_button_config_t *cfg = &button->config;
-    int state_idx = button->state;
-
-    // 获取当前状态的颜色
-    COLOR32 bg_color = cfg->bg_color[state_idx];
-    COLOR32 border_color = cfg->border_color[state_idx];
-    COLOR32 text_color = cfg->text_color[state_idx];
-
-    // 绘制背景
-    canvas2d_set_fill_style(button->ctx, bg_color);
-    canvas2d_fill_rect(button->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
-
-    // 绘制边框
-    if (cfg->border_width > 0) {
-        canvas2d_set_stroke_style(button->ctx, border_color);
-        canvas2d_set_line_width(button->ctx, cfg->border_width);
-        canvas2d_stroke_rect(button->ctx, cfg->x, cfg->y, cfg->width, cfg->height);
-    }
-
-    // 更新文本组件的颜色和位置（如果按钮位置或大小改变了）
-    UIText_SetColor(&button->text_component, text_color);
-    
-    // 按下状态时文本向右下偏移，产生按压效果
-    float text_offset_x = 0;
-    float text_offset_y = 0;
-    if (button->state == UI_BUTTON_STATE_PRESSED) {
-        text_offset_x = 1.0f;
-        text_offset_y = 2.0f;
-    }
-    
-    UIText_SetPosition(&button->text_component, 
-                     cfg->x + cfg->width / 2.0f + text_offset_x, 
-                     cfg->y + cfg->height / 2.0f + text_offset_y);
-    UIText_SetFontSize(&button->text_component, cfg->font_size);
-    
-    // 渲染文本组件
-    UIText_Render(&button->text_component);
-}
-
-// 清理按钮
-void UIButton_Shutdown(ui_button_t *button) {
     if (!button) return;
-    // 清理文本组件
-    UIText_Shutdown(&button->text_component);
-    memset(button, 0, sizeof(ui_button_t));
+    if (button->base.vtable && button->base.vtable->render) {
+        button->base.vtable->render(&button->base);
+    }
 }
