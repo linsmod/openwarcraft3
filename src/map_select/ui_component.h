@@ -49,6 +49,7 @@ typedef struct {
     int timestamp;             // 时间戳（毫秒）
     bool propagation_stopped;  // 是否停止传播
     bool default_prevented;    // 是否阻止默认行为
+    void* user_data;            // 用户数据
 } ui_event_t;
 
 typedef struct {

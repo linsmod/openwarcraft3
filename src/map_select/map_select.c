@@ -3,6 +3,7 @@
 #include "ui_button.h"
 #include "ui_text.h"
 #include "ui_input.h"
+#include "ui_label.h"
 #include "ui_container.h"
 #include "ui_event_dispatcher.h"
 #include "../canvas2d/canvas2d.h"
@@ -468,10 +469,10 @@ int MapSelect_Init(void) {
 // 将列表添加到根容器
     UIContainer_AddChild((ui_container_t *)g_root_container, g_ui_list);
     
-    // 创建筛选标签
-    g_filter_label = (ui_component_t *)UIText_Create(30.0f, 50.0f, "Filter:",
-                                                   (COLOR32){200, 200, 200, 255}, 16.0f,
-                                                   UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
+    // 创建筛选标签（使用UILabel以支持对齐）
+    g_filter_label = (ui_component_t *)UILabel_Create(30.0f, 50.0f, 40.0f, 28.0f, "Filter:",
+                                                     (COLOR32){200, 200, 200, 255}, 14.0f,
+                                                     UI_LABEL_ALIGN_LEFT, UI_LABEL_VALIGN_MIDDLE, g_ctx);
     if (!g_filter_label) {
         printf("Failed to create filter label\n");
         return -1;
@@ -907,9 +908,7 @@ void MapSelect_SaveMapInfoToFile(const char *mapPath, LPCMAPINFO info) {
 void MapSelect_Render(void) {
     if (g_state == MAP_SELECT_STATE_DONE) return;
     
-    // 清除背景
-    canvas2d_set_fill_style(g_ctx, (COLOR32){30, 30, 40, 255});
-    canvas2d_fill_rect(g_ctx, 0, 0, 1024, 768);
+    // 绘制调试网格（包含半透明背景）
     canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
 
     // 更新事件分发器
@@ -1281,9 +1280,8 @@ scene_t* MapSelectScene_GetInstance(void) {
 
 // Scene 渲染
 void MapSelectScene_Render(scene_t *scene) {
-    // 绘制背景
-    canvas2d_set_fill_style(g_ctx, (COLOR32){30, 30, 40, 255});
-    canvas2d_fill_rect(g_ctx, 0, 0, 1024, 768);
+    // 绘制调试网格（包含半透明背景）
+    canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
     
     // 渲染场景的所有UI组件（递归渲染根容器及其所有子组件）
     Scene_RenderUI(scene);

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
+#include <unistd.h>
 
 // 默认配置值
 #define DEFAULT_DOUBLE_CLICK_TIME 500
@@ -182,9 +183,13 @@ bool UIEventDispatcher_BubbleEvent(ui_event_dispatcher_t *dispatcher, ui_compone
                 break;
             case UI_EVENT_TEXT_INPUT:
                 if (current->vtable && current->vtable->on_text_input) {
-                    // 从event.target字段中获取文本数据
-                    const char *text = (const char *)(uintptr_t)event->target;
-                    vtable_result = current->vtable->on_text_input(current, text);
+                    // 从event.user_data字段中获取文本数据
+                    const char *text = (const char *)event->user_data;
+                    if (!text) {
+                        break;
+                    }
+                    const char *copied_text = strdup(text); // 复制文本，防止悬空指针
+                    vtable_result = current->vtable->on_text_input(current, copied_text);
                 }
                 break;
             case UI_EVENT_FOCUS:
@@ -263,9 +268,6 @@ bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, floa
     }
 
     bool handled = UIEventDispatcher_BubbleEvent(dispatcher, target, &event.base);
-
-    if(handled)
-        return true;
     
     // 检查是否开始拖拽
     if (target && !event.base.propagation_stopped && !event.base.default_prevented &&
@@ -288,6 +290,9 @@ bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, floa
     // 处理焦点
     if (target && button == UI_MOUSE_BUTTON_LEFT) {
         ui_component_t *old_focus = dispatcher->focused;
+        if(old_focus==NULL){
+            printf("Old focus is NULL\n");
+        }
         if (target != old_focus) {
             if (old_focus && (old_focus->flags & UI_FLAG_ACCEPT_FOCUS)) {
                 ui_focus_event_t blur_event = {
@@ -639,7 +644,7 @@ bool UIEventDispatcher_DispatchTextInput(ui_event_dispatcher_t *dispatcher, cons
         
         // 将文本数据存储在事件的target字段中（临时使用）
         // 这是一个变通方法，因为ui_event_t没有直接的文本字段
-        event.target = (ui_component_t *)(uintptr_t)text;
+        event.user_data = (void *)text;
         
         if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event)) {
             return true;

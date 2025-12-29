@@ -2720,9 +2720,9 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         for (int i = 0; i < depth && i < 15; i++) {
             strcat(indent, "  ");
         }
-        printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), ud=%p, has_bg_color=%d\n", 
-               indent, element_name, elem_id, layout_id, (int)x, (int)y, (int)width, (int)height, 
-               ud, ud ? ud->has_bg_color : -1);
+        // printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), ud=%p, has_bg_color=%d\n", 
+        //        indent, element_name, elem_id, layout_id, (int)x, (int)y, (int)width, (int)height, 
+        //        ud, ud ? ud->has_bg_color : -1);
         if (ud && ud->has_bg_color) {
             printf("DEBUG: Drawing bg_color=(%d,%d,%d,%d) for '%s'\n", 
                    ud->bg_color.r, ud->bg_color.g, ud->bg_color.b, ud->bg_color.a, element_name);
@@ -3262,8 +3262,8 @@ void html_update_and_layout(float delta_time,int page_index) {
 
 
 	/* Print layout information */
-	printf("=== Layout Information ===\n");
-	print_layout_info(ctx->layout_ctx, ctx->document, ctx);
+	// printf("=== Layout Information ===\n");
+	// print_layout_info(ctx->layout_ctx, ctx->document, ctx);
 	// printf("=========================\n");
     
 }

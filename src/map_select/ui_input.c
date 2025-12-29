@@ -64,14 +64,14 @@ static void input_render(ui_component_t *component) {
     canvas2d_set_font_size(component->ctx, input->font_size);
 
     // 确定要显示的文本
-    const char *display_text = input->text[0] != '\0' ? input->text : input->placeholder;
-    COLOR32 text_color = input->text[0] != '\0' ? input->text_color : input->placeholder_color;
-    BOOL has_input = (input->text[0] == '\0');
+    BOOL has_input = (strlen(input->text) > 0);
+    const char *display_text = has_input ? input->text : input->placeholder;
+    COLOR32 text_color = has_input ? input->text_color : input->placeholder_color;
     canvas2d_set_fill_style(component->ctx, text_color);
 
     // 如果是密码模式，将文本替换为密码字符
     char display_buffer[256];
-    if (input->password && input->text[0] != '\0') {
+    if (input->password && has_input) {
         int len = strlen(input->text);
         if (len > 255) len = 255;
         memset(display_buffer, input->password_char, len);
@@ -79,16 +79,16 @@ static void input_render(ui_component_t *component) {
         display_text = display_buffer;
     }
 
-    // 绘制文本
+    // 绘制文本（垂直居中对齐）
     canvas2d_fill_text(component->ctx, display_text, text_x,
-                       text_y + text_height / 2 + input->font_size / 3);
+                       text_y + text_height / 2);
 
     // 绘制光标（仅当获得焦点且不是只读模式时）
     if (input->focused && !input->readonly && input->cursor_blink_visible) {
       float cursor_x =
           text_x +
           canvas2d_measure_text(component->ctx,
-                                input->text[0] != '\0'
+                                has_input
                                     ? strndup(input->text, input->cursor_pos)
                                     : "");
       float cursor_y = component->y + padding_top + 2;
@@ -247,7 +247,7 @@ static bool input_on_text_input(ui_component_t *component, const char *text) {
         input->scroll_offset = input->cursor_pos - max_visible_chars;
     }
     
-return true;
+    return true;
 }
 
 // 焦点失去事件
