@@ -5,6 +5,7 @@
 #include "../splash/splash_scene.h"
 #include "scene.h"
 #include "canvas2d/canvas2d.h"
+#include "input_converter.h"
 
 #include <SDL2/SDL.h>
 
@@ -26,25 +27,6 @@ HANDLE FS_AddArchive(LPCSTR);
 void Sys_Quit(void) { exit(0); }
 int html_init(LPCSTR filename);
 
-// 将输入事件转换为scene的输入事件类型
-static input_event_type_t convert_sdl_event_type(SDL_Event* event) {
-    switch (event->type) {
-        case SDL_KEYDOWN:
-            return INPUT_EVENT_KEY_DOWN;
-        case SDL_KEYUP:
-            return INPUT_EVENT_KEY_UP;
-        case SDL_MOUSEBUTTONDOWN:
-            return INPUT_EVENT_MOUSE_DOWN;
-        case SDL_MOUSEBUTTONUP:
-            return INPUT_EVENT_MOUSE_UP;
-        case SDL_MOUSEMOTION:
-            return INPUT_EVENT_MOUSE_MOTION;
-        case SDL_MOUSEWHEEL:
-            return INPUT_EVENT_MOUSE_WHEEL;
-        default:
-            return INPUT_EVENT_KEY_DOWN; // 默认值
-    }
-}
 
 int main(int argc, LPSTR argv[]) {
     char *map = NULL;
@@ -135,45 +117,40 @@ int main(int argc, LPSTR argv[]) {
                 return 0;
             }
             
-            // 转换SDL事件为scene输入事件
+            // 使用 ConvertSDLEvent 转换 SDL 事件
             input_event_t input_event;
-            input_event.type = convert_sdl_event_type(&event);
+            if (!ConvertSDLEvent(&event, &input_event)) {
+                // 事件转换失败，跳过此事件
+                continue;
+            }
             input_event.handled = false;
             
+            // 对鼠标坐标进行归一化（除以显示缩放因子）
             switch (input_event.type) {
-                case INPUT_EVENT_KEY_DOWN:
-                    input_event.key.key = event.key.keysym.sym;
-                    input_event.key.down = true;
-                    break;
-                case INPUT_EVENT_KEY_UP:
-                    input_event.key.key = event.key.keysym.sym;
-                    input_event.key.down = false;
-                    break;
                 case INPUT_EVENT_MOUSE_DOWN:
                 case INPUT_EVENT_MOUSE_UP: {
-                    // 鼠标按键事件 - 在转换时就进行归一化
                     VECTOR2 displayScale = re.GetDisplayScale();
-                    printf("[Main] Mouse button: raw=(%d,%d), scale=(%.2f,%.2f), normalized=(%.2f,%.2f)\n",
-                           event.button.x, event.button.y, displayScale.x, displayScale.y,
-                           event.button.x / displayScale.x, event.button.y / displayScale.y);
-                    input_event.mouse.button = event.button.button;
-                    input_event.mouse.x = event.button.x / displayScale.x;
-                    input_event.mouse.y = event.button.y / displayScale.y;
-                    input_event.mouse.down = (input_event.type == INPUT_EVENT_MOUSE_DOWN);
+                    printf("[Main] Mouse button: raw=(%.2f,%.2f), scale=(%.2f,%.2f), normalized=(%.2f,%.2f)\n",
+                           input_event.mouse.x, input_event.mouse.y, displayScale.x, displayScale.y,
+                           input_event.mouse.x / displayScale.x, input_event.mouse.y / displayScale.y);
+                    input_event.mouse.x /= displayScale.x;
+                    input_event.mouse.y /= displayScale.y;
                     break;
                 }
                 case INPUT_EVENT_MOUSE_MOTION: {
-                    // 鼠标移动事件 - 在转换时就进行归一化
                     VECTOR2 displayScale = re.GetDisplayScale();
-                    input_event.motion.x = event.motion.x / displayScale.x;
-                    input_event.motion.y = event.motion.y / displayScale.y;
-                    input_event.motion.dx = event.motion.xrel / displayScale.x;
-                    input_event.motion.dy = event.motion.yrel / displayScale.y;
+                    input_event.motion.x /= displayScale.x;
+                    input_event.motion.y /= displayScale.y;
+                    input_event.motion.dx /= displayScale.x;
+                    input_event.motion.dy /= displayScale.y;
                     break;
                 }
-                case INPUT_EVENT_MOUSE_WHEEL:
-                    input_event.wheel.delta = event.wheel.y;
+                case INPUT_EVENT_MOUSE_WHEEL: {
+                    VECTOR2 displayScale = re.GetDisplayScale();
+                    input_event.wheel.x /= displayScale.x;
+                    input_event.wheel.y /= displayScale.y;
                     break;
+                }
                 default:
                     break;
             }

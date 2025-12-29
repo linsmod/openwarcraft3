@@ -52,6 +52,11 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, input_event_t *output) {
         case SDL_MOUSEWHEEL:
             output->type = INPUT_EVENT_MOUSE_WHEEL;
             output->wheel.delta = (float)sdl_event->wheel.y;
+            // 滚轮事件本身不包含鼠标位置，需要单独获取
+            int mouse_x, mouse_y;
+            SDL_GetMouseState(&mouse_x, &mouse_y);
+            output->wheel.x = (float)mouse_x;
+            output->wheel.y = (float)mouse_y;
             return true;
             
         // 可以添加更多SDL事件类型的转换

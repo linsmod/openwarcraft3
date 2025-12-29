@@ -27,6 +27,7 @@ int UIEventDispatcher_Init(ui_event_dispatcher_t *dispatcher, ui_component_t *ro
     dispatcher->focused = NULL;
     dispatcher->hovered = NULL;
     dispatcher->dragging = NULL;
+    dispatcher->captured = NULL;
     dispatcher->last_clicked = NULL;
     dispatcher->last_click_time = 0;
     dispatcher->last_click_x = 0.0f;
@@ -42,6 +43,7 @@ void UIEventDispatcher_Shutdown(ui_event_dispatcher_t *dispatcher) {
     dispatcher->focused = NULL;
     dispatcher->hovered = NULL;
     dispatcher->dragging = NULL;
+    dispatcher->captured = NULL;
     dispatcher->last_clicked = NULL;
 }
 
@@ -299,7 +301,8 @@ bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, floa
 bool UIEventDispatcher_DispatchMouseUp(ui_event_dispatcher_t *dispatcher, float x, float y, int button, int timestamp) {
     if (!dispatcher) return false;
 
-    ui_component_t *target = UIEventDispatcher_Capture(dispatcher, x, y);
+    // 如果有组件捕获了鼠标，优先发送给它
+    ui_component_t *target = dispatcher->captured ? dispatcher->captured : UIEventDispatcher_Capture(dispatcher, x, y);
 
     // 更新鼠标按钮状态
     if (button >= 0 && button < 5) {
@@ -390,41 +393,44 @@ bool UIEventDispatcher_DispatchMouseUp(ui_event_dispatcher_t *dispatcher, float 
 bool UIEventDispatcher_DispatchMouseMove(ui_event_dispatcher_t *dispatcher, float x, float y, int timestamp) {
     if (!dispatcher) return false;
 
-    ui_component_t *target = UIEventDispatcher_Capture(dispatcher, x, y);
+    // 如果有组件捕获了鼠标，优先发送给它
+    ui_component_t *target = dispatcher->captured ? dispatcher->captured : UIEventDispatcher_Capture(dispatcher, x, y);
 
-    // 处理鼠标进入/离开事件
-    ui_component_t *old_hovered = dispatcher->hovered;
-    dispatcher->hovered = target;
+    // 处理鼠标进入/离开事件（只有当没有组件捕获鼠标时才更新hover状态）
+    if (!dispatcher->captured) {
+        ui_component_t *old_hovered = dispatcher->hovered;
+        dispatcher->hovered = target;
 
-    if (old_hovered != target) {
-        // 触发离开事件
-        if (old_hovered) {
-            ui_mouse_event_t leave_event = {
-                .base = {
-                    .type = UI_EVENT_MOUSE_LEAVE,
-                    .timestamp = timestamp
-                },
-                .x = x,
-                .y = y,
-                .screen_x = x,
-                .screen_y = y
-            };
-            UIEventDispatcher_BubbleEvent(dispatcher, old_hovered, &leave_event.base);
-        }
+        if (old_hovered != target) {
+            // 触发离开事件
+            if (old_hovered) {
+                ui_mouse_event_t leave_event = {
+                    .base = {
+                        .type = UI_EVENT_MOUSE_LEAVE,
+                        .timestamp = timestamp
+                    },
+                    .x = x,
+                    .y = y,
+                    .screen_x = x,
+                    .screen_y = y
+                };
+                UIEventDispatcher_BubbleEvent(dispatcher, old_hovered, &leave_event.base);
+            }
 
-        // 触发进入事件
-        if (target) {
-            ui_mouse_event_t enter_event = {
-                .base = {
-                    .type = UI_EVENT_MOUSE_ENTER,
-                    .timestamp = timestamp
-                },
-                .x = x,
-                .y = y,
-                .screen_x = x,
-                .screen_y = y
-            };
-            UIEventDispatcher_BubbleEvent(dispatcher, target, &enter_event.base);
+            // 触发进入事件
+            if (target) {
+                ui_mouse_event_t enter_event = {
+                    .base = {
+                        .type = UI_EVENT_MOUSE_ENTER,
+                        .timestamp = timestamp
+                    },
+                    .x = x,
+                    .y = y,
+                    .screen_x = x,
+                    .screen_y = y
+                };
+                UIEventDispatcher_BubbleEvent(dispatcher, target, &enter_event.base);
+            }
         }
     }
 
@@ -635,4 +641,23 @@ ui_component_t* UIEventDispatcher_GetFocus(ui_event_dispatcher_t *dispatcher) {
 
 void UIEventDispatcher_ClearFocus(ui_event_dispatcher_t *dispatcher) {
     UIEventDispatcher_SetFocus(dispatcher, NULL);
+}
+
+// ==================== 鼠标捕获管理 ====================
+
+// 捕获鼠标（组件将优先接收所有鼠标事件，即使鼠标移出组件范围）
+void UIEventDispatcher_CaptureMouse(ui_event_dispatcher_t *dispatcher, ui_component_t *component) {
+    if (!dispatcher) return;
+    dispatcher->captured = component;
+}
+
+// 获取当前捕获鼠标的组件
+ui_component_t* UIEventDispatcher_GetCaptured(ui_event_dispatcher_t *dispatcher) {
+    return dispatcher ? dispatcher->captured : NULL;
+}
+
+// 释放鼠标捕获
+void UIEventDispatcher_ReleaseMouse(ui_event_dispatcher_t *dispatcher) {
+    if (!dispatcher) return;
+    dispatcher->captured = NULL;
 }

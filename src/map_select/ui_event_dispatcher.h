@@ -19,6 +19,7 @@ typedef struct {
     ui_component_t *focused;       // 当前获得焦点的组件
     ui_component_t *hovered;        // 当前鼠标悬停的组件
     ui_component_t *dragging;       // 当前正在拖拽的组件
+    ui_component_t *captured;       // 当前捕获鼠标的组件（优先接收所有鼠标事件）
     ui_component_t *last_clicked;   // 上次点击的组件（用于双击检测）
     int last_click_time;           // 上次点击时间
     float last_click_x;             // 上次点击X坐标
@@ -76,5 +77,10 @@ bool UIEventDispatcher_BubbleEvent(ui_event_dispatcher_t *dispatcher, ui_compone
 void UIEventDispatcher_SetFocus(ui_event_dispatcher_t *dispatcher, ui_component_t *component);
 ui_component_t* UIEventDispatcher_GetFocus(ui_event_dispatcher_t *dispatcher);
 void UIEventDispatcher_ClearFocus(ui_event_dispatcher_t *dispatcher);
+
+// 鼠标捕获管理
+void UIEventDispatcher_CaptureMouse(ui_event_dispatcher_t *dispatcher, ui_component_t *component);
+ui_component_t* UIEventDispatcher_GetCaptured(ui_event_dispatcher_t *dispatcher);
+void UIEventDispatcher_ReleaseMouse(ui_event_dispatcher_t *dispatcher);
 
 #endif // __UI_EVENT_DISPATCHER_H__

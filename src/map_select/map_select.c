@@ -422,6 +422,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     
+    // 设置事件分发器（用于鼠标捕获功能）
+    UIList_SetDispatcher((ui_list_t *)g_ui_list, &g_event_dispatcher);
+    
     // 将列表设置为焦点组件（这样键盘事件才能被它接收）
     UIEventDispatcher_SetFocus(&g_event_dispatcher, g_ui_list);
     
@@ -1259,6 +1262,17 @@ void MapSelectScene_OnInput(scene_t *scene, input_event_t *event) {
                 mouse.event = UI_LEFT_MOUSE_DRAGGED;
                 
                 MapSelect_HandleMouseEvent();
+                break;
+            }
+                
+            case INPUT_EVENT_MOUSE_WHEEL: {
+                // 鼠标滚轮事件（鼠标位置已在input_converter中获取）
+                float wheel_x = event->wheel.x;
+                float wheel_y = event->wheel.y;
+                int wheel_delta = (int)event->wheel.delta;
+                
+                // 分发滚轮事件到事件分发器
+                UIEventDispatcher_DispatchMouseWheel(&g_event_dispatcher, wheel_x, wheel_y, wheel_delta, SDL_GetTicks());
                 break;
             }
                 

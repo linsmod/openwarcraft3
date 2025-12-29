@@ -163,7 +163,9 @@ typedef struct {
             float dy;
         } motion;
         struct {
-            float delta;
+            float delta;      // 滚轮滚动值
+            float x;          // 鼠标X位置（滚轮事件时同时记录鼠标位置）
+            float y;          // 鼠标Y位置
         } wheel;
     };
     

@@ -5,6 +5,7 @@
 #include "../common/shared.h"
 #include "ui_component.h"
 #include "ui_list_item.h"
+#include "ui_event_dispatcher.h"
 
 // 最大列表项数量
 #define UI_LIST_MAX_ITEMS 500
@@ -12,6 +13,7 @@
 // UI 列表组件（继承自 ui_component_t）
 typedef struct {
     ui_component_t base;              // 基础组件（包含bg_color）
+    ui_event_dispatcher_t *dispatcher; // 事件分发器（用于鼠标捕获）
     ui_list_item_t *items[UI_LIST_MAX_ITEMS];  // 列表项指针数组
     int item_count;
     int selected_index;
@@ -23,6 +25,9 @@ typedef struct {
     float font_size;                  // 字体大小
     COLOR32 border_color;             // 边框色
     bool show_scrollbar;              // 是否显示滚动条
+    bool is_dragging_scrollbar;       // 是否正在拖动滚动条
+    float scrollbar_drag_start_y;      // 滚动条拖动起始Y坐标
+    int scrollbar_drag_start_offset;   // 滚动条拖动起始偏移量
 } ui_list_t;
 
 // 创建默认列表配置
@@ -31,6 +36,9 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
 
 // 初始化 UI 列表
 int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx);
+
+// 设置事件分发器（用于鼠标捕获功能）
+void UIList_SetDispatcher(ui_list_t *list, ui_event_dispatcher_t *dispatcher);
 
 // 添加列表项
 int UIList_AddItem(ui_list_t *list, const char *text, void *user_data);

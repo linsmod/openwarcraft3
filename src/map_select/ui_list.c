@@ -1,4 +1,5 @@
 #include "ui_list.h"
+#include "ui_event_dispatcher.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -124,6 +125,25 @@ static bool list_on_mouse_move(ui_component_t *component, ui_mouse_event_t *even
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
 
+    // 处理滚动条拖动
+    if (list->is_dragging_scrollbar) {
+        int max_scroll = list->item_count - list->visible_count;
+        float track_height = component->height;
+        float delta_y = event->y - list->scrollbar_drag_start_y;
+        float thumb_height = track_height * list->visible_count / list->item_count;
+        
+        // 计算新的滚动偏移
+        float delta_ratio = delta_y / (track_height - thumb_height);
+        int new_offset = list->scrollbar_drag_start_offset + (int)(delta_ratio * max_scroll);
+        
+        // 限制范围
+        if (new_offset < 0) new_offset = 0;
+        if (new_offset > max_scroll) new_offset = max_scroll;
+        
+        list->scroll_offset = new_offset;
+        return true;
+    }
+
     // 更新所有可见items的hover状态
     float item_y = component->y;
     for (int i = 0; i < list->visible_count; i++) {
@@ -150,9 +170,65 @@ static bool list_on_mouse_move(ui_component_t *component, ui_mouse_event_t *even
     return true;
 }
 
+static bool list_on_mouse_up(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_list_t *list = (ui_list_t *)component;
+    if (!list) return false;
+    
+    // 结束滚动条拖动
+    if (list->is_dragging_scrollbar) {
+        list->is_dragging_scrollbar = false;
+        // 释放鼠标捕获
+        if (list->dispatcher) {
+            UIEventDispatcher_ReleaseMouse(list->dispatcher);
+        }
+    }
+    return true;
+}
+
 static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
+
+    // 检查是否点击滚动条
+    if (list->show_scrollbar && list->item_count > list->visible_count) {
+        float scrollbar_x = component->x + component->width - 12;
+        float scrollbar_width = 10;
+        
+        if (event->x >= scrollbar_x && event->x < scrollbar_x + scrollbar_width) {
+            // 点击了滚动条，计算滚动条拇指位置
+            int max_scroll = list->item_count - list->visible_count;
+            float track_height = component->height;
+            float thumb_height = track_height * list->visible_count / list->item_count;
+            float thumb_y = component->y + (track_height - thumb_height) * list->scroll_offset / max_scroll;
+            
+            if (event->y >= thumb_y && event->y < thumb_y + thumb_height) {
+                // 点击了拇指，开始拖动
+                list->is_dragging_scrollbar = true;
+                list->scrollbar_drag_start_y = event->y;
+                list->scrollbar_drag_start_offset = list->scroll_offset;
+                // 捕获鼠标，防止鼠标移出范围后丢失事件
+                if (list->dispatcher) {
+                    UIEventDispatcher_CaptureMouse(list->dispatcher, component);
+                }
+                return true;
+            } else {
+                // 点击了滚动槽，跳转到点击位置
+                float click_ratio = (event->y - component->y) / track_height;
+                int new_offset = (int)(click_ratio * max_scroll + 0.5f);
+                if (new_offset < 0) new_offset = 0;
+                if (new_offset > max_scroll) new_offset = max_scroll;
+                list->scroll_offset = new_offset;
+                list->is_dragging_scrollbar = true;
+                list->scrollbar_drag_start_y = event->y;
+                list->scrollbar_drag_start_offset = list->scroll_offset;
+                // 捕获鼠标，防止鼠标移出范围后丢失事件
+                if (list->dispatcher) {
+                    UIEventDispatcher_CaptureMouse(list->dispatcher, component);
+                }
+                return true;
+            }
+        }
+    }
 
     // 检查是否点击列表项
     float item_y = component->y;
@@ -177,7 +253,7 @@ static bool list_on_mouse_wheel(ui_component_t *component, ui_mouse_event_t *eve
     if (!list || !UIComponent_IsEnabled(component)) return false;
 
     int max_offset = list->item_count - list->visible_count;
-    int scroll_delta = -event->delta / 120; // 标准化滚轮值
+    int scroll_delta = -event->delta; // 标准化滚轮值
 
     list->scroll_offset += scroll_delta;
     if (list->scroll_offset < 0) list->scroll_offset = 0;
@@ -254,7 +330,7 @@ static const ui_component_vtable_t g_list_vtable = {
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
     .on_mouse_down = list_on_mouse_down,
-    .on_mouse_up = NULL,
+    .on_mouse_up = list_on_mouse_up,
     .on_click = NULL,
     .on_double_click = NULL,
     .on_mouse_move = list_on_mouse_move,
@@ -294,12 +370,16 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
     list->base.y = y;
     list->base.width = width;
     list->base.height = height;
+    list->dispatcher = NULL;  // 初始化为NULL，需要在创建后设置
     list->item_height = item_height;
     list->item_spacing = 2.0f;
     list->font_size = font_size;
     UIComponent_SetBgColor(&list->base, MAKE(COLOR32, 60, 60, 70, 255));
     list->border_color = MAKE(COLOR32, 120, 120, 130, 255);
     list->show_scrollbar = true;
+    list->is_dragging_scrollbar = false;
+    list->scrollbar_drag_start_y = 0.0f;
+    list->scrollbar_drag_start_offset = 0;
 
     // 计算可见项数（必须在设置完尺寸后）
     list->visible_count = (int)(list->base.height / (list->item_height + list->item_spacing));
@@ -319,12 +399,16 @@ int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx) {
     // 使用新的组件系统初始化基础部分
     UIComponent_InitBase(&list->base, UI_COMPONENT_TYPE_LIST, &g_list_vtable, ctx);
 
+    list->dispatcher = NULL;
     list->item_height = 24.0f;
     list->item_spacing = 2.0f;
     list->font_size = 14.0f;
     UIComponent_SetBgColor(&list->base, MAKE(COLOR32, 60, 60, 70, 255));
     list->border_color = MAKE(COLOR32, 120, 120, 130, 255);
     list->show_scrollbar = true;
+    list->is_dragging_scrollbar = false;
+    list->scrollbar_drag_start_y = 0.0f;
+    list->scrollbar_drag_start_offset = 0;
 
     // 初始化状态
     list->item_count = 0;
@@ -485,4 +569,10 @@ void UIList_Destroy(ui_list_t *list) {
     if (!list) return;
     UIList_Shutdown(list);
     free(list);
+}
+
+// 设置事件分发器（用于鼠标捕获功能）
+void UIList_SetDispatcher(ui_list_t *list, ui_event_dispatcher_t *dispatcher) {
+    if (!list) return;
+    list->dispatcher = dispatcher;
 }
