@@ -168,10 +168,10 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
     size2_t const window = R_GetWindowSize();
     RECT screen = {
-        rect->x * 0.8 / window.width,
-        rect->y * 0.6 / window.height,
-        rect->w * 0.8 / window.width,
-        rect->h * 0.6 / window.height,
+        rect->x * 1.0 / window.width,
+        rect->y * 1.0 / window.height,
+        rect->w * 1.0 / window.width,
+        rect->h * 1.0 / window.height,
     };
     R_DrawWireRect(&screen, color);
 }

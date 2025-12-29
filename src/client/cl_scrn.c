@@ -446,7 +446,7 @@ void SCR_DrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
 
 void SCR_DrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     RECT const viewport = {
-        screen->x/0.8,1-(screen->y+screen->h)/0.6,screen->w/0.8,screen->h/0.6
+        screen->x/1.0,1-(screen->y+screen->h)/1.0,screen->w/1.0,screen->h/1.0
     };
     LPCMODEL port = cl.portraits[frame->tex.index];
     re.DrawPortrait(port ? port : cl.models[frame->tex.index], &viewport);

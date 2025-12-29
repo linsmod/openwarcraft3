@@ -205,6 +205,7 @@ LPCSTR modelNames[MODEL_COUNT] = {
 
 void R_Init(DWORD width, DWORD height) {
     SDL_Init(SDL_INIT_VIDEO);
+    SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1"); 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);

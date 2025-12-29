@@ -48,8 +48,22 @@ const char* UIComponent_GetTypeName(int typeid){
             return "SCROLLBAR";
         case UI_COMPONENT_TYPE_CONTAINER:
             return "CONTAINER";
+        case UI_COMPONENT_TYPE_LIST_ITEM:
+            return "LIST_ITEM";
+        case UI_COMPONENT_TYPE_TEXT:
+            return "TEXT";
+        case UI_COMPONENT_TYPE_EDITBOX:
+            return "EDITBOX";
+        case UI_COMPONENT_TYPE_CHECKBOX:
+            return "CHECKBOX";
+        case UI_COMPONENT_TYPE_SLIDER:
+            return "SLIDER";
+        case UI_COMPONENT_TYPE_IMAGE:
+            return "IMAGE";
+        case UI_COMPONENT_TYPE_PANEL:
+            return "PANEL";
         default:
-            return "UNKNOWN";
+            return "UI_COMPONENT_UNKNOWN";
     }
 }
 

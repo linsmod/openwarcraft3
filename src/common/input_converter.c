@@ -57,10 +57,26 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, input_event_t *output) {
             SDL_GetMouseState(&mouse_x, &mouse_y);
             output->wheel.x = (float)mouse_x;
             output->wheel.y = (float)mouse_y;
-            return true;
+return true;
             
-        // 可以添加更多SDL事件类型的转换
+        case SDL_TEXTINPUT:
+            output->type = INPUT_EVENT_TEXT_INPUT;
+            strncpy(output->text.text, sdl_event->text.text, 31);
+            output->text.text[31] = '\0';
+            printf("ConvertSDLEvent: TEXTINPUT text='%s'\n", output->text.text);
+            return true;
+
+        case SDL_TEXTEDITING:
+            output->type = INPUT_EVENT_TEXT_EDITING;
+            strncpy(output->editing.text, sdl_event->edit.text, 31);
+            output->editing.text[31] = '\0';
+            output->editing.start = sdl_event->edit.start;
+            output->editing.length = sdl_event->edit.length;
+            printf("ConvertSDLEvent: TEXTEDITING text='%s', start=%d, length=%d\n",
+                   output->editing.text, output->editing.start, output->editing.length);
+            return true;
         
+        // 可以添加更多SDL事件类型的转换
         default:
             // 忽略其他事件
             return false;

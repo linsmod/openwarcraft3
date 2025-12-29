@@ -2,6 +2,7 @@
 #include "ui_list.h"
 #include "ui_button.h"
 #include "ui_text.h"
+#include "ui_input.h"
 #include "ui_container.h"
 #include "ui_event_dispatcher.h"
 #include "../canvas2d/canvas2d.h"
@@ -54,6 +55,9 @@ static bool g_at_root = true;
 // 当前预览的地图路径（用于检测选中变化）
 static char g_current_preview_map[MAX_PATHLEN] = "";
 
+// 上一次的筛选文本（用于检测筛选文本变化）
+static char g_last_filter_text[256] = "";
+
 // Canvas2D 画布
 static canvas2d_t *g_canvas = NULL;
 static canvas2d_context_t *g_ctx = NULL;
@@ -66,6 +70,8 @@ static ui_component_t *g_root_container = NULL;
 
 // UI 组件（使用新的基类系统）
 static ui_component_t *g_ui_list = NULL;
+static ui_component_t *g_filter_label = NULL;
+static ui_component_t *g_filter_input = NULL;
 static ui_component_t *g_start_button = NULL;
 static ui_component_t *g_title_text = NULL;
 static ui_component_t *g_path_text = NULL;
@@ -269,6 +275,14 @@ static void FilterCurrentPath(void) {
     // 清空UI列表
     UIList_ClearItems((ui_list_t *)g_ui_list);
     
+    // 获取筛选框文本
+    const char *filter_text = "";
+    if (g_filter_input) {
+        filter_text = UIInput_GetText((ui_input_t *)g_filter_input);
+    }
+    size_t filter_len = strlen(filter_text);
+    bool has_filter = (filter_len > 0);
+    
     // 添加 ".." 目录（如果不是在根目录）- 使用特殊索引 -1
     if (!g_at_root && g_filtered_count < MAX_MAPS) {
         g_filtered_indices[g_filtered_count++] = -1;  // -1 表示 ".." 返回上级目录
@@ -276,6 +290,29 @@ static void FilterCurrentPath(void) {
     
     for (int i = 0; i < g_all_count && g_filtered_count < MAX_MAPS; i++) {
         const char *item_path = g_all_items[i].full_path;
+        const char *item_name = g_all_items[i].name;
+        
+        // 文本筛选：如果筛选框有内容，只显示匹配的项
+        if (has_filter) {
+            // 转换为小写进行不区分大小写的匹配
+            char filter_lower[256];
+            char name_lower[256];
+            for (size_t j = 0; j < filter_len && j < 255; j++) {
+                filter_lower[j] = tolower(filter_text[j]);
+            }
+            filter_lower[filter_len] = '\0';
+            
+            size_t name_len = strlen(item_name);
+            for (size_t j = 0; j < name_len && j < 255; j++) {
+                name_lower[j] = tolower(item_name[j]);
+            }
+            name_lower[name_len] = '\0';
+            
+            // 检查是否包含筛选文本
+            if (strstr(name_lower, filter_lower) == NULL) {
+                continue;  // 不匹配，跳过此项
+            }
+        }
         
         if (g_at_root) {
             // 根目录：显示顶级文件夹和根目录下的地图文件
@@ -416,7 +453,7 @@ int MapSelect_Init(void) {
     }
     
     // 创建 UI 列表
-    g_ui_list = (ui_component_t *)UIList_Create(30.0f, 80.0f, 380.0f, 580.0f, 50.0f, 14.0f, g_ctx);
+    g_ui_list = (ui_component_t *)UIList_Create(30.0f, 85.0f, 380.0f, 575.0f, 50.0f, 14.0f, g_ctx);
     if (!g_ui_list) {
         printf("Failed to create UI list\n");
         return -1;
@@ -428,8 +465,30 @@ int MapSelect_Init(void) {
     // 将列表设置为焦点组件（这样键盘事件才能被它接收）
     UIEventDispatcher_SetFocus(&g_event_dispatcher, g_ui_list);
     
-    // 将列表添加到根容器
+// 将列表添加到根容器
     UIContainer_AddChild((ui_container_t *)g_root_container, g_ui_list);
+    
+    // 创建筛选标签
+    g_filter_label = (ui_component_t *)UIText_Create(30.0f, 50.0f, "Filter:",
+                                                   (COLOR32){200, 200, 200, 255}, 16.0f,
+                                                   UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
+    if (!g_filter_label) {
+        printf("Failed to create filter label\n");
+        return -1;
+    }
+    
+    // 将筛选标签添加到根容器
+    UIContainer_AddChild((ui_container_t *)g_root_container, g_filter_label);
+    
+    // 创建筛选输入框
+    g_filter_input = (ui_component_t *)UIInput_Create(80.0f, 50.0f, 330.0f, 28.0f, 14.0f, "Type to filter...", g_ctx);
+    if (!g_filter_input) {
+        printf("Failed to create filter input\n");
+        return -1;
+    }
+    
+    // 将筛选输入框添加到根容器
+    UIContainer_AddChild((ui_container_t *)g_root_container, g_filter_input);
     
     // 创建 START GAME 按钮
     ui_button_config_t button_config = UIButton_GetDefaultConfig();
@@ -473,20 +532,20 @@ int MapSelect_Init(void) {
     // 将标题文本添加到根容器
     UIContainer_AddChild((ui_container_t *)g_root_container, g_title_text);
     
-    // 创建路径文本
-    g_path_text = (ui_component_t *)UIText_Create(30.0f, 50.0f, "Root",
-                                                  (COLOR32){200, 200, 200, 255}, 18.0f,
+    // 创建路径文本（移到右侧）
+    g_path_text = (ui_component_t *)UIText_Create(420.0f, 50.0f, "Root",
+                                                  (COLOR32){200, 200, 200, 255}, 14.0f,
                                                   UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_path_text) {
         printf("Failed to create path text\n");
         return -1;
     }
     
-    // 将路径文本添加到根容器
+// 将路径文本添加到根容器
     UIContainer_AddChild((ui_container_t *)g_root_container, g_path_text);
     
-    // 创建提示文本1
-    g_hint_text1 = (ui_component_t *)UIText_Create(30.0f, 710.0f, "UP/DOWN to navigate, ENTER to select",
+    // 创建提示文本1（包含筛选提示）
+    g_hint_text1 = (ui_component_t *)UIText_Create(30.0f, 710.0f, "UP/DOWN to navigate, ENTER to select, type to filter",
                                                    (COLOR32){200, 200, 200, 255}, 16.0f,
                                                    UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_hint_text1) {
@@ -1171,6 +1230,17 @@ void MapSelectScene_Shutdown(scene_t *scene) {
 scene_transition_t* MapSelectScene_Update(scene_t *scene, int msec) {
     // 更新场景的所有UI组件
     Scene_UpdateUI(scene, msec);
+    
+    // 检查筛选文本是否变化
+    if (g_filter_input) {
+        const char *current_filter = UIInput_GetText((ui_input_t *)g_filter_input);
+        if (strcmp(g_last_filter_text, current_filter) != 0) {
+            // 筛选文本变化，重新筛选
+            strncpy(g_last_filter_text, current_filter, 255);
+            g_last_filter_text[255] = '\0';
+            FilterCurrentPath();
+        }
+    }
     
     // 检查是否需要切换到游戏场景
     if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {

@@ -130,9 +130,9 @@ int main(int argc, LPSTR argv[]) {
                 case INPUT_EVENT_MOUSE_DOWN:
                 case INPUT_EVENT_MOUSE_UP: {
                     VECTOR2 displayScale = re.GetDisplayScale();
-                    printf("[Main] Mouse button: raw=(%.2f,%.2f), scale=(%.2f,%.2f), normalized=(%.2f,%.2f)\n",
-                           input_event.mouse.x, input_event.mouse.y, displayScale.x, displayScale.y,
-                           input_event.mouse.x / displayScale.x, input_event.mouse.y / displayScale.y);
+                    // printf("[Main] Mouse button: raw=(%.2f,%.2f), scale=(%.2f,%.2f), normalized=(%.2f,%.2f)\n",
+                        //    input_event.mouse.x, input_event.mouse.y, displayScale.x, displayScale.y,
+                        //    input_event.mouse.x / displayScale.x, input_event.mouse.y / displayScale.y);
                     input_event.mouse.x /= displayScale.x;
                     input_event.mouse.y /= displayScale.y;
                     break;

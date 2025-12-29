@@ -6,6 +6,7 @@
 #include "stb/stb_truetype.h"
 #include <StormPort.h>
 #include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -537,10 +538,11 @@ void R_DrawUtf8Text2(LPCSTR text, RECT rect, COLOR32 color,LPFONT font, LPMATRIX
 void R_DrawUtf8Text(LPCSTR text, FLOAT x, FLOAT y, COLOR32 color){
     assert(g_default_text_font);
 
+    size2_t vpsize = R_GetViewPortSize();
     RECT rect = MAKE(RECT,x,y,1,1);
     if(rect.x<1 || rect.y<1){
-        rect.x = NORM(x);
-        rect.y= NORM(y);
+        rect.x = x* 1.0/ vpsize.width;
+        rect.y= y* 1.0/ vpsize.height;
     }
     DRAWTEXT drawtext =  get_drawtext_html(NULL, color,rect.w,text,
         FONT_JUSTIFYLEFT,

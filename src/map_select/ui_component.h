@@ -3,6 +3,7 @@
 
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
+#include "../common/scene.h"
 
 // 前向声明
 typedef struct ui_component_t ui_component_t;
@@ -170,10 +171,11 @@ typedef struct ui_component_vtable {
     bool (*on_drag)(ui_component_t *component, ui_mouse_event_t *event);
     bool (*on_drag_end)(ui_component_t *component, ui_mouse_event_t *event);
 
-    // 键盘事件处理
+// 键盘事件处理
     bool (*on_key_down)(ui_component_t *component, ui_keyboard_event_t *event);
     bool (*on_key_up)(ui_component_t *component, ui_keyboard_event_t *event);
     bool (*on_key_press)(ui_component_t *component, ui_keyboard_event_t *event);
+    bool (*on_text_input)(ui_component_t *component, const char *text);  // 文本输入（支持中文输入法）
 
     // 焦点事件处理
     bool (*on_focus)(ui_component_t *component, ui_focus_event_t *event);

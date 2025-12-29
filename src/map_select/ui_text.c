@@ -122,6 +122,7 @@ static const ui_component_vtable_t g_text_vtable = {
     .on_key_down = NULL,
     .on_key_up = NULL,
     .on_key_press = NULL,
+    .on_text_input = NULL,
     .on_focus = NULL,
     .on_blur = NULL,
     .on_resize = NULL,

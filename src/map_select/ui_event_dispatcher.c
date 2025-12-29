@@ -412,9 +412,9 @@ bool UIEventDispatcher_DispatchMouseMove(ui_event_dispatcher_t *dispatcher, floa
     // 如果有组件捕获了鼠标，优先以它为目标
     ui_component_t *target = dispatcher->captured ? dispatcher->captured : UIEventDispatcher_Capture(dispatcher, x, y);
 
-    if (target){
-        printf("Mouse move:  target component: %s (%d, %d)\n", UIComponent_GetTypeName(target->type), (int)x, (int)y);
-    }
+    // if (target){
+    //     printf("Mouse move:  target component: %s (%d, %d)\n", UIComponent_GetTypeName(target->type), (int)x, (int)y);
+    // }
 
     // 处理鼠标进入/离开事件（只有当没有组件捕获鼠标时才更新hover状态）
     if (!dispatcher->captured) {

@@ -114,7 +114,9 @@ typedef enum {
     INPUT_EVENT_MOUSE_DOWN,
     INPUT_EVENT_MOUSE_UP,
     INPUT_EVENT_MOUSE_MOTION,
-    INPUT_EVENT_MOUSE_WHEEL,
+INPUT_EVENT_MOUSE_WHEEL,
+    INPUT_EVENT_TEXT_INPUT,    // 文本输入（用于中文输入法等）
+    INPUT_EVENT_TEXT_EDITING,
     INPUT_EVENT_QUIT,
     
     // 细化的事件（由场景管理器生成）
@@ -167,6 +169,14 @@ typedef struct {
             float x;          // 鼠标X位置（滚轮事件时同时记录鼠标位置）
             float y;          // 鼠标Y位置
         } wheel;
+        struct {
+            char text[32];     // 输入的文本（最多32个UTF-8字符）
+        } text;
+        struct {
+            char text[32];     // 编辑中的文本（最多32个UTF-8字符）
+            int start;         // 编辑起始位置
+            int length;        // 编辑长度
+        } editing;
     };
     
     // 向后兼容字段

@@ -237,14 +237,6 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
         return;
     }
 
-    // DRAWTEXT drawtext =  get_drawtext_html(NULL, ctx->state.fillStyle,1,text,
-    //     FONT_JUSTIFYLEFT,
-    //     FONT_JUSTIFYTOP
-    // );
-    // drawtext.rect = (RECT){NORM(x), NORM(y), 0.2, 0.2};
-    // drawtext.model_matrix = &ctx->state.transformMatrix;
-    // R_DrawUtf8TextEx(&drawtext);
-
     // 使用UTF8版本的渲染函数，支持中文显示
     size2_t vpsize = R_GetViewPortSize();
     RECT box = (RECT){x * 1.0f / vpsize.width, y * 1.0f / vpsize.height, 1, 1};
