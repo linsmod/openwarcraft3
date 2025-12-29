@@ -5,6 +5,33 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 
+// ==================== UTF-8 辅助函数 ====================
+
+// 检查一个字节是否是 UTF-8 字符的起始字节
+static bool is_utf8_start_byte(unsigned char c) {
+    return (c & 0xC0) != 0x80;  // 不是 10xxxxxx 格式
+}
+
+// 获取从 pos 开始向前找到的前一个字符的起始位置
+static int find_prev_char_start(const char *text, int pos) {
+    if (pos <= 0) return 0;
+    int p = pos - 1;
+    while (p > 0 && !is_utf8_start_byte(text[p])) {
+        p--;
+    }
+    return p;
+}
+
+// 获取从 pos 开始的下一个字符的起始位置
+static int find_next_char_start(const char *text, int pos, int max_len) {
+    if (pos >= max_len) return max_len;
+    int p = pos + 1;
+    while (p < max_len && !is_utf8_start_byte(text[p])) {
+        p++;
+    }
+    return p;
+}
+
 // ==================== 虚函数实现 ====================
 
 static void input_init(ui_component_t *component, canvas2d_context_t *ctx) {
@@ -50,15 +77,11 @@ static void input_render(ui_component_t *component) {
     canvas2d_set_line_width(component->ctx, 2.0f);
     canvas2d_stroke_rect(component->ctx, component->x, component->y, component->width, component->height);
 
-    // 计算文本显示区域（考虑padding）
-    float padding_top = component->padding[0];
-    float padding_bottom = component->padding[2];
+    // 计算文本显示位置
     float padding_left = component->padding[3];
     float padding_right = component->padding[1];
 
     float text_x = component->x + padding_left - input->scroll_offset;
-    float text_y = component->y + padding_top;
-    float text_height = component->height - padding_top - padding_bottom;
 
     // 设置字体
     canvas2d_set_font_size(component->ctx, input->font_size);
@@ -79,21 +102,27 @@ static void input_render(ui_component_t *component) {
         display_text = display_buffer;
     }
 
-    // 绘制文本（垂直居中对齐）
-    canvas2d_fill_text(component->ctx, display_text, text_x,
-                       text_y + text_height / 2);
+    // 绘制文本（垂直居中对齐，使用容器高度中心）
+    float text_baseline_y = component->y + component->height / 2.0f - input->font_size * 0.35f;
+    canvas2d_fill_text(component->ctx, display_text, text_x, text_baseline_y);
 
     // 绘制光标（仅当获得焦点且不是只读模式时）
     if (input->focused && !input->readonly && input->cursor_blink_visible) {
-      float cursor_x =
-          text_x +
-          canvas2d_measure_text(component->ctx,
-                                has_input
-                                    ? strndup(input->text, input->cursor_pos)
-                                    : "");
-      float cursor_y = component->y + padding_top + 2;
-      float cursor_height =
-          component->height - padding_top - padding_bottom - 4;
+      float cursor_x = text_x;
+      if (has_input) {
+        // 使用临时缓冲区来测量光标位置，避免 strndup 截断多字节 UTF-8 字符
+        int text_len = strlen(input->text);
+        if (input->cursor_pos > 0 && input->cursor_pos <= text_len) {
+          char temp[256];
+          int copy_len = (input->cursor_pos < 255) ? input->cursor_pos : 255;
+          memcpy(temp, input->text, copy_len);
+          temp[copy_len] = '\0';
+          cursor_x += canvas2d_measure_text(component->ctx, temp);
+        }
+      }
+      // 光标垂直居中，高度为字体高度的80%
+      float cursor_height = input->font_size * 0.8f;
+      float cursor_y = component->y + component->height / 2.0f - cursor_height / 2.0f;
 
       canvas2d_set_fill_style(component->ctx,
                               MAKE(COLOR32, 255, 255, 255, 255));
@@ -157,10 +186,16 @@ static bool input_on_key_down(ui_component_t *component, ui_keyboard_event_t *ev
 
     switch (event->key) {
         case SDLK_BACKSPACE: {
-            // 删除光标前的字符
+            // 删除光标前的字符（正确处理多字节 UTF-8 字符）
             if (input->cursor_pos > 0) {
-                memmove(input->text + input->cursor_pos - 1, input->text + input->cursor_pos, text_len - input->cursor_pos + 1);
-                input->cursor_pos--;
+                // 找到前一个完整字符的起始位置
+                int prev_start = find_prev_char_start(input->text, input->cursor_pos);
+                int chars_to_delete = input->cursor_pos - prev_start;
+                
+                // 删除整个字符（可能包含多个字节）
+                memmove(input->text + prev_start, input->text + input->cursor_pos, text_len - input->cursor_pos + 1);
+                input->cursor_pos = prev_start;
+                
                 // 调整滚动偏移
                 if (input->cursor_pos < input->scroll_offset) {
                     input->scroll_offset = input->cursor_pos;
@@ -169,16 +204,21 @@ static bool input_on_key_down(ui_component_t *component, ui_keyboard_event_t *ev
             return true;
         }
         case SDLK_DELETE: {
-            // 删除光标后的字符
+            // 删除光标后的字符（正确处理多字节 UTF-8 字符）
             if (input->cursor_pos < text_len) {
-                memmove(input->text + input->cursor_pos, input->text + input->cursor_pos + 1, text_len - input->cursor_pos);
+                // 找到下一个字符的起始位置
+                int next_start = find_next_char_start(input->text, input->cursor_pos, text_len);
+                int chars_to_delete = next_start - input->cursor_pos;
+                
+                // 删除整个字符（可能包含多个字节）
+                memmove(input->text + input->cursor_pos, input->text + next_start, text_len - next_start + 1);
             }
             return true;
         }
         case SDLK_LEFT: {
-            // 光标左移
+            // 光标左移（正确处理多字节 UTF-8 字符）
             if (input->cursor_pos > 0) {
-                input->cursor_pos--;
+                input->cursor_pos = find_prev_char_start(input->text, input->cursor_pos);
                 if (input->cursor_pos < input->scroll_offset) {
                     input->scroll_offset = input->cursor_pos;
                 }
@@ -186,9 +226,9 @@ static bool input_on_key_down(ui_component_t *component, ui_keyboard_event_t *ev
             return true;
         }
         case SDLK_RIGHT: {
-            // 光标右移
+            // 光标右移（正确处理多字节 UTF-8 字符）
             if (input->cursor_pos < text_len) {
-                input->cursor_pos++;
+                input->cursor_pos = find_next_char_start(input->text, input->cursor_pos, text_len);
             }
             return true;
         }
@@ -402,6 +442,7 @@ input->align = UI_TEXT_ALIGN_LEFT;
     input->cursor_blink_interval = 1000;  // 1000ms 闪烁间隔（1秒）
 
     // 设置padding
+    UIComponent_SetPadding(&input->base, 4.0f, 8.0f, 4.0f, 8.0f);
 
     // 启用焦点和Tab访问
     input->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP;

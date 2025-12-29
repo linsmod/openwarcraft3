@@ -54,17 +54,18 @@ static void label_render(ui_component_t *component) {
             break;
     }
 
-    // 垂直对齐（文本基线对齐）
+    // 垂直对齐（文本基线对齐，需要向上偏移以补偿基线）
     switch (label->valign) {
         case UI_LABEL_VALIGN_MIDDLE:
-            render_y = component->y + component->height / 2.0f;
+            // 文本垂直居中：基线在中心向上偏移字体高度的35%
+            render_y = component->y + component->height / 2.0f - label->font_size * 0.35f;
             break;
         case UI_LABEL_VALIGN_BOTTOM:
-            render_y = component->y + component->height;
+            render_y = component->y + component->height - label->font_size * 0.2f;
             break;
         case UI_LABEL_VALIGN_TOP:
         default:
-            render_y = component->y;
+            render_y = component->y + label->font_size * 0.8f;
             break;
     }
 
