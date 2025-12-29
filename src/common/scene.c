@@ -1,5 +1,6 @@
 #include "scene.h"
 #include "../map_select/ui_component.h"
+#include "common/shared.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -734,7 +735,7 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, input_event_t *event) {
                 if (drag_dist > mgr->drag_threshold && !mgr->is_dragging) {
                     // 开始拖拽
                     hit_target = SceneManager_HitTest(mgr, event->motion.x, event->motion.y);
-                    if (hit_target) {
+                    if (hit_target && hit_target->flags & UI_FLAG_DRAGGABLE) {
                         mgr->is_dragging = true;
                         mgr->dragging_component = hit_target;
                         

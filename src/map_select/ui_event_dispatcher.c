@@ -1,6 +1,7 @@
 #include "ui_event_dispatcher.h"
 #include <string.h>
 #include <stdio.h>
+#include <SDL2/SDL.h>
 
 // 默认配置值
 #define DEFAULT_DOUBLE_CLICK_TIME 500
@@ -39,6 +40,10 @@ int UIEventDispatcher_Init(ui_event_dispatcher_t *dispatcher, ui_component_t *ro
 
 void UIEventDispatcher_Shutdown(ui_event_dispatcher_t *dispatcher) {
     if (!dispatcher) return;
+    // 确保释放鼠标捕获
+    if (dispatcher->captured) {
+        SDL_CaptureMouse(SDL_FALSE);
+    }
     dispatcher->root = NULL;
     dispatcher->focused = NULL;
     dispatcher->hovered = NULL;
@@ -214,8 +219,12 @@ bool UIEventDispatcher_BubbleEvent(ui_event_dispatcher_t *dispatcher, ui_compone
 bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, float x, float y, int button, int timestamp) {
     if (!dispatcher) return false;
 
+    // 如果有组件捕获了鼠标，优先发送给它
     ui_component_t *target = UIEventDispatcher_Capture(dispatcher, x, y);
 
+    if(target){
+        printf("Mouse down:  target component: %s, %2f %2f\n", UIComponent_GetTypeName( target->type), target->x, target->y);
+    }
     // 更新鼠标按钮状态
     if (button >= 0 && button < 5) {
         dispatcher->mouse_buttons[button] = true;
@@ -248,6 +257,9 @@ bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, floa
 
     bool handled = UIEventDispatcher_BubbleEvent(dispatcher, target, &event.base);
 
+    if(handled)
+        return true;
+    
     // 检查是否开始拖拽
     if (target && !event.base.propagation_stopped && !event.base.default_prevented &&
         (target->flags & UI_FLAG_DRAGGABLE) &&
@@ -335,6 +347,10 @@ bool UIEventDispatcher_DispatchMouseUp(ui_event_dispatcher_t *dispatcher, float 
     }
 
     bool handled = UIEventDispatcher_BubbleEvent(dispatcher, target, &event.base);
+    if(handled) {
+        //printf("MouseUp handled by component %p\n", target);
+        return true;
+    }
 
     // 处理点击事件（如果鼠标在同一个组件上按下和释放）
     if (target && button == UI_MOUSE_BUTTON_LEFT) {
@@ -393,8 +409,12 @@ bool UIEventDispatcher_DispatchMouseUp(ui_event_dispatcher_t *dispatcher, float 
 bool UIEventDispatcher_DispatchMouseMove(ui_event_dispatcher_t *dispatcher, float x, float y, int timestamp) {
     if (!dispatcher) return false;
 
-    // 如果有组件捕获了鼠标，优先发送给它
+    // 如果有组件捕获了鼠标，优先以它为目标
     ui_component_t *target = dispatcher->captured ? dispatcher->captured : UIEventDispatcher_Capture(dispatcher, x, y);
+
+    if (target){
+        printf("Mouse move:  target component: %s (%d, %d)\n", UIComponent_GetTypeName(target->type), (int)x, (int)y);
+    }
 
     // 处理鼠标进入/离开事件（只有当没有组件捕获鼠标时才更新hover状态）
     if (!dispatcher->captured) {
@@ -645,10 +665,12 @@ void UIEventDispatcher_ClearFocus(ui_event_dispatcher_t *dispatcher) {
 
 // ==================== 鼠标捕获管理 ====================
 
-// 捕获鼠标（组件将优先接收所有鼠标事件，即使鼠标移出组件范围）
+// 捕获鼠标（组件将优先接收所有鼠标事件，即使鼠标移出窗口范围）
 void UIEventDispatcher_CaptureMouse(ui_event_dispatcher_t *dispatcher, ui_component_t *component) {
     if (!dispatcher) return;
     dispatcher->captured = component;
+    // 启用 SDL 鼠标捕获，即使鼠标移出窗口也能接收事件
+    SDL_CaptureMouse(SDL_TRUE);
 }
 
 // 获取当前捕获鼠标的组件
@@ -660,4 +682,6 @@ ui_component_t* UIEventDispatcher_GetCaptured(ui_event_dispatcher_t *dispatcher)
 void UIEventDispatcher_ReleaseMouse(ui_event_dispatcher_t *dispatcher) {
     if (!dispatcher) return;
     dispatcher->captured = NULL;
+    // 禁用 SDL 鼠标捕获
+    SDL_CaptureMouse(SDL_FALSE);
 }

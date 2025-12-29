@@ -385,8 +385,8 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
     list->visible_count = (int)(list->base.height / (list->item_height + list->item_spacing));
     if (list->visible_count < 1) list->visible_count = 1;
 
-    // 启用焦点和Tab访问
-    list->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP;
+// 启用焦点、Tab访问和拖拽
+    list->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP | UI_FLAG_DRAGGABLE;
 
     return list;
 }
@@ -417,8 +417,8 @@ int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx) {
     list->visible_count = 0;
     list->scroll_pos = 0;
 
-    // 启用焦点和Tab访问
-    list->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP;
+// 启用焦点、Tab访问和拖拽
+    list->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP | UI_FLAG_DRAGGABLE;
 
     return 0;
 }

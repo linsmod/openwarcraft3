@@ -37,6 +37,22 @@ bool UIComponent_IsHovered(const ui_component_t *component) {
     return component ? (component->flags & UI_FLAG_HOVERED) != 0 : false;
 }
 
+
+const char* UIComponent_GetTypeName(int typeid){
+    switch(typeid){
+        case UI_COMPONENT_TYPE_BUTTON:
+            return "BUTTON";
+        case UI_COMPONENT_TYPE_LIST:
+            return "LIST";
+        case UI_COMPONENT_TYPE_SCROLLBAR:
+            return "SCROLLBAR";
+        case UI_COMPONENT_TYPE_CONTAINER:
+            return "CONTAINER";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 void UIComponent_SetVisible(ui_component_t *component, bool visible) {
     if (component) {
         if (visible) {

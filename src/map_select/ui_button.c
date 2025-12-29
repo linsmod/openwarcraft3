@@ -1,4 +1,5 @@
 #include "ui_button.h"
+#include "map_select/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -136,7 +137,9 @@ static bool button_on_mouse_leave(ui_component_t *component, ui_mouse_event_t *e
     ui_button_t *button = (ui_button_t *)component;
     if (!button) return false;
 
-    if (button->state != UI_BUTTON_STATE_PRESSED && UIComponent_IsEnabled(component)) {
+
+    // Set state to normal when mouse leave whatever pressed or not.
+    if (UIComponent_IsEnabled(component)) {
         button->state = UI_BUTTON_STATE_NORMAL;
     }
     return true;

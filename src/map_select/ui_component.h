@@ -130,12 +130,12 @@ typedef enum {
     UI_FLAG_FOCUSED         = (1 << 2),  // 获得焦点
     UI_FLAG_HOVERED         = (1 << 3),  // 鼠标悬停
     UI_FLAG_DRAGGING        = (1 << 4),  // 正在拖拽
-    UI_FLAG_DRAGGABLE       = (1 << 5),  // 可拖拽
-    UI_FLAG_RESIZABLE       = (1 << 6),  // 可调整大小
-    UI_FLAG_SCROLLABLE      = (1 << 7),  // 可滚动
-    UI_FLAG_CLIPPING        = (1 << 8),  // 裁剪子组件
-    UI_FLAG_ACCEPT_FOCUS    = (1 << 9),  // 接受焦点
-    UI_FLAG_TAB_STOP        = (1 << 10), // Tab键可访问
+    UI_FLAG_DRAGGABLE       = (1 << 6),  // 可拖拽
+    UI_FLAG_RESIZABLE       = (1 << 7),  // 可调整大小
+    UI_FLAG_SCROLLABLE      = (1 << 8),  // 可滚动
+    UI_FLAG_CLIPPING        = (1 << 9),  // 裁剪子组件
+    UI_FLAG_ACCEPT_FOCUS    = (1 << 10), // 接受焦点
+    UI_FLAG_TAB_STOP        = (1 << 11), // Tab键可访问
 } ui_component_flags_t;
 
 // UI 组件虚拟函数表
@@ -247,6 +247,7 @@ bool UIComponent_IsEnabled(const ui_component_t *component);
 bool UIComponent_IsFocused(const ui_component_t *component);
 bool UIComponent_IsHovered(const ui_component_t *component);
 void UIComponent_SetVisible(ui_component_t *component, bool visible);
+const char* UIComponent_GetTypeName(int typeid);
 void UIComponent_SetEnabled(ui_component_t *component, bool enabled);
 void UIComponent_SetFocused(ui_component_t *component, bool focused);
 
