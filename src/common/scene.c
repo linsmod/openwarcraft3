@@ -789,6 +789,21 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, input_event_t *event) {
 void SceneManager_OnInput(scene_manager_t *mgr, input_event_t *event) {
     if (!mgr || !event) return;
     
+    // 文本输入事件不需要细化处理，直接分发
+    if (event->type == INPUT_EVENT_TEXT_INPUT) {
+        // 事件从栈顶向栈底分发，支持事件冒泡
+        for (int i = mgr->stack_size - 1; i >= 0; i--) {
+            scene_t *scene = mgr->stack[i];
+            if (scene->state == SCENE_STATE_ACTIVE && scene->on_input) {
+                SCENE_ON_INPUT(scene, event);
+                if (event->handled) {
+                    break;  // 事件已被处理，停止分发
+                }
+            }
+        }
+        return;
+    }
+    
     // 处理事件细化（生成CLICK、DRAG、ENTER/LEAVE等细化事件）
     SceneManager_ProcessEvent(mgr, event);
     
@@ -880,10 +895,4 @@ void Scene_RenderUI(scene_t *scene) {
             }
         }
     }
-}
-
-bool Scene_DispatchInputToUI(scene_t *scene, input_event_t *event) {
-    // TODO: 实现事件分发到UI组件
-    // 暂时返回false，让旧的处理逻辑继续工作
-    return false;
 }

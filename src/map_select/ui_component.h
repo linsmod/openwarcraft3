@@ -25,6 +25,7 @@ typedef enum {
     UI_EVENT_KEY_DOWN,        // 键盘按下
     UI_EVENT_KEY_UP,          // 键盘释放
     UI_EVENT_KEY_PRESS,       // 键盘按键
+    UI_EVENT_TEXT_INPUT,      // 文本输入（支持中文输入法）
     UI_EVENT_FOCUS,           // 获得焦点
     UI_EVENT_BLUR,            // 失去焦点
     UI_EVENT_RESIZE,          // 尺寸改变

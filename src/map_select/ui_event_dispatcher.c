@@ -180,6 +180,13 @@ bool UIEventDispatcher_BubbleEvent(ui_event_dispatcher_t *dispatcher, ui_compone
                     vtable_result = current->vtable->on_key_press(current, (ui_keyboard_event_t *)event);
                 }
                 break;
+            case UI_EVENT_TEXT_INPUT:
+                if (current->vtable && current->vtable->on_text_input) {
+                    // 从event.target字段中获取文本数据
+                    const char *text = (const char *)(uintptr_t)event->target;
+                    vtable_result = current->vtable->on_text_input(current, text);
+                }
+                break;
             case UI_EVENT_FOCUS:
                 if (current->vtable && current->vtable->on_focus) {
                     vtable_result = current->vtable->on_focus(current, (ui_focus_event_t *)event);
@@ -615,6 +622,31 @@ bool UIEventDispatcher_DispatchKeyPress(ui_event_dispatcher_t *dispatcher, int k
     }
 
     return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event.base);
+}
+
+bool UIEventDispatcher_DispatchTextInput(ui_event_dispatcher_t *dispatcher, const char *text, int timestamp) {
+    if (!dispatcher || !text) return false;
+
+    // 首先发送给有焦点的组件
+    if (dispatcher->focused) {
+        // 创建一个文本输入事件，将文本作为事件数据传递
+        ui_event_t event = {
+            .type = UI_EVENT_TEXT_INPUT,
+            .timestamp = timestamp,
+            .propagation_stopped = false,
+            .default_prevented = false
+        };
+        
+        // 将文本数据存储在事件的target字段中（临时使用）
+        // 这是一个变通方法，因为ui_event_t没有直接的文本字段
+        event.target = (ui_component_t *)(uintptr_t)text;
+        
+        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void UIEventDispatcher_Update(ui_event_dispatcher_t *dispatcher, int msec) {

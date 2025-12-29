@@ -417,7 +417,4 @@ void Scene_UpdateUI(scene_t *scene, int msec);
 // 渲染场景的所有UI组件
 void Scene_RenderUI(scene_t *scene);
 
-// 将输入事件分发到场景的UI组件
-bool Scene_DispatchInputToUI(scene_t *scene, input_event_t *event);
-
 #endif // __SCENE_H__

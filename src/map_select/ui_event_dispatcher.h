@@ -64,6 +64,9 @@ bool UIEventDispatcher_DispatchKeyUp(ui_event_dispatcher_t *dispatcher, int key,
 // 分发键盘按键事件
 bool UIEventDispatcher_DispatchKeyPress(ui_event_dispatcher_t *dispatcher, int key, int scancode, int modifiers, int timestamp);
 
+// 分发文本输入事件（支持中文输入法）
+bool UIEventDispatcher_DispatchTextInput(ui_event_dispatcher_t *dispatcher, const char *text, int timestamp);
+
 // 更新事件分发器（处理动画、双击检测等）
 void UIEventDispatcher_Update(ui_event_dispatcher_t *dispatcher, int msec);
 

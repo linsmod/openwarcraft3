@@ -66,7 +66,7 @@ static void input_render(ui_component_t *component) {
     // 确定要显示的文本
     const char *display_text = input->text[0] != '\0' ? input->text : input->placeholder;
     COLOR32 text_color = input->text[0] != '\0' ? input->text_color : input->placeholder_color;
-    BOOL is_placeholder = (input->text[0] == '\0');
+    BOOL has_input = (input->text[0] == '\0');
     canvas2d_set_fill_style(component->ctx, text_color);
 
     // 如果是密码模式，将文本替换为密码字符
@@ -80,16 +80,24 @@ static void input_render(ui_component_t *component) {
     }
 
     // 绘制文本
-    canvas2d_fill_text(component->ctx, display_text, text_x, text_y + text_height / 2 + input->font_size / 3);
-    
+    canvas2d_fill_text(component->ctx, display_text, text_x,
+                       text_y + text_height / 2 + input->font_size / 3);
+
     // 绘制光标（仅当获得焦点且不是只读模式时）
     if (input->focused && !input->readonly && input->cursor_blink_visible) {
-        float cursor_x = text_x + is_placeholder ? 0 : canvas2d_measure_text(component->ctx, display_text);
-        float cursor_y = component->y + padding_top + 2;
-        float cursor_height = component->height - padding_top - padding_bottom - 4;
-        
-        canvas2d_set_fill_style(component->ctx, MAKE(COLOR32, 255, 255, 255, 255));
-        canvas2d_fill_rect(component->ctx, cursor_x, cursor_y, 2, cursor_height);
+      float cursor_x =
+          text_x +
+          canvas2d_measure_text(component->ctx,
+                                input->text[0] != '\0'
+                                    ? strndup(input->text, input->cursor_pos)
+                                    : "");
+      float cursor_y = component->y + padding_top + 2;
+      float cursor_height =
+          component->height - padding_top - padding_bottom - 4;
+
+      canvas2d_set_fill_style(component->ctx,
+                              MAKE(COLOR32, 255, 255, 255, 255));
+      canvas2d_fill_rect(component->ctx, cursor_x, cursor_y, 2, cursor_height);
     }
 }
 
