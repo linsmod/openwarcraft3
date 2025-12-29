@@ -215,7 +215,7 @@ ui_container_t* UIContainer_Create(float x, float y, float width, float height,
     container->base.y = y;
     container->base.width = width;
     container->base.height = height;
-    container->base.bg_color = bg_color;
+    UIComponent_SetBgColor(&container->base, bg_color);
     container->border_color = border_color;
     container->border_width = 1.0f;
     container->max_children = 100;
@@ -235,7 +235,7 @@ int UIContainer_Init(ui_container_t *container, canvas2d_context_t *ctx) {
     UIComponent_InitBase(&container->base, UI_COMPONENT_TYPE_CONTAINER, &g_container_vtable, ctx);
 
     // 使用基础组件的bg_color
-    container->base.bg_color = MAKE(COLOR32, 50, 50, 60, 255);
+    UIComponent_SetBgColor(&container->base, MAKE(COLOR32, 50, 50, 60, 255));
     container->border_color = MAKE(COLOR32, 100, 100, 100, 255);
     container->border_width = 1.0f;
     container->max_children = 100;
@@ -262,7 +262,7 @@ void UIContainer_SetSize(ui_container_t *container, float width, float height) {
 
 void UIContainer_SetBgColor(ui_container_t *container, COLOR32 color) {
     if (!container) return;
-    container->base.bg_color = color;
+    UIComponent_SetBgColor(&container->base, color);
 }
 
 void UIContainer_SetBorderColor(ui_container_t *container, COLOR32 color) {

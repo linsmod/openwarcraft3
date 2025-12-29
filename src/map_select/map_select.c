@@ -113,29 +113,21 @@ static bool OnStartGameClick(ui_component_t *component, ui_event_t *event, void 
     return true;
 }
 
-// 自定义列表项绘制函数
+// 自定义列表项内容绘制函数（item级别，只绘制内容区域）
 static void DrawBrowserItemCustom(
-    int index,
+    ui_component_t *item_component,
     const char *text,
     void *user_data,
-    float x,
-    float y,
-    float width,
-    float height,
-    bool selected
+    float x,      // 内容区域x坐标（已去除边框和内边距）
+    float y,      // 内容区域y坐标
+    float width,  // 内容区域宽度
+    float height, // 内容区域高度
+    bool selected,
+    bool hovered
 ) {
-    // 背景
-    if (selected) {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){100, 150, 255, 200});
-    } else {
-        canvas2d_set_fill_style(g_ctx, (COLOR32){50, 50, 50, 200});
-    }
-    canvas2d_fill_rect(g_ctx, x, y, width, height);
-
-    // 边框
-    canvas2d_set_stroke_style(g_ctx, (COLOR32){200, 200, 200, 255});
-    canvas2d_set_line_width(g_ctx, 2.0f);
-    canvas2d_stroke_rect(g_ctx, x, y, width, height);
+    (void)item_component;
+    (void)selected;
+    (void)hovered;
 
     // 图标/类型指示
     char icon[4] = "[F]";
@@ -157,13 +149,13 @@ static void DrawBrowserItemCustom(
     canvas2d_set_font_size(g_ctx, 12.0f);
     float icon_text_height = 12.0f * 1.2f;
     float icon_y = y + (height - icon_text_height) / 2;
-    canvas2d_fill_text(g_ctx, icon, x + 8, icon_y);
+    canvas2d_fill_text(g_ctx, icon, x + 5, icon_y);
 
     // 绘制文件名（使用回调传入的text参数）
     canvas2d_set_font_size(g_ctx, 14.0f);
     float text_text_height = 14.0f * 1.2f;
     float text_y = y + (height - text_text_height) / 2;
-    canvas2d_fill_text(g_ctx, text, x + 40, text_y);
+    canvas2d_fill_text(g_ctx, text, x + 35, text_y);
 }
 
 // 检查文件扩展名是否为地图文件
@@ -378,7 +370,15 @@ static void FilterCurrentPath(void) {
     for (int i = 0; i < g_filtered_count; i++) {
         int idx = g_filtered_indices[i];
         const char *name = (idx == -1) ? ".." : g_all_items[idx].name;
-        UIList_AddItem((ui_list_t *)g_ui_list, name, (void*)(intptr_t)idx);
+        int item_index = UIList_AddItem((ui_list_t *)g_ui_list, name, (void*)(intptr_t)idx);
+        
+        // 设置每个item的内容绘制回调
+        if (item_index >= 0) {
+            ui_list_item_t *item = UIList_GetItem((ui_list_t *)g_ui_list, item_index);
+            if (item) {
+                UIListItem_SetDrawCallback(item, DrawBrowserItemCustom, (void*)(intptr_t)idx);
+            }
+        }
     }
     
     printf("Filtered %d items, UI list has %d items\n", g_filtered_count, UIList_GetItemCount((ui_list_t *)g_ui_list));
@@ -422,8 +422,8 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 设置列表绘制回调
-    UIList_SetDrawCallback((ui_list_t *)g_ui_list, DrawBrowserItemCustom, NULL);
+    // 将列表设置为焦点组件（这样键盘事件才能被它接收）
+    UIEventDispatcher_SetFocus(&g_event_dispatcher, g_ui_list);
     
     // 将列表添加到根容器
     UIContainer_AddChild((ui_container_t *)g_root_container, g_ui_list);
@@ -431,18 +431,18 @@ int MapSelect_Init(void) {
     // 创建 START GAME 按钮
     ui_button_config_t button_config = UIButton_GetDefaultConfig();
     strncpy(button_config.text, "START GAME [ENTER]", 127);
-    button_config.bg_color[0] = (COLOR32){0, 150, 0, 255};      // 正常
-    button_config.bg_color[1] = (COLOR32){0, 180, 0, 255};      // 悬停
-    button_config.bg_color[2] = (COLOR32){0, 120, 0, 255};      // 按下
-    button_config.bg_color[3] = (COLOR32){100, 100, 100, 255}; // 禁用
-    button_config.border_color[0] = (COLOR32){0, 255, 0, 255};  // 正常
-    button_config.border_color[1] = (COLOR32){50, 255, 50, 255}; // 悬停
-    button_config.border_color[2] = (COLOR32){0, 200, 0, 255};  // 按下
-    button_config.border_color[3] = (COLOR32){150, 150, 150, 255}; // 禁用
-    button_config.text_color[0] = (COLOR32){255, 255, 255, 255}; // 正常
-    button_config.text_color[1] = (COLOR32){255, 255, 255, 255}; // 悬停
-    button_config.text_color[2] = (COLOR32){255, 255, 255, 255}; // 按下
-    button_config.text_color[3] = (COLOR32){180, 180, 180, 255}; // 禁用
+    button_config.bg_colors.normal = (COLOR32){0, 150, 0, 255};
+    button_config.bg_colors.hover = (COLOR32){0, 180, 0, 255};
+    button_config.bg_colors.active = (COLOR32){0, 120, 0, 255};
+    button_config.bg_colors.disabled = (COLOR32){100, 100, 100, 255};
+    button_config.border_colors.normal = (COLOR32){0, 255, 0, 255};
+    button_config.border_colors.hover = (COLOR32){50, 255, 50, 255};
+    button_config.border_colors.active = (COLOR32){0, 200, 0, 255};
+    button_config.border_colors.disabled = (COLOR32){150, 150, 150, 255};
+    button_config.text_colors.normal = (COLOR32){255, 255, 255, 255};
+    button_config.text_colors.hover = (COLOR32){255, 255, 255, 255};
+    button_config.text_colors.active = (COLOR32){255, 255, 255, 255};
+    button_config.text_colors.disabled = (COLOR32){180, 180, 180, 255};
     button_config.font_size = 20.0f;
     button_config.border_width = 2.0f;
     
@@ -963,10 +963,16 @@ static void EnterFolder(const char *folder_path) {
 // 处理输入事件
 bool MapSelect_HandleInput(int key, bool down) {
     if (g_state == MAP_SELECT_STATE_DONE) return false;
-    
+
     // 使用事件分发器处理键盘事件
-    if (UIEventDispatcher_DispatchKeyDown(&g_event_dispatcher, key, 0, 0, down, SDL_GetTicks())) {
-        return true;
+    if (down) {
+        // 按键按下
+        if (UIEventDispatcher_DispatchKeyDown(&g_event_dispatcher, key, 0, 0, false, SDL_GetTicks())) {
+            return true;
+        }
+    } else {
+        // 按键释放（暂不处理keyup）
+        // UIEventDispatcher_DispatchKeyUp(&g_event_dispatcher, key, 0, 0, SDL_GetTicks());
     }
     
     if (down) {
@@ -1011,8 +1017,8 @@ bool MapSelect_HandleMouseEvent(void) {
     
     bool handled = false;
     
-    printf("[Mouse] Event=%d, Pos=(%d,%d), Button=%d\n",
-           mouse.event, (int)mouse.origin.x, (int)mouse.origin.y, mouse.button);
+    // printf("[Mouse] Event=%d, Pos=(%d,%d), Button=%d\n",
+    //        mouse.event, (int)mouse.origin.x, (int)mouse.origin.y, mouse.button);
     
     // 使用事件分发器处理鼠标事件
     switch (mouse.event) {

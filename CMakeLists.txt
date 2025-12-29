@@ -91,6 +91,7 @@ set(MAP_SELECT_SOURCES
     src/map_select/map_select.c
     src/map_select/map_scanner.c
     src/map_select/ui_list.c
+    src/map_select/ui_list_item.c
     src/map_select/ui_button.c
     src/map_select/ui_text.c
     src/map_select/ui_container.c

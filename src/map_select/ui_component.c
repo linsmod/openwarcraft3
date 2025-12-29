@@ -177,7 +177,10 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->y = 0.0f;
     component->width = 0.0f;
     component->height = 0.0f;
-    component->bg_color = MAKE(COLOR32, 0, 0, 0, 0);
+    component->bg_color.normal = MAKE(COLOR32, 0, 0, 0, 0);
+    component->bg_color.hover = MAKE(COLOR32, 0, 0, 0, 0);
+    component->bg_color.active = MAKE(COLOR32, 0, 0, 0, 0);
+    component->bg_color.disabled = MAKE(COLOR32, 0, 0, 0, 0);
     component->margin[0] = 0.0f;
     component->margin[1] = 0.0f;
     component->margin[2] = 0.0f;
@@ -226,23 +229,49 @@ void UIComponent_ShutdownBase(ui_component_t *component) {
 // 绘制组件背景
 void UIComponent_RenderBackground(ui_component_t *component) {
     if (!component || !UIComponent_IsVisible(component)) return;
-    
-    COLOR32 bg_color = component->bg_color;
+
+    // 根据组件状态选择背景色
+    COLOR32 bg_color;
+    if (!UIComponent_IsEnabled(component)) {
+        bg_color = component->bg_color.disabled;
+    } else if (component->flags & UI_FLAG_HOVERED) {
+        bg_color = component->bg_color.hover;
+    } else if (component->flags & UI_FLAG_FOCUSED) {
+        bg_color = component->bg_color.active;
+    } else {
+        bg_color = component->bg_color.normal;
+    }
+
     // 如果背景色透明则不绘制
     if (bg_color.a == 0) return;
-    
+
     canvas2d_set_fill_style(component->ctx, bg_color);
     canvas2d_fill_rect(component->ctx, component->x, component->y, component->width, component->height);
 }
 
 void UIComponent_SetBgColor(ui_component_t *component, COLOR32 color) {
     if (component) {
-        component->bg_color = color;
+        // 设置所有状态为相同颜色
+        component->bg_color.normal = color;
+        component->bg_color.hover = color;
+        component->bg_color.active = color;
+        component->bg_color.disabled = color;
     }
 }
 
 COLOR32 UIComponent_GetBgColor(const ui_component_t *component) {
-    return component ? component->bg_color : MAKE(COLOR32, 0, 0, 0, 0);
+    if (!component) return MAKE(COLOR32, 0, 0, 0, 0);
+
+    // 返回当前状态的背景色
+    if (!UIComponent_IsEnabled(component)) {
+        return component->bg_color.disabled;
+    } else if (component->flags & UI_FLAG_HOVERED) {
+        return component->bg_color.hover;
+    } else if (component->flags & UI_FLAG_FOCUSED) {
+        return component->bg_color.active;
+    } else {
+        return component->bg_color.normal;
+    }
 }
 
 void UIComponent_SetMargin(ui_component_t *component, float top, float right, float bottom, float left) {

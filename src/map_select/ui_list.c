@@ -2,23 +2,28 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <SDL2/SDL.h>
 
 // ==================== 虚函数实现 ====================
 
 static void list_init(ui_component_t *component, canvas2d_context_t *ctx) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list) return;
-
-    // 计算可见项数
-    list->visible_count = (int)((component->height - list->item_spacing) / (list->item_height + list->item_spacing));
-    if (list->visible_count < 1) list->visible_count = 1;
+    // visible_count 会在 UIList_Create 中设置完尺寸后计算
 }
 
 static void list_shutdown(ui_component_t *component) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list) return;
 
-    UIList_ClearItems(list);
+    // 销毁所有列表项
+    for (int i = 0; i < list->item_count; i++) {
+        if (list->items[i]) {
+            UIListItem_Destroy(list->items[i]);
+            list->items[i] = NULL;
+        }
+    }
+    list->item_count = 0;
 }
 
 static void list_update(ui_component_t *component, int msec) {
@@ -45,33 +50,26 @@ static void list_render(ui_component_t *component) {
     // canvas2d_rect(component->ctx, component->x, component->y, component->width, component->height);
     // canvas2d_clip(component->ctx);
 
-    // 绘制列表项
+    // 绘制列表项（只渲染可见区域）
     float item_y = component->y;
-    for (int i = 0; i < list->item_count; i++) {
-        int display_index = i + list->scroll_offset;
+    int start_index = list->scroll_offset;
+    int end_index = start_index + list->visible_count;
+    if (end_index > list->item_count) end_index = list->item_count;
 
-        if (display_index >= list->item_count) break;
-        if (item_y + list->item_height > component->y + component->height) break;
+    for (int i = start_index; i < end_index; i++) {
+        ui_list_item_t *item = list->items[i];
+        if (!item) continue;
 
-        bool selected = (display_index == list->selected_index);
+        bool selected = (i == list->selected_index);
+        UIListItem_SetSelected(item, selected);
 
-        if (list->draw_callback) {
-            list->draw_callback(display_index, list->items[display_index].text, list->user_data,
-                              component->x, item_y, component->width, list->item_height, selected);
-        } else {
-            // 默认绘制
-            if (selected) {
-                canvas2d_set_fill_style(component->ctx, list->selected_bg_color);
-                canvas2d_fill_rect(component->ctx, component->x + 2, item_y, component->width - 4, list->item_height);
-                canvas2d_set_fill_style(component->ctx, list->selected_text_color);
-            } else {
-                canvas2d_set_fill_style(component->ctx, list->text_color);
-            }
-
-            canvas2d_set_font_size(component->ctx, list->font_size);
-            canvas2d_fill_text(component->ctx, list->items[display_index].text,
-                             component->x + 5, item_y + list->font_size);
-        }
+        // 设置item的位置和尺寸
+        item->base.x = component->x + 1;
+        item->base.y = item_y;
+        item->base.width = component->width - 2;
+        item->base.height = list->item_height;
+        // 渲染item
+        UIListItem_Render(item);
 
         item_y += list->item_height + list->item_spacing;
     }
@@ -83,14 +81,15 @@ static void list_render(ui_component_t *component) {
     if (list->show_scrollbar && list->item_count > list->visible_count) {
         float scrollbar_x = component->x + component->width - 12;
         float scrollbar_width = 10;
-        float scrollbar_height = component->height;
-        float track_height = scrollbar_height - 20;
+        float track_y = component->y;
+        float track_height = component->height;
+        int max_scroll = list->item_count - list->visible_count;
         float thumb_height = track_height * list->visible_count / list->item_count;
-        float thumb_y = component->y + 10 + (track_height - thumb_height) * list->scroll_offset / (list->item_count - list->visible_count);
+        float thumb_y = track_y + (track_height - thumb_height) * list->scroll_offset / max_scroll;
 
         // 滚动槽背景
         canvas2d_set_fill_style(component->ctx, MAKE(COLOR32, 80, 80, 90, 255));
-        canvas2d_fill_rect(component->ctx, scrollbar_x, component->y + 5, scrollbar_width, scrollbar_height - 10);
+        canvas2d_fill_rect(component->ctx, scrollbar_x, track_y, scrollbar_width, track_height);
 
         // 滚动条拇指
         canvas2d_set_fill_style(component->ctx, MAKE(COLOR32, 120, 120, 130, 255));
@@ -121,6 +120,36 @@ static bool list_hit_test(ui_component_t *component, float x, float y) {
 }
 
 // 列表特定的鼠标事件处理
+static bool list_on_mouse_move(ui_component_t *component, ui_mouse_event_t *event) {
+    ui_list_t *list = (ui_list_t *)component;
+    if (!list || !UIComponent_IsEnabled(component)) return false;
+
+    // 更新所有可见items的hover状态
+    float item_y = component->y;
+    for (int i = 0; i < list->visible_count; i++) {
+        int item_index = list->scroll_offset + i;
+        if (item_index >= list->item_count) break;
+
+        ui_list_item_t *item = list->items[item_index];
+        if (!item) continue;
+
+        bool was_hovered = UIListItem_IsHovered(item);
+        bool is_hovered = (event->y >= item_y && event->y < item_y + list->item_height);
+
+        if (is_hovered && !was_hovered) {
+            // 鼠标进入item
+            UIListItem_SetHovered(item, true);
+        } else if (!is_hovered && was_hovered) {
+            // 鼠标离开item
+            UIListItem_SetHovered(item, false);
+        }
+
+        item_y += list->item_height + list->item_spacing;
+    }
+
+    return true;
+}
+
 static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
@@ -131,6 +160,7 @@ static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *even
         int item_index = list->scroll_offset + i;
         if (item_index >= list->item_count) break;
 
+        ui_list_item_t *item = list->items[item_index];
         if (event->y >= item_y && event->y < item_y + list->item_height) {
             UIList_SetSelected(list, item_index);
             return true;
@@ -160,10 +190,8 @@ static bool list_on_key_down(ui_component_t *component, ui_keyboard_event_t *eve
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
 
-    int max_offset = list->item_count - list->visible_count;
-
     switch (event->key) {
-        case 0x40000050: // 上箭头
+        case SDLK_UP: // 上箭头
             if (list->selected_index > 0) {
                 list->selected_index--;
                 if (list->selected_index < list->scroll_offset) {
@@ -172,7 +200,7 @@ static bool list_on_key_down(ui_component_t *component, ui_keyboard_event_t *eve
                 return true;
             }
             break;
-        case 0x40000051: // 下箭头
+        case SDLK_DOWN: // 下箭头
             if (list->selected_index < list->item_count - 1) {
                 list->selected_index++;
                 if (list->selected_index >= list->scroll_offset + list->visible_count) {
@@ -181,19 +209,31 @@ static bool list_on_key_down(ui_component_t *component, ui_keyboard_event_t *eve
                 return true;
             }
             break;
-        case 0x40000052: // Page Up
+        case SDLK_PAGEUP: // Page Up
             list->scroll_offset -= list->visible_count - 1;
             if (list->scroll_offset < 0) list->scroll_offset = 0;
+            // 更新选中项为当前可见区域的顶部
+            list->selected_index = list->scroll_offset;
             return true;
-        case 0x40000053: // Page Down
+        case SDLK_PAGEDOWN: // Page Down
             list->scroll_offset += list->visible_count - 1;
+            int max_offset = list->item_count - list->visible_count;
+            if (max_offset < 0) max_offset = 0;
             if (list->scroll_offset > max_offset) list->scroll_offset = max_offset;
+            // 更新选中项为当前可见区域的底部
+            list->selected_index = list->scroll_offset + list->visible_count - 1;
+            if (list->selected_index >= list->item_count) {
+                list->selected_index = list->item_count - 1;
+            }
             return true;
-        case 0x40000049: // Home
+        case SDLK_HOME: // Home
             list->scroll_offset = 0;
+            list->selected_index = 0;
             return true;
-        case 0x4000004D: // End
-            list->scroll_offset = max_offset;
+        case SDLK_END: // End
+            list->scroll_offset = list->item_count - list->visible_count;
+            if (list->scroll_offset < 0) list->scroll_offset = 0;
+            list->selected_index = list->item_count - 1;
             return true;
     }
 
@@ -217,7 +257,7 @@ static const ui_component_vtable_t g_list_vtable = {
     .on_mouse_up = NULL,
     .on_click = NULL,
     .on_double_click = NULL,
-    .on_mouse_move = NULL,
+    .on_mouse_move = list_on_mouse_move,
     .on_mouse_wheel = list_on_mouse_wheel,
     .on_context_menu = NULL,
     .on_drag_start = NULL,
@@ -257,14 +297,13 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
     list->item_height = item_height;
     list->item_spacing = 2.0f;
     list->font_size = font_size;
-    list->base.bg_color = MAKE(COLOR32, 60, 60, 70, 255);
-    list->selected_bg_color = MAKE(COLOR32, 100, 100, 150, 255);
+    UIComponent_SetBgColor(&list->base, MAKE(COLOR32, 60, 60, 70, 255));
     list->border_color = MAKE(COLOR32, 120, 120, 130, 255);
-    list->text_color = MAKE(COLOR32, 220, 220, 220, 255);
-    list->selected_text_color = MAKE(COLOR32, 255, 255, 255, 255);
     list->show_scrollbar = true;
-    list->draw_callback = NULL;
-    list->user_data = NULL;
+
+    // 计算可见项数（必须在设置完尺寸后）
+    list->visible_count = (int)(list->base.height / (list->item_height + list->item_spacing));
+    if (list->visible_count < 1) list->visible_count = 1;
 
     // 启用焦点和Tab访问
     list->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP;
@@ -283,14 +322,9 @@ int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx) {
     list->item_height = 24.0f;
     list->item_spacing = 2.0f;
     list->font_size = 14.0f;
-    list->base.bg_color = MAKE(COLOR32, 60, 60, 70, 255);
-    list->selected_bg_color = MAKE(COLOR32, 100, 100, 150, 255);
+    UIComponent_SetBgColor(&list->base, MAKE(COLOR32, 60, 60, 70, 255));
     list->border_color = MAKE(COLOR32, 120, 120, 130, 255);
-    list->text_color = MAKE(COLOR32, 220, 220, 220, 255);
-    list->selected_text_color = MAKE(COLOR32, 255, 255, 255, 255);
     list->show_scrollbar = true;
-    list->draw_callback = NULL;
-    list->user_data = NULL;
 
     // 初始化状态
     list->item_count = 0;
@@ -310,10 +344,16 @@ int UIList_AddItem(ui_list_t *list, const char *text, void *user_data) {
         return -1;
     }
 
-    strncpy(list->items[list->item_count].text, text, 255);
-    list->items[list->item_count].text[255] = '\0';
-    list->items[list->item_count].user_data = user_data;
+    // 创建新的列表项
+    ui_list_item_t *item = UIListItem_CreateEx(text, user_data, list->font_size, NULL, NULL, list->base.ctx);
+    if (!item) {
+        return -1;
+    }
 
+    // 设置item的字体大小
+    UIListItem_SetFontSize(item, list->font_size);
+
+    list->items[list->item_count] = item;
     int index = list->item_count;
     list->item_count++;
 
@@ -328,6 +368,13 @@ int UIList_AddItem(ui_list_t *list, const char *text, void *user_data) {
 void UIList_ClearItems(ui_list_t *list) {
     if (!list) return;
 
+    // 销毁所有列表项
+    for (int i = 0; i < list->item_count; i++) {
+        if (list->items[i]) {
+            UIListItem_Destroy(list->items[i]);
+            list->items[i] = NULL;
+        }
+    }
     list->item_count = 0;
     list->selected_index = -1;
     list->scroll_offset = 0;
@@ -359,14 +406,16 @@ const char* UIList_GetSelectedText(ui_list_t *list) {
     if (!list || list->selected_index < 0 || list->selected_index >= list->item_count) {
         return NULL;
     }
-    return list->items[list->selected_index].text;
+    ui_list_item_t *item = list->items[list->selected_index];
+    return item ? UIListItem_GetText(item) : NULL;
 }
 
 void* UIList_GetSelectedUserData(ui_list_t *list) {
     if (!list || list->selected_index < 0 || list->selected_index >= list->item_count) {
         return NULL;
     }
-    return list->items[list->selected_index].user_data;
+    ui_list_item_t *item = list->items[list->selected_index];
+    return item ? UIListItem_GetUserData(item) : NULL;
 }
 
 int UIList_GetItemCount(ui_list_t *list) {
@@ -388,10 +437,24 @@ int UIList_GetScrollOffset(ui_list_t *list) {
     return list ? list->scroll_offset : 0;
 }
 
-void UIList_SetDrawCallback(ui_list_t *list, ui_list_item_draw_callback_t callback, void *user_data) {
+// 获取列表项
+ui_list_item_t* UIList_GetItem(ui_list_t *list, int index) {
+    if (!list || index < 0 || index >= list->item_count) {
+        return NULL;
+    }
+    return list->items[index];
+}
+
+// 设置默认item样式
+void UIList_SetDefaultItemStyle(ui_list_t *list, float font_size) {
     if (!list) return;
-    list->draw_callback = callback;
-    list->user_data = user_data;
+    list->font_size = font_size;
+    // 更新所有现有items
+    for (int i = 0; i < list->item_count; i++) {
+        if (list->items[i]) {
+            UIListItem_SetFontSize(list->items[i], font_size);
+        }
+    }
 }
 
 void UIList_Update(ui_list_t *list, int msec) {

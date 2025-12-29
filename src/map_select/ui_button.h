@@ -17,9 +17,9 @@ typedef enum {
 // UI 按钮配置
 typedef struct {
     char text[128];                   // 按钮文本
-    COLOR32 bg_color[4];              // 背景色 [正常, 悬停, 按下, 禁用]
-    COLOR32 border_color[4];         // 边框色 [正常, 悬停, 按下, 禁用]
-    COLOR32 text_color[4];            // 文本颜色 [正常, 悬停, 按下, 禁用]
+    UICOLOR32 bg_colors;              // 背景色 {normal, hover, active, disabled}
+    UICOLOR32 border_colors;          // 边框色 {normal, hover, active, disabled}
+    UICOLOR32 text_colors;            // 文本颜色 {normal, hover, active, disabled}
     float font_size;                  // 字体大小
     float border_width;               // 边框宽度
     bool double_click_enabled;        // 是否启用双击

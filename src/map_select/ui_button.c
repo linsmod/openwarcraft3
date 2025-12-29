@@ -15,7 +15,7 @@ static void button_init(ui_component_t *component, canvas2d_context_t *ctx) {
     // 设置文本属性
     strncpy(button->text_component.text, button->config.text, 511);
     button->text_component.text[511] = '\0';
-    button->text_component.color = button->config.text_color[UI_BUTTON_STATE_NORMAL];
+    button->text_component.color = button->config.text_colors.normal;
     button->text_component.font_size = button->config.font_size;
     button->text_component.align = UI_TEXT_ALIGN_CENTER;
     button->text_component.valign = UI_TEXT_VALIGN_MIDDLE;
@@ -40,10 +40,35 @@ static void button_render(ui_component_t *component) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsVisible(component)) return;
 
-    int state_idx = button->state;
-    COLOR32 bg_color = button->config.bg_color[state_idx];
-    COLOR32 border_color = button->config.border_color[state_idx];
-    COLOR32 text_color = button->config.text_color[state_idx];
+    // 根据状态选择颜色
+    COLOR32 bg_color, border_color, text_color;
+    switch (button->state) {
+        case UI_BUTTON_STATE_NORMAL:
+            bg_color = button->config.bg_colors.normal;
+            border_color = button->config.border_colors.normal;
+            text_color = button->config.text_colors.normal;
+            break;
+        case UI_BUTTON_STATE_HOVER:
+            bg_color = button->config.bg_colors.hover;
+            border_color = button->config.border_colors.hover;
+            text_color = button->config.text_colors.hover;
+            break;
+        case UI_BUTTON_STATE_PRESSED:
+            bg_color = button->config.bg_colors.active;
+            border_color = button->config.border_colors.active;
+            text_color = button->config.text_colors.active;
+            break;
+        case UI_BUTTON_STATE_DISABLED:
+            bg_color = button->config.bg_colors.disabled;
+            border_color = button->config.border_colors.disabled;
+            text_color = button->config.text_colors.disabled;
+            break;
+        default:
+            bg_color = button->config.bg_colors.normal;
+            border_color = button->config.border_colors.normal;
+            text_color = button->config.text_colors.normal;
+            break;
+    }
 
     // 绘制背景
     canvas2d_set_fill_style(button->base.ctx, bg_color);
@@ -249,23 +274,23 @@ void UIButton_Destroy(ui_button_t *button) {
 ui_button_config_t UIButton_GetDefaultConfig(void) {
     ui_button_config_t config = {
         .text = "",
-        .bg_color = {
-            {60, 60, 70, 255},      // 正常
-            {80, 80, 90, 255},      // 悬停
-            {50, 50, 60, 255},      // 按下
-            {40, 40, 50, 200}       // 禁用
+        .bg_colors = {
+            .normal = {60, 60, 70, 255},
+            .hover = {80, 80, 90, 255},
+            .active = {50, 50, 60, 255},
+            .disabled = {40, 40, 50, 200}
         },
-        .border_color = {
-            {200, 200, 200, 255},  // 正常
-            {220, 220, 220, 255},  // 悬停
-            {180, 180, 180, 255},  // 按下
-            {100, 100, 100, 255}   // 禁用
+        .border_colors = {
+            .normal = {200, 200, 200, 255},
+            .hover = {220, 220, 220, 255},
+            .active = {180, 180, 180, 255},
+            .disabled = {100, 100, 100, 255}
         },
-        .text_color = {
-            {255, 255, 255, 255},  // 正常
-            {255, 255, 255, 255},  // 悬停
-            {255, 255, 255, 255},  // 按下
-            {180, 180, 180, 255}   // 禁用
+        .text_colors = {
+            .normal = {255, 255, 255, 255},
+            .hover = {255, 255, 255, 255},
+            .active = {255, 255, 255, 255},
+            .disabled = {180, 180, 180, 255}
         },
         .font_size = 16.0f,
         .border_width = 1.0f,

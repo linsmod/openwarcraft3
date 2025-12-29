@@ -49,6 +49,13 @@ typedef struct {
     bool default_prevented;    // 是否阻止默认行为
 } ui_event_t;
 
+typedef struct {
+    COLOR32 normal;
+    COLOR32 hover;
+    COLOR32 active;
+    COLOR32 disabled;
+} ui_color_t, UICOLOR32;
+
 // 鼠标事件数据
 typedef struct {
     ui_event_t base;
@@ -106,6 +113,7 @@ typedef enum {
     UI_COMPONENT_TYPE_BUTTON,  // 按钮
     UI_COMPONENT_TYPE_TEXT,    // 文本
     UI_COMPONENT_TYPE_LIST,    // 列表
+    UI_COMPONENT_TYPE_LIST_ITEM, // 列表项
     UI_COMPONENT_TYPE_CONTAINER, // 容器
     UI_COMPONENT_TYPE_SCROLLBAR, // 滚动条
     UI_COMPONENT_TYPE_EDITBOX,   // 编辑框
@@ -200,7 +208,7 @@ struct ui_component_t {
     float height;
 
     // 样式属性
-    COLOR32 bg_color;
+    UICOLOR32 bg_color;
     float margin[4];
     float padding[4];
 
