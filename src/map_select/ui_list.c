@@ -28,9 +28,32 @@ static void list_shutdown(ui_component_t *component) {
 }
 
 static void list_update(ui_component_t *component, int msec) {
-    (void)component;
+    ui_list_t *list = (ui_list_t *)component;
+    if (!list) return;
     (void)msec;
-    // 可以添加滚动动画逻辑
+
+    // 处理待更新的选中项
+    if (list->pending_selected_index >= 0) {
+        int old_index = list->selected_index;
+        int new_index = list->pending_selected_index;
+        list->selected_index = new_index;
+        list->pending_selected_index = -1;  // 清除待处理标志
+
+        // 确保选中项可见
+        if (new_index < list->scroll_offset) {
+            list->scroll_offset = new_index;
+        } else if (new_index >= list->scroll_offset + list->visible_count) {
+            list->scroll_offset = new_index - list->visible_count + 1;
+        }
+
+        int max_offset = list->item_count - list->visible_count;
+        if (list->scroll_offset > max_offset) list->scroll_offset = max_offset;
+
+        // 触发回调
+        if (list->on_selected_changed && old_index != new_index) {
+            list->on_selected_changed(list, new_index, list->callback_user_data);
+        }
+    }
 }
 
 static void list_render(ui_component_t *component) {
@@ -238,7 +261,7 @@ static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *even
 
         ui_list_item_t *item = list->items[item_index];
         if (event->y >= item_y && event->y < item_y + list->item_height) {
-            UIList_SetSelected(list, item_index);
+            list->pending_selected_index = item_index;
             return true;
         }
 
@@ -269,47 +292,43 @@ static bool list_on_key_down(ui_component_t *component, ui_keyboard_event_t *eve
     switch (event->key) {
         case SDLK_UP: // 上箭头
             if (list->selected_index > 0) {
-                list->selected_index--;
-                if (list->selected_index < list->scroll_offset) {
-                    list->scroll_offset = list->selected_index;
-                }
+                list->pending_selected_index = list->selected_index - 1;
                 return true;
             }
             break;
         case SDLK_DOWN: // 下箭头
             if (list->selected_index < list->item_count - 1) {
-                list->selected_index++;
-                if (list->selected_index >= list->scroll_offset + list->visible_count) {
-                    list->scroll_offset = list->selected_index - list->visible_count + 1;
-                }
+                list->pending_selected_index = list->selected_index + 1;
                 return true;
             }
             break;
         case SDLK_PAGEUP: // Page Up
-            list->scroll_offset -= list->visible_count - 1;
-            if (list->scroll_offset < 0) list->scroll_offset = 0;
-            // 更新选中项为当前可见区域的顶部
-            list->selected_index = list->scroll_offset;
+            if (list->item_count > 0) {
+                int new_offset = list->scroll_offset - (list->visible_count - 1);
+                if (new_offset < 0) new_offset = 0;
+                list->pending_selected_index = new_offset;
+            }
             return true;
         case SDLK_PAGEDOWN: // Page Down
-            list->scroll_offset += list->visible_count - 1;
-            int max_offset = list->item_count - list->visible_count;
-            if (max_offset < 0) max_offset = 0;
-            if (list->scroll_offset > max_offset) list->scroll_offset = max_offset;
-            // 更新选中项为当前可见区域的底部
-            list->selected_index = list->scroll_offset + list->visible_count - 1;
-            if (list->selected_index >= list->item_count) {
-                list->selected_index = list->item_count - 1;
+            if (list->item_count > 0) {
+                int max_offset = list->item_count - list->visible_count;
+                if (max_offset < 0) max_offset = 0;
+                int new_offset = list->scroll_offset + (list->visible_count - 1);
+                if (new_offset > max_offset) new_offset = max_offset;
+                int new_index = new_offset + list->visible_count - 1;
+                if (new_index >= list->item_count) new_index = list->item_count - 1;
+                list->pending_selected_index = new_index;
             }
             return true;
         case SDLK_HOME: // Home
-            list->scroll_offset = 0;
-            list->selected_index = 0;
+            if (list->item_count > 0) {
+                list->pending_selected_index = 0;
+            }
             return true;
         case SDLK_END: // End
-            list->scroll_offset = list->item_count - list->visible_count;
-            if (list->scroll_offset < 0) list->scroll_offset = 0;
-            list->selected_index = list->item_count - 1;
+            if (list->item_count > 0) {
+                list->pending_selected_index = list->item_count - 1;
+            }
             return true;
     }
 
@@ -401,6 +420,8 @@ int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx) {
     UIComponent_InitBase(&list->base, UI_COMPONENT_TYPE_LIST, &g_list_vtable, ctx);
 
     list->dispatcher = NULL;
+    list->on_selected_changed = NULL;
+    list->callback_user_data = NULL;
     list->item_height = 24.0f;
     list->item_spacing = 2.0f;
     list->font_size = 14.0f;
@@ -414,6 +435,7 @@ int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx) {
     // 初始化状态
     list->item_count = 0;
     list->selected_index = -1;
+    list->pending_selected_index = -1;
     list->scroll_offset = 0;
     list->visible_count = 0;
     list->scroll_pos = 0;
@@ -470,17 +492,10 @@ void UIList_SetSelected(ui_list_t *list, int index) {
         return;
     }
 
-    list->selected_index = index;
-
-    // 确保选中项可见
-    if (index < list->scroll_offset) {
-        list->scroll_offset = index;
-    } else if (index >= list->scroll_offset + list->visible_count) {
-        list->scroll_offset = index - list->visible_count + 1;
+    // 只更新状态，实际索引在update中更新并触发回调
+    if (list->selected_index != index) {
+        list->pending_selected_index = index;
     }
-
-    int max_offset = list->item_count - list->visible_count;
-    if (list->scroll_offset > max_offset) list->scroll_offset = max_offset;
 }
 
 int UIList_GetSelected(ui_list_t *list) {
@@ -540,6 +555,13 @@ void UIList_SetDefaultItemStyle(ui_list_t *list, float font_size) {
             UIListItem_SetFontSize(list->items[i], font_size);
         }
     }
+}
+
+// 设置选中项改变回调函数
+void UIList_SetSelectedChangedCallback(ui_list_t *list, ui_list_on_selected_changed_t callback, void *user_data) {
+    if (!list) return;
+    list->on_selected_changed = callback;
+    list->callback_user_data = user_data;
 }
 
 void UIList_Update(ui_list_t *list, int msec) {

@@ -59,6 +59,9 @@ static char g_current_preview_map[MAX_PATHLEN] = "";
 // 上一次的筛选文本（用于检测筛选文本变化）
 static char g_last_filter_text[256] = "";
 
+// 函数前向声明
+static void UpdateMapPreview(void);
+
 // Canvas2D 画布
 static canvas2d_t *g_canvas = NULL;
 static canvas2d_context_t *g_ctx = NULL;
@@ -96,6 +99,50 @@ static void StartGame(const char *map_path, const char *source) {
     printf("Starting game (%s): %s\n", source, map_path);
     g_start_map_path = strdup(map_path);
     g_state = MAP_SELECT_STATE_DONE;
+}
+
+// 列表选中项改变回调函数
+static void OnListSelectedChanged(ui_list_t *list, int index, void *user_data) {
+    (void)list;
+    (void)user_data;
+    
+    if (index < 0) {
+        // 没有选中项
+        UIComponent_SetVisible(g_preview_container, false);
+        return;
+    }
+    
+    void *item_data = UIList_GetSelectedUserData(list);
+    if (!item_data) {
+        UIComponent_SetVisible(g_preview_container, false);
+        return;
+    }
+    
+    int all_index = (int)(intptr_t)item_data;
+    // -1 表示 ".." 返回上级目录，不显示预览
+    if (all_index < 0 || all_index >= g_all_count) {
+        UIComponent_SetVisible(g_preview_container, false);
+        return;
+    }
+    
+    browser_item_t *item = &g_all_items[all_index];
+    
+    // 只为地图文件显示预览
+    if (item->type != ITEM_TYPE_MAP_W3M && item->type != ITEM_TYPE_MAP_W3X) {
+        UIComponent_SetVisible(g_preview_container, false);
+        return;
+    }
+    
+    // 检查是否需要加载新的地图信息
+    if (strcmp(item->full_path, g_current_preview_map) != 0) {
+        // 路径变化，加载新地图信息
+        strcpy(g_current_preview_map, item->full_path);
+        printf("Loading map info for preview: %s\n", g_current_preview_map);
+        MapSelect_LoadAndSaveMapInfo(g_current_preview_map);
+    }
+    
+    // 更新预览显示
+    UpdateMapPreview();
 }
 
 // START GAME 按钮点击回调
@@ -463,6 +510,9 @@ int MapSelect_Init(void) {
     // 设置事件分发器（用于鼠标捕获功能）
     UIList_SetDispatcher((ui_list_t *)g_ui_list, &g_event_dispatcher);
     
+    // 设置列表选中项改变回调
+    UIList_SetSelectedChangedCallback((ui_list_t *)g_ui_list, OnListSelectedChanged, NULL);
+    
     // 将筛选输入框设置为焦点组件（这样键盘事件才能被它接收）
     UIEventDispatcher_SetFocus(&g_event_dispatcher, g_filter_input);
     
@@ -647,6 +697,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_path_text);
+    
+    // 将预览容器添加到根容器
+    UIContainer_AddChild((ui_container_t *)g_root_container, g_preview_container);
     
     // 从(listfile)加载地图列表
     g_map_count = 0;

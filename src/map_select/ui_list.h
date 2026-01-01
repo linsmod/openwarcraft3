@@ -7,16 +7,25 @@
 #include "ui_list_item.h"
 #include "ui_event_dispatcher.h"
 
+// 前向声明
+typedef struct ui_list_t ui_list_t;
+
+// 列表选中项改变回调函数类型
+typedef void (*ui_list_on_selected_changed_t)(ui_list_t *list, int index, void *user_data);
+
 // 最大列表项数量
 #define UI_LIST_MAX_ITEMS 500
 
 // UI 列表组件（继承自 ui_component_t）
-typedef struct {
+struct ui_list_t {
     ui_component_t base;              // 基础组件（包含bg_color）
     ui_event_dispatcher_t *dispatcher; // 事件分发器（用于鼠标捕获）
     ui_list_item_t *items[UI_LIST_MAX_ITEMS];  // 列表项指针数组
+    ui_list_on_selected_changed_t on_selected_changed;  // 选中项改变回调
+    void *callback_user_data;         // 回调用户数据
     int item_count;
     int selected_index;
+    int pending_selected_index;       // 待触发的选中索引（用于update中回调）
     int scroll_offset;
     int visible_count;
     float scroll_pos;
@@ -28,7 +37,7 @@ typedef struct {
     bool is_dragging_scrollbar;       // 是否正在拖动滚动条
     float scrollbar_drag_start_y;      // 滚动条拖动起始Y坐标
     int scrollbar_drag_start_offset;   // 滚动条拖动起始偏移量
-} ui_list_t;
+};
 
 // 创建默认列表配置
 ui_list_t* UIList_Create(float x, float y, float width, float height,
@@ -72,6 +81,9 @@ ui_list_item_t* UIList_GetItem(ui_list_t *list, int index);
 
 // 设置默认item样式
 void UIList_SetDefaultItemStyle(ui_list_t *list, float font_size);
+
+// 设置选中项改变回调函数
+void UIList_SetSelectedChangedCallback(ui_list_t *list, ui_list_on_selected_changed_t callback, void *user_data);
 
 // 更新列表
 void UIList_Update(ui_list_t *list, int msec);
