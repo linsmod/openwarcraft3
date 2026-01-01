@@ -368,3 +368,31 @@ void UIComponent_GetContentRect(const ui_component_t *component, float *x, float
         if (*height < 0.0f) *height = 0.0f;
     }
 }
+
+// ==================== 调试函数 ====================
+
+void UIComponent_PrintTree(const ui_component_t *component, int indent) {
+    if (!component) {
+        return;
+    }
+
+    // 打印缩进
+    for (int i = 0; i < indent; i++) {
+        printf("  ");
+    }
+
+    // 打印组件信息
+    const char *type_name = UIComponent_GetTypeName(component->type);
+    const char *visible = UIComponent_IsVisible(component) ? "V" : "-";
+    const char *enabled = UIComponent_IsEnabled(component) ? "E" : "-";
+    const char *focused = UIComponent_IsFocused(component) ? "F" : "-";
+
+    printf("[%s%s%s] %s @ (%.1f, %.1f) [%.1f x %.1f]\n",
+           visible, enabled, focused, type_name,
+           component->x, component->y, component->width, component->height);
+
+    // 递归打印子组件
+    for (int i = 0; i < component->child_count; i++) {
+        UIComponent_PrintTree(component->children[i], indent + 1);
+    }
+}

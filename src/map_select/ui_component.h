@@ -285,4 +285,7 @@ void UIComponent_ShutdownBase(ui_component_t *component);
 // 基础渲染函数
 void UIComponent_RenderBackground(ui_component_t *component);
 
+// 打印布局树（用于调试）
+void UIComponent_PrintTree(const ui_component_t *component, int indent);
+
 #endif // __UI_COMPONENT_H__
