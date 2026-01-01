@@ -298,7 +298,7 @@ static bool input_on_blur(ui_component_t *component, ui_focus_event_t *event) {
     (void)event;  // 未使用
     
     // 停止 SDL 文本输入
-    SDL_StopTextInput();
+    // SDL_StopTextInput();
     
     // 失去焦点
     input->focused = false;

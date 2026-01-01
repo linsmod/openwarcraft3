@@ -83,6 +83,8 @@ canvas2d_t* canvas2d_create(int width, int height) {
 
     // Initialize font size to default
     canvas->context->state.fontSize = 14.0f;
+    // Initialize font name to default
+    strcpy(canvas->context->state.fontName, DEFAULT_TEXTFONT_NAME);
 
     // Path
     canvas->context->state.pathPoints = NULL;           // 初始为空指针
@@ -240,8 +242,8 @@ void canvas2d_fill_text(canvas2d_context_t *ctx, const char *text, float x, floa
     // 使用UTF8版本的渲染函数，支持中文显示
     size2_t vpsize = R_GetViewPortSize();
     RECT box = (RECT){x * 1.0f / vpsize.width, y * 1.0f / vpsize.height, 1, 1};
-    // 使用状态中的字体大小获取字体
-    LPFONT font = R_FontCacheGet(DEFAULT_TEXTFONT_NAME, (DWORD)ctx->state.fontSize);
+    // 使用状态中的字体名称和字体大小获取字体
+    LPFONT font = R_FontCacheGet(ctx->state.fontName, (DWORD)ctx->state.fontSize);
     R_DrawUtf8Text2(text, box, ctx->state.fillStyle, font, &ctx->state.transformMatrix);
 }
 
@@ -251,8 +253,8 @@ float canvas2d_measure_text(canvas2d_context_t *ctx, const char *text) {
         return 0.0f;
     }
 
-    // 使用状态中的字体大小获取字体
-    LPFONT font = R_FontCacheGet(DEFAULT_TEXTFONT_NAME, (DWORD)ctx->state.fontSize);
+    // 使用状态中的字体名称和字体大小获取字体
+    LPFONT font = R_FontCacheGet(ctx->state.fontName, (DWORD)ctx->state.fontSize);
     if (!font) {
         // 如果无法获取字体，返回估算值（字符数 * 字体大小 * 0.6）
         return strlen(text) * ctx->state.fontSize * 0.6f;
@@ -456,6 +458,16 @@ void canvas2d_set_line_width(canvas2d_context_t *ctx, float width) {
 void canvas2d_set_font_size(canvas2d_context_t *ctx, float fontSize) {
     if (!ctx) return;
     ctx->state.fontSize = fontSize;
+}
+
+void canvas2d_set_font(canvas2d_context_t *ctx, const char *fontName) {
+    if (!ctx) return;
+    if (!fontName || fontName[0] == '\0') {
+        strcpy(ctx->state.fontName, DEFAULT_TEXTFONT_NAME);
+    } else {
+        strncpy(ctx->state.fontName, fontName, sizeof(ctx->state.fontName) - 1);
+        ctx->state.fontName[sizeof(ctx->state.fontName) - 1] = '\0';
+    }
 }
 // 路径操作函数
 void canvas2d_begin_path(canvas2d_context_t *ctx) {

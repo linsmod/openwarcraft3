@@ -254,6 +254,17 @@ static void CL_HandleMouseMotion(SDL_Event* event, int* moved) {
 
 // 键盘按下处理
 static void CL_HandleKeyDown(SDL_Event* event) {
+    // 允许Shift键切换输入法，不拦截
+    if (event->key.keysym.sym == SDLK_LSHIFT ||
+        event->key.keysym.sym == SDLK_RSHIFT ||
+        event->key.keysym.sym == SDLK_LCTRL ||
+        event->key.keysym.sym == SDLK_RCTRL ||
+        event->key.keysym.sym == SDLK_LALT ||
+        event->key.keysym.sym == SDLK_RALT) {
+        // 系统键，不处理，让系统处理输入法切换
+        return;
+    }
+    
     // War3风格 Page Up/Down 缩放
     if (event->key.keysym.sym == SDLK_PAGEUP) {
         CL_HandleZoom(true); // 放大
@@ -266,6 +277,17 @@ static void CL_HandleKeyDown(SDL_Event* event) {
 
 // 键盘释放处理
 static void CL_HandleKeyUp(SDL_Event* event) {
+    // 允许Shift键切换输入法，不拦截
+    if (event->key.keysym.sym == SDLK_LSHIFT ||
+        event->key.keysym.sym == SDLK_RSHIFT ||
+        event->key.keysym.sym == SDLK_LCTRL ||
+        event->key.keysym.sym == SDLK_RCTRL ||
+        event->key.keysym.sym == SDLK_LALT ||
+        event->key.keysym.sym == SDLK_RALT) {
+        // 系统键，不处理，让系统处理输入法切换
+        return;
+    }
+    
     Key_Event(event->key.keysym.sym, false, event->key.timestamp);
 }
 
@@ -316,6 +338,9 @@ static void CL_HandleWindowEvent(SDL_Event* event) {
     switch (event->window.event) {
         case SDL_WINDOWEVENT_CLOSE: // 退出游戏
             Com_Quit();
+            break;
+        case SDL_WINDOWEVENT_FOCUS_GAINED: // 窗口获得焦点
+            SDL_StartTextInput(); // 确保重新获得焦点时激活输入环境
             break;
         default:
             break;
@@ -409,4 +434,16 @@ void CL_InitInput(void) {
     Cmd_AddCommand("+select", IN_SelectDown);
     Cmd_AddCommand("-select", IN_SelectUp);
     Cmd_AddCommand("cmd", CL_ForwardToServer_f);
+    
+    // 确保输入法环境正确初始化
+    SDL_StartTextInput();
+}
+
+// 处理输入法状态变化
+void CL_HandleIMEState(bool enabled) {
+    if (enabled) {
+        SDL_StartTextInput();
+    } else {
+        // SDL_StopTextInput();
+    }
 }

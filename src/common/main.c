@@ -116,6 +116,32 @@ int main(int argc, LPSTR argv[]) {
                 SceneManager_Destroy(scene_mgr);
                 return 0;
             }
+            else if(event.type == SDL_WINDOWEVENT){
+                switch (event.window.event) {
+                    case SDL_WINDOWEVENT_FOCUS_GAINED: // 窗口获得焦点
+                        SDL_StartTextInput(); // 确保重新获得焦点时激活输入环境
+                        break;
+                    case SDL_WINDOWEVENT_FOCUS_LOST: // 窗口失去焦点
+                        // SDL_StopTextInput();
+                        break;
+                    default:
+                        break;
+                }
+            }
+            
+            // 特殊处理键盘事件，允许系统键（如Shift）用于输入法切换
+            if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+                // 检查是否是系统键（Shift、Ctrl、Alt）
+                if (event.key.keysym.sym == SDLK_LSHIFT ||
+                    event.key.keysym.sym == SDLK_RSHIFT ||
+                    event.key.keysym.sym == SDLK_LCTRL ||
+                    event.key.keysym.sym == SDLK_RCTRL ||
+                    event.key.keysym.sym == SDLK_LALT ||
+                    event.key.keysym.sym == SDLK_RALT) {
+                    // 系统键，不转换为自定义事件，让SDL处理
+                    continue;
+                }
+            }
             
             // 使用 ConvertSDLEvent 转换 SDL 事件
             input_event_t input_event;
@@ -154,6 +180,8 @@ int main(int argc, LPSTR argv[]) {
                 default:
                     break;
             }
+
+            
             
             // 分发输入事件给当前场景
             SceneManager_OnInput(scene_mgr, &input_event);

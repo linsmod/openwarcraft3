@@ -48,6 +48,7 @@ typedef struct {
     int pathPointsCapacity;
     bool pathOpen;
     float fontSize; // 字体大小
+    char fontName[64]; // 字体名称
 } canvas2d_state_t;
 
 struct canvas2d_t {
@@ -103,6 +104,7 @@ void canvas2d_set_stroke_style(canvas2d_context_t *ctx, COLOR32 color);
 void canvas2d_set_fill_style(canvas2d_context_t *ctx, COLOR32 color);
 void canvas2d_set_line_width(canvas2d_context_t *ctx, float width);
 void canvas2d_set_font_size(canvas2d_context_t *ctx, float fontSize);
+void canvas2d_set_font(canvas2d_context_t *ctx, const char *fontName);
 
 // Utility
 const char* canvas2d_get_error_string(void);
