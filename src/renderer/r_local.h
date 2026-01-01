@@ -127,7 +127,8 @@ enum {
 
 // defaults
 #define DEFAULT_TEXTFONT_SIZE 14
-#define DEFAULT_TEXTFONT_NAME "Arial"
+#define DEFAULT_TEXTFONT_NAME "DejaVu Sans"
+#define DEFAULT_TEXTFONT_FILE "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 enum {
     RT_DEPTHMAP,
@@ -233,7 +234,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color);
 
 // r_font.c
 LPFONT R_FontCacheGet(LPCSTR family, DWORD size);
-LPFONT R_FontCacheSet(LPCSTR family, DWORD size,LPCSTR filename);
+LPFONT R_FontCacheSet(LPCSTR family_or_alias, DWORD size,LPCSTR filename);
 bool R_FontFamilyExists(LPSTR key);
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
 void R_ReleaseFont(LPFONT font);

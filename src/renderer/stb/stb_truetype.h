@@ -1036,6 +1036,8 @@ STBTT_DEF const char *stbtt_GetFontNameString(const stbtt_fontinfo *font, int *l
 //     http://developer.apple.com/textfonts/TTRefMan/RM06/Chap6name.html
 //     http://www.microsoft.com/typography/otspec/name.htm
 
+STBTT_DEF char* GetAllFontNames(const stbtt_fontinfo *font,int index);
+
 enum { // platformID
    STBTT_PLATFORM_ID_UNICODE   =0,
    STBTT_PLATFORM_ID_MAC       =1,
@@ -4756,7 +4758,90 @@ static int stbtt_CompareUTF8toUTF16_bigendian_internal(char *s1, int len1, char 
 {
    return len1 == stbtt__CompareUTF8toUTF16_bigendian_prefix((stbtt_uint8*) s1, len1, (stbtt_uint8*) s2, len2);
 }
+// 辅助宏，模仿 stbtt 内部的大端序读取
+#define ttUSHORT(p)  ((p)[0]*256 + (p)[1])
 
+static  char* utf16be_to_char(const char* utf16be, int len) {
+       if (utf16be == NULL || len <= 0) return NULL;
+       // 字符数是字节数的一半
+       int num_chars = len / 2;
+       
+       // 分配内存：每个字符可能占用 1-3 字节(UTF-8)，这里简单处理：
+       // 如果只考虑英文，num_chars + 1 就够了。为了安全分配 num_chars * 2 + 1
+       char* result = (char*)malloc(num_chars + 1);
+       if (result == NULL) return NULL;
+       for (int i = 0; i < num_chars; ++i) {
+           // utf16be[i*2] 是高字节，utf16be[i*2+1] 是低字节
+           unsigned char high = (unsigned char)utf16be[i * 2];
+           unsigned char low  = (unsigned char)utf16be[i * 2 + 1];
+           // 基础转换：如果是标准 ASCII (0-127)，高字节必为 0
+           if (high == 0) {
+               result[i] = (char)low;
+           } else {
+               // 如果遇到非 ASCII 字符（如中文），此处会显示为问号，
+               // 除非实现完整的 UTF-16BE 到 UTF-8 转换逻辑
+               result[i] = '?'; 
+           }
+       }
+       result[num_chars] = '\0'; // 加上 C 字符串结束符
+       return result;
+   }
+
+char* GetAllFontNames(const stbtt_fontinfo *font,int index) {
+    stbtt_uint8 *fc = font->data;
+    stbtt_uint32 offset = font->fontstart;
+    
+    // 1. 定位 name 表
+    stbtt_uint32 nm = stbtt__find_table(fc, offset, "name");
+    if (!nm) return;
+
+    // 2. 读取表头信息
+    int count = ttUSHORT(fc + nm + 2);        // 记录总数
+    int stringOffset = nm + ttUSHORT(fc + nm + 4); // 字符串存储区的起始位置
+
+   //  printf("Total Name Records: %d\n", count);
+    printf("--------------------------------------------------\n");
+
+    // 3. 遍历所有记录
+    for (int i = 1; i < count; ++i) {
+        stbtt_uint32 loc = nm + 6 + 12 * i; // 每条记录占 12 字节
+        
+        int platformID = ttUSHORT(fc + loc + 0);
+        int encodingID = ttUSHORT(fc + loc + 2);
+        int languageID = ttUSHORT(fc + loc + 4);
+        int nameID     = ttUSHORT(fc + loc + 6);
+        int length     = ttUSHORT(fc + loc + 8);
+        int str_offset = ttUSHORT(fc + loc + 10);
+
+        const char* namePtr = (const char*)(fc + stringOffset + str_offset);
+
+        // 打印元数据
+        printf("[%d] plat:%d enc:%d lang:0x%04X name:%d len:%d |", 
+                i, platformID, encodingID, languageID, nameID, length);
+
+        // 注意：这里的字符串不以 \0 结尾，且可能是 UTF-16 编码
+        for (int j = 0; j < length; ++j) {
+            char c = namePtr[j];
+            if (c >= 32 && c <= 126) putchar(c); // 仅打印可打印的 ASCII 字符
+            else putchar('.');                   // 其他字符显示为点
+        }
+        printf("\n");
+
+        if(i==index){
+         if(encodingID > 0){
+            return utf16be_to_char(namePtr,length);
+         }
+         else{
+            char* name = (char*)malloc(length+1);
+            memcpy(name,namePtr,length);
+            name[length] = '\0';
+            return name;
+         }
+        }
+        if(i>6) break;
+    }
+    return NULL;
+}
 // returns results in whatever encoding you request... but note that 2-byte encodings
 // will be BIG-ENDIAN... use stbtt_CompareUTF8toUTF16_bigendian() to compare
 STBTT_DEF const char *stbtt_GetFontNameString(const stbtt_fontinfo *font, int *length, int platformID, int encodingID, int languageID, int nameID)
