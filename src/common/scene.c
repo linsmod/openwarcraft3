@@ -1,6 +1,6 @@
 #include "scene.h"
 #include "../map_select/ui_component.h"
-#include "../map_select/ui_container.h"
+// ui_container 已合并到 ui_component
 #include "../map_select/ui_event_dispatcher.h"
 #include "../html/layout.h"
 #include "../canvas2d/canvas2d.h"
@@ -337,8 +337,8 @@ scene_manager_t* SceneManager_Create(int width, int height) {
             UIComponent_SetLayoutContext(mgr->default_root, (lay_context *)mgr->default_lay_ctx);
             // 创建布局项
             UIComponent_CreateLayoutItem(mgr->default_root);
-            UIComponent_SetLayoutSize(mgr->default_root, (float)width, (float)height);
-            UIComponent_SetLayoutContain(mgr->default_root, LAY_COLUMN);
+            UIComponent_SetSize(mgr->default_root, (float)width, (float)height);
+            UIComponent_SetContain(mgr->default_root, LAY_COLUMN);
         }
     }
     
@@ -1018,30 +1018,8 @@ void Scene_UpdateUI(scene_t *scene, int msec) {
 void Scene_LayoutUI(scene_t *scene, int msec) {
     if (!scene || !scene->root_component) return;
     
-    // 递归更新所有组件
-    ui_component_t **stack[128];
-    int stack_size = 0;
-    stack[stack_size++] = &scene->root_component;
-    size2_t vpsize = R_GetViewPortSize();
-    while (stack_size > 0) {
-        ui_component_t **comp_ptr = stack[--stack_size];
-        ui_component_t *comp = *comp_ptr;
-        if (!comp) continue;
-        
-        // 调用组件的layout方法（如果存在）
-        if (comp->vtable && comp->vtable->layout) {
-            comp->vtable->layout(comp, scene->root_component,vpsize);
-        }
-        
-        // 添加子组件到栈（用于容器组件）
-        if (comp->children) {
-            for (int i = 0; i < comp->child_count; i++) {
-                if (stack_size < 128) {
-                    stack[stack_size++] = &comp->children[i];
-                }
-            }
-        }
-    }
+    // 组件使用lay库全局布局
+    UIComponent_Layout(scene->root_component);
 }
 
 void Scene_RenderUI(scene_t *scene) {
@@ -1058,17 +1036,33 @@ void Scene_RenderUI(scene_t *scene) {
         
         // 只渲染可见的组件
         if (comp->flags & UI_FLAG_VISIBLE) {
-            // 调用组件的render方法（如果存在）
+            // 调用组件的render方法（如果存在）,否则使用默认的
+            if (comp->vtable && comp->vtable->render_background) {
+                comp->vtable->render_background(comp);
+            }
+            else{
+                UIComponent_RenderBackground(comp);
+            }
+
+            if (comp->vtable && comp->vtable->render_border) {
+                comp->vtable->render_border(comp);
+            }
+            else{
+                UIComponent_RenderBorder(comp);
+            }
+
             if (comp->vtable && comp->vtable->render) {
                 comp->vtable->render(comp);
             }
-        }
-        
-        // 添加子组件到栈（用于容器组件）
-        if (comp->children) {
-            for (int i = 0; i < comp->child_count; i++) {
-                if (stack_size < 128) {
-                    stack[stack_size++] = &comp->children[i];
+            else{
+                UIComponent_Render(comp);
+                // 添加子组件到栈（用于容器组件）
+                if (comp->children) {
+                    for (int i = 0; i < comp->child_count; i++) {
+                        if (stack_size < 128) {
+                            stack[stack_size++] = &comp->children[i];
+                        }
+                    }
                 }
             }
         }
