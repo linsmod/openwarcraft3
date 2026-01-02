@@ -590,7 +590,7 @@ void canvas2d_draw_debug_grid(canvas2d_context_t *ctx, float x, float y, float w
     
     // 绘制坐标标签
     if (show_coordinates) {
-        canvas2d_set_font_size(ctx, 12.0f);
+        canvas2d_set_font_size(ctx, 10.0f);
         
         // 绘制列坐标（X轴）
         for (int i = 0; i <= cols; i++) {

@@ -1029,6 +1029,8 @@ void Scene_RenderUI(scene_t *scene) {
     ui_component_t **stack[128];
     int stack_size = 0;
     stack[stack_size++] = &scene->root_component;
+    canvas2d_draw_debug_grid(scene->canvas_ctx, 0, 0, scene->root_component->width, 
+        scene->root_component->height, 40, 30, 1);
     while (stack_size > 0) {
         ui_component_t **comp_ptr = stack[--stack_size];
         ui_component_t *comp = *comp_ptr;

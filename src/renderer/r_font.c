@@ -400,7 +400,7 @@ FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
 
 
 FLOAT R_GetFontHeight(LPFONT font) {
-    return FONT_SCALE * INV_SCALE_X(font->height);
+    return FONT_SCALE * INV_SCALE_Y(font->height);
 }
 
 BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
