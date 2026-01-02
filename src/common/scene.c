@@ -1,7 +1,9 @@
+#define LAY_FLOAT 1
 #include "scene.h"
 #include "../map_select/ui_component.h"
 #include "../map_select/ui_container.h"
 #include "../map_select/ui_event_dispatcher.h"
+
 #include "../html/layout.h"
 #include "../canvas2d/canvas2d.h"
 #include "common/shared.h"
@@ -1018,8 +1020,34 @@ void Scene_UpdateUI(scene_t *scene, int msec) {
 void Scene_LayoutUI(scene_t *scene, int msec) {
     if (!scene || !scene->root_component) return;
     
-    // 组件使用lay库全局布局
-    UIComponent_Layout(scene->root_component);
+    // 使用lay库对使用children注册的组件布局
+    lay_run_context(scene->root_component->lay_ctx);
+
+    // 递归所有组件, 调用组件的layout方法（如果存在）
+    ui_component_t **stack[128];
+    int stack_size = 0;
+    stack[stack_size++] = &scene->root_component;
+    
+    while (stack_size > 0) {
+        ui_component_t **comp_ptr = stack[--stack_size];
+        ui_component_t *comp = *comp_ptr;
+        if (!comp) continue;
+        
+        // 调用组件的layout方法（如果存在）
+        if (comp->vtable && comp->vtable->layout) {
+            // lay_get_rect_xywh(comp->lay_ctx, comp->lay_item_id,&comp->x, &comp->y, &comp->width, &comp->height);
+            comp->vtable->layout(comp, scene->root_component);
+        }
+        
+        // 添加子组件到栈（用于容器组件）
+        if (comp->children) {
+            for (int i = 0; i < comp->child_count; i++) {
+                if (stack_size < 128) {
+                    stack[stack_size++] = &comp->children[i];
+                }
+            }
+        }
+    }
 }
 
 void Scene_RenderUI(scene_t *scene) {

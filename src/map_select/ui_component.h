@@ -168,7 +168,7 @@ typedef struct ui_component_vtable {
     void (*init)(ui_component_t *component, canvas2d_context_t *ctx);
     void (*shutdown)(ui_component_t *component);
     void (*update)(ui_component_t *component, int msec);
-    void (*layout)(ui_component_t* component, ui_component_t* root,size2_t vpsize);
+    void (*layout)(ui_component_t* component, ui_component_t* root);
     void (*render)(ui_component_t *component);
     
     // 渲染辅助方法（可选，用于自定义渲染）
