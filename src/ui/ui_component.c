@@ -64,6 +64,8 @@ const char* UIComponent_GetTypeName(int typeid){
             return "IMAGE";
         case UI_COMPONENT_TYPE_PANEL:
             return "PANEL";
+        case UI_COMPONENT_TYPE_HTML_VIEWER:
+            return "HTML_VIEWER";
         default:
             return "UI_COMPONENT_UNKNOWN";
     }

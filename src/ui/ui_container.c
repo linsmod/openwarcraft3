@@ -1,7 +1,7 @@
 #include "ui_container.h"
 #include "common/scene.h"
 #include "html/layout.h"
-#include "map_select/ui_component.h"
+#include "ui/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

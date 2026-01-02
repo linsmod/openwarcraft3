@@ -3,7 +3,7 @@
 
 #include "../common/shared.h"
 #include "canvas2d/canvas2d.h"
-#include "map_select/ui_component.h"
+#include "ui/ui_component.h"
 
 // 前向声明
 typedef struct scene_t scene_t;

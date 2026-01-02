@@ -7,7 +7,7 @@
 #include "common/shared.h"
 #include "g_local.h"
 #include "../canvas2d/canvas2d_test.h"
-#include "../map_select/map_select.h"
+#include "../ui/map_select.h"
 #include "r_local.h"
 
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4

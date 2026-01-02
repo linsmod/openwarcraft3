@@ -1,8 +1,8 @@
 
 #include "scene.h"
-#include "../map_select/ui_component.h"
-#include "../map_select/ui_container.h"
-#include "../map_select/ui_event_dispatcher.h"
+#include "../ui/ui_component.h"
+#include "../ui/ui_container.h"
+#include "../ui/ui_event_dispatcher.h"
 
 #include "../html/layout.h"
 #include "../canvas2d/canvas2d.h"

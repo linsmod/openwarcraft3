@@ -1,6 +1,6 @@
 #include "../client/client.h"
 #include "../server/server.h"
-#include "../map_select/map_select.h"
+#include "../ui/map_select.h"
 #include "../client/cl_game_scene.h"
 #include "../splash/splash_scene.h"
 #include "scene.h"

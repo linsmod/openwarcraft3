@@ -88,17 +88,17 @@ find_package(LibXml2 REQUIRED)
 
 # 地图选择模块源文件
 set(MAP_SELECT_SOURCES
-    src/map_select/map_select.c
-    src/map_select/map_scanner.c
-    src/map_select/ui_list.c
-    src/map_select/ui_list_item.c
-    src/map_select/ui_button.c
-    src/map_select/ui_text.c
-    src/map_select/ui_label.c
-    src/map_select/ui_input.c
-    src/map_select/ui_container.c
-    src/map_select/ui_component.c
-    src/map_select/ui_event_dispatcher.c
+    src/ui/map_select.c
+    src/ui/map_scanner.c
+    src/ui/ui_list.c
+    src/ui/ui_list_item.c
+    src/ui/ui_button.c
+    src/ui/ui_text.c
+    src/ui/ui_label.c
+    src/ui/ui_input.c
+    src/ui/ui_container.c
+    src/ui/ui_component.c
+    src/ui/ui_event_dispatcher.c
 )
 
 file(GLOB_RECURSE CMATH3_SRCS "src/cmath3/*.c")
