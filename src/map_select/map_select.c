@@ -73,25 +73,6 @@ static canvas2d_context_t *g_ctx = NULL;
 // Lay布局上下文
 static lay_context g_lay_ctx;
 
-// 布局项ID
-static lay_id g_lay_root;
-static lay_id g_lay_list;
-static lay_id g_lay_filter_container;
-static lay_id g_lay_filter_label;
-static lay_id g_lay_filter_input;
-static lay_id g_lay_main_container;
-static lay_id g_lay_preview_container;
-static lay_id g_lay_preview_title;
-static lay_id g_lay_preview_filename;
-static lay_id g_lay_preview_name;
-static lay_id g_lay_preview_author;
-static lay_id g_lay_preview_players;
-static lay_id g_lay_preview_type;
-static lay_id g_lay_preview_path;
-static lay_id g_lay_start_button;
-static lay_id g_lay_hint_text1;
-static lay_id g_lay_hint_text2;
-
 // 事件分发器
 static ui_event_dispatcher_t g_event_dispatcher;
 
@@ -529,25 +510,29 @@ int MapSelect_Init(void) {
         printf("Failed to initialize event dispatcher\n");
         return -1;
     }
-    
-    // 创建布局项
-    g_lay_root = lay_item(&g_lay_ctx);
-    lay_set_size(&g_lay_ctx, g_lay_root, (lay_vec2){1024, 768});
-    lay_set_contain(&g_lay_ctx, g_lay_root, LAY_COLUMN);
-    
+
+    // 设置根组件的布局上下文（所有子组件将共享此上下文）
+    UIComponent_SetLayoutContext(g_root_container, &g_lay_ctx);
+
+    // 为根组件创建布局项
+    UIComponent_CreateLayoutItem(g_root_container);
+    UIComponent_SetLayoutSize(g_root_container, 1024.0f, 768.0f);
+    UIComponent_SetLayoutContain(g_root_container, LAY_COLUMN);
+
     // 主容器：包含筛选栏和内容区域
-    g_lay_filter_container = lay_item(&g_lay_ctx);
-    lay_set_behave(&g_lay_ctx, g_lay_filter_container, LAY_HFILL);
-    lay_set_contain(&g_lay_ctx, g_lay_filter_container, LAY_ROW);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_filter_container, 10, 10, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_root, g_lay_filter_container);
-    
+    // 注意：主容器不是UI组件，只是布局项，所以不创建UIComponent
+    lay_id lay_filter_container = lay_item(&g_lay_ctx);
+    lay_set_behave(&g_lay_ctx, lay_filter_container, LAY_HFILL);
+    lay_set_contain(&g_lay_ctx, lay_filter_container, LAY_ROW);
+    lay_set_margins_ltrb(&g_lay_ctx, lay_filter_container, 10, 10, 10, 0);
+    lay_insert(&g_lay_ctx, UIComponent_GetLayoutItem(g_root_container), lay_filter_container);
+
     // 主内容容器：包含列表和预览
-    g_lay_main_container = lay_item(&g_lay_ctx);
-    lay_set_behave(&g_lay_ctx, g_lay_main_container, LAY_HFILL | LAY_VFILL);
-    lay_set_contain(&g_lay_ctx, g_lay_main_container, LAY_ROW);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_main_container, 10, 0, 10, 10);
-    lay_insert(&g_lay_ctx, g_lay_root, g_lay_main_container);
+    lay_id lay_main_container = lay_item(&g_lay_ctx);
+    lay_set_behave(&g_lay_ctx, lay_main_container, LAY_HFILL | LAY_VFILL);
+    lay_set_contain(&g_lay_ctx, lay_main_container, LAY_ROW);
+    lay_set_margins_ltrb(&g_lay_ctx, lay_main_container, 10, 0, 10, 10);
+    lay_insert(&g_lay_ctx, UIComponent_GetLayoutItem(g_root_container), lay_main_container);
     
     // 创建 UI 列表
     g_ui_list = (ui_component_t *)UIList_Create(0.0f, 0.0f, 380.0f, 575.0f, 50.0f, 14.0f, g_ctx);
@@ -555,20 +540,19 @@ int MapSelect_Init(void) {
         printf("Failed to create UI list\n");
         return -1;
     }
-    
+
     // 设置事件分发器（用于鼠标捕获功能）
     UIList_SetDispatcher((ui_list_t *)g_ui_list, &g_event_dispatcher);
-    
+
     // 设置列表选中项改变回调
     UIList_SetSelectedChangedCallback((ui_list_t *)g_ui_list, OnListSelectedChanged, NULL);
-    
+
     // 将列表添加到根容器
     UIContainer_AddChild((ui_container_t *)g_root_container, g_ui_list);
-    
-    // 创建列表布局项
-    g_lay_list = lay_item(&g_lay_ctx);
-    lay_set_behave(&g_lay_ctx, g_lay_list, LAY_VFILL);
-    lay_insert(&g_lay_ctx, g_lay_main_container, g_lay_list);
+
+    // 设置列表的尺寸和布局行为
+    UIComponent_SetSize(g_ui_list, 380.0f, 575.0f);
+    UIComponent_SetBehave(g_ui_list, LAY_VFILL);
     
     // 将筛选输入框设置为焦点组件（这样键盘事件才能被它接收）
     UIEventDispatcher_SetFocus(&g_event_dispatcher, g_filter_input);
@@ -582,12 +566,8 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 将筛选标签添加到根容器
+    // 将筛选标签添加到根容器（自动插入到布局）
     UIContainer_AddChild((ui_container_t *)g_root_container, g_filter_label);
-    
-    // 创建筛选标签布局项
-    g_lay_filter_label = lay_item(&g_lay_ctx);
-    lay_insert(&g_lay_ctx, g_lay_filter_container, g_lay_filter_label);
     
     // 创建筛选输入框
     g_filter_input = (ui_component_t *)UIInput_Create(0.0f, 0.0f, 330.0f, 28.0f, 14.0f, "Type to filter...", g_ctx);
@@ -596,13 +576,11 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 将筛选输入框添加到根容器
+    // 将筛选输入框添加到根容器（自动插入到布局）
     UIContainer_AddChild((ui_container_t *)g_root_container, g_filter_input);
     
-    // 创建筛选输入框布局项
-    g_lay_filter_input = lay_item(&g_lay_ctx);
-    lay_set_behave(&g_lay_ctx, g_lay_filter_input, LAY_HFILL);
-    lay_insert(&g_lay_ctx, g_lay_filter_container, g_lay_filter_input);
+    // 设置布局行为
+    UIComponent_SetBehave(g_filter_input, LAY_HFILL);
     
     // 创建 START GAME 按钮
     ui_button_config_t button_config = UIButton_GetDefaultConfig();
@@ -631,14 +609,12 @@ int MapSelect_Init(void) {
     // 添加按钮点击事件
     UIButton_AddOnClick((ui_button_t *)g_start_button, OnStartGameClick, NULL);
     
-    // 将按钮添加到根容器
+    // 将按钮添加到根容器（自动插入到布局）
     UIContainer_AddChild((ui_container_t *)g_root_container, g_start_button);
     
-    // 创建按钮布局项
-    g_lay_start_button = lay_item(&g_lay_ctx);
-    lay_set_size(&g_lay_ctx, g_lay_start_button, (lay_vec2){280, 50});
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_start_button, 10, 10, 10, 10);
-    lay_insert(&g_lay_ctx, g_lay_root, g_lay_start_button);
+    // 设置尺寸和边距
+    UIComponent_SetSize(g_start_button, 280.0f, 50.0f);
+    UIComponent_SetMarginLayout(g_start_button, 10.0f, 10.0f, 10.0f, 10.0f);
     
     // 创建标题文本
     g_title_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "SELECT MAP",
@@ -649,7 +625,7 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 将标题文本添加到根容器
+    // 将标题文本添加到根容器（自动插入到布局）
     UIContainer_AddChild((ui_container_t *)g_root_container, g_title_text);
     
     // 创建路径文本（移到右侧）
@@ -661,13 +637,11 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 将路径文本添加到根容器
+    // 将路径文本添加到根容器（自动插入到布局）
     UIContainer_AddChild((ui_container_t *)g_root_container, g_path_text);
     
-    // 创建路径文本布局项
-    lay_id lay_path = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, lay_path, 10, 5, 0, 0);
-    lay_insert(&g_lay_ctx, g_lay_filter_container, lay_path);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_path_text, 10.0f, 5.0f, 0.0f, 0.0f);
     
     // 创建提示文本1（包含筛选提示）
     g_hint_text1 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "UP/DOWN to navigate, ENTER to select, type to filter",
@@ -678,7 +652,7 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 将提示文本1添加到根容器
+    // 将提示文本1添加到根容器（自动插入到布局）
     UIContainer_AddChild((ui_container_t *)g_root_container, g_hint_text1);
     
     // 创建提示文本2
@@ -690,17 +664,12 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 将提示文本2添加到根容器
+    // 将提示文本2添加到根容器（自动插入到布局）
     UIContainer_AddChild((ui_container_t *)g_root_container, g_hint_text2);
     
-    // 创建提示文本布局项
-    g_lay_hint_text1 = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_hint_text1, 10, 5, 0, 0);
-    lay_insert(&g_lay_ctx, g_lay_root, g_lay_hint_text1);
-    
-    g_lay_hint_text2 = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_hint_text2, 10, 5, 10, 5);
-    lay_insert(&g_lay_ctx, g_lay_root, g_lay_hint_text2);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_hint_text1, 10.0f, 5.0f, 0.0f, 0.0f);
+    UIComponent_SetMarginLayout(g_hint_text2, 10.0f, 5.0f, 10.0f, 5.0f);
     
     // 创建地图预览容器
     g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 524.0f, 380.0f,
@@ -711,11 +680,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     
-    // 创建预览容器布局项
-    g_lay_preview_container = lay_item(&g_lay_ctx);
-    lay_set_behave(&g_lay_ctx, g_lay_preview_container, LAY_HFILL | LAY_VFILL);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_container, 10, 10, 10, 10);
-    lay_insert(&g_lay_ctx, g_lay_main_container, g_lay_preview_container);
+    // 设置布局行为和边距
+    UIComponent_SetBehave(g_preview_container, LAY_HFILL | LAY_VFILL);
+    UIComponent_SetMarginLayout(g_preview_container, 10.0f, 10.0f, 10.0f, 10.0f);
     
     // 创建预览文本组件（标题 "Map Preview"）
     g_preview_title_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "Map Preview",
@@ -727,10 +694,8 @@ int MapSelect_Init(void) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_title_text);
     
-    // 创建预览标题布局项
-    g_lay_preview_title = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_title, 10, 10, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_preview_container, g_lay_preview_title);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_preview_title_text, 10.0f, 10.0f, 10.0f, 0.0f);
     
     // 创建预览文本组件（文件名）
     g_preview_filename_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -742,10 +707,8 @@ int MapSelect_Init(void) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_filename_text);
     
-    // 创建文件名布局项
-    g_lay_preview_filename = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_filename, 10, 0, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_preview_container, g_lay_preview_filename);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_preview_filename_text, 10.0f, 0.0f, 10.0f, 0.0f);
     
     // 创建预览文本组件（地图名称）
     g_preview_name_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -757,10 +720,8 @@ int MapSelect_Init(void) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_name_text);
     
-    // 创建地图名称布局项
-    g_lay_preview_name = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_name, 10, 0, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_preview_container, g_lay_preview_name);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_preview_name_text, 10.0f, 0.0f, 10.0f, 0.0f);
     
     // 创建预览文本组件（作者）
     g_preview_author_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -772,10 +733,8 @@ int MapSelect_Init(void) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_author_text);
     
-    // 创建作者布局项
-    g_lay_preview_author = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_author, 10, 0, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_preview_container, g_lay_preview_author);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_preview_author_text, 10.0f, 0.0f, 10.0f, 0.0f);
     
     // 创建预览文本组件（推荐玩家数）
     g_preview_players_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -787,10 +746,8 @@ int MapSelect_Init(void) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_players_text);
     
-    // 创建推荐玩家数布局项
-    g_lay_preview_players = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_players, 10, 0, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_preview_container, g_lay_preview_players);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_preview_players_text, 10.0f, 0.0f, 10.0f, 0.0f);
     
     // 创建预览文本组件（文件类型）
     g_preview_type_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -802,10 +759,8 @@ int MapSelect_Init(void) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_type_text);
     
-    // 创建文件类型布局项
-    g_lay_preview_type = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_type, 10, 0, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_preview_container, g_lay_preview_type);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_preview_type_text, 10.0f, 0.0f, 10.0f, 0.0f);
     
     // 创建预览文本组件（完整路径）
     g_preview_path_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -817,10 +772,8 @@ int MapSelect_Init(void) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_path_text);
     
-    // 创建完整路径布局项
-    g_lay_preview_path = lay_item(&g_lay_ctx);
-    lay_set_margins_ltrb(&g_lay_ctx, g_lay_preview_path, 10, 0, 10, 0);
-    lay_insert(&g_lay_ctx, g_lay_preview_container, g_lay_preview_path);
+    // 设置边距
+    UIComponent_SetMarginLayout(g_preview_path_text, 10.0f, 0.0f, 10.0f, 0.0f);
     
     // 将预览容器添加到根容器
     UIContainer_AddChild((ui_container_t *)g_root_container, g_preview_container);
@@ -1088,92 +1041,8 @@ void MapSelect_SaveMapInfoToFile(const char *mapPath, LPCMAPINFO info) {
 
 // 辅助函数：从lay布局更新UI组件位置
 static void ApplyLayoutToComponents(void) {
-    // 更新列表位置
-    lay_vec4 rect_list = lay_get_rect(&g_lay_ctx, g_lay_list);
-    g_ui_list->x = rect_list[0];
-    g_ui_list->y = rect_list[1];
-    g_ui_list->width = rect_list[2];
-    g_ui_list->height = rect_list[3];
-    
-    // 更新筛选标签位置
-    lay_vec4 rect_filter_label = lay_get_rect(&g_lay_ctx, g_lay_filter_label);
-    g_filter_label->x = rect_filter_label[0];
-    g_filter_label->y = rect_filter_label[1];
-    g_filter_label->width = rect_filter_label[2];
-    g_filter_label->height = rect_filter_label[3];
-    
-    // 更新筛选输入框位置
-    lay_vec4 rect_filter_input = lay_get_rect(&g_lay_ctx, g_lay_filter_input);
-    g_filter_input->x = rect_filter_input[0];
-    g_filter_input->y = rect_filter_input[1];
-    g_filter_input->width = rect_filter_input[2];
-    g_filter_input->height = rect_filter_input[3];
-    
-    // 更新预览容器位置
-    lay_vec4 rect_preview = lay_get_rect(&g_lay_ctx, g_lay_preview_container);
-    g_preview_container->x = rect_preview[0];
-    g_preview_container->y = rect_preview[1];
-    g_preview_container->width = rect_preview[2];
-    g_preview_container->height = rect_preview[3];
-    
-    // 更新按钮位置
-    lay_vec4 rect_button = lay_get_rect(&g_lay_ctx, g_lay_start_button);
-    g_start_button->x = rect_button[0];
-    g_start_button->y = rect_button[1];
-    g_start_button->width = rect_button[2];
-    g_start_button->height = rect_button[3];
-    
-    // 更新提示文本位置
-    lay_vec4 rect_hint1 = lay_get_rect(&g_lay_ctx, g_lay_hint_text1);
-    g_hint_text1->x = rect_hint1[0];
-    g_hint_text1->y = rect_hint1[1];
-    g_hint_text1->width = rect_hint1[2];
-    g_hint_text1->height = rect_hint1[3];
-    
-    lay_vec4 rect_hint2 = lay_get_rect(&g_lay_ctx, g_lay_hint_text2);
-    g_hint_text2->x = rect_hint2[0];
-    g_hint_text2->y = rect_hint2[1];
-    g_hint_text2->width = rect_hint2[2];
-    g_hint_text2->height = rect_hint2[3];
-    
-    // 更新标题文本位置
-    lay_vec4 rect_title = lay_get_rect(&g_lay_ctx, g_lay_filter_container);
-    // 标题文本与筛选框在同一行
-    g_title_text->x = rect_title[0];
-    g_title_text->y = rect_title[1] - 30;
-    
-    // 更新路径文本位置（与筛选框同行）
-    g_path_text->x = rect_title[0] + 340;
-    g_path_text->y = rect_title[1];
-
-    // 更新预览容器子元素位置
-    lay_vec4 rect_preview_title = lay_get_rect(&g_lay_ctx, g_lay_preview_title);
-    g_preview_title_text->x = rect_preview_title[0];
-    g_preview_title_text->y = rect_preview_title[1];
-
-    lay_vec4 rect_preview_filename = lay_get_rect(&g_lay_ctx, g_lay_preview_filename);
-    g_preview_filename_text->x = rect_preview_filename[0];
-    g_preview_filename_text->y = rect_preview_filename[1];
-
-    lay_vec4 rect_preview_name = lay_get_rect(&g_lay_ctx, g_lay_preview_name);
-    g_preview_name_text->x = rect_preview_name[0];
-    g_preview_name_text->y = rect_preview_name[1];
-
-    lay_vec4 rect_preview_author = lay_get_rect(&g_lay_ctx, g_lay_preview_author);
-    g_preview_author_text->x = rect_preview_author[0];
-    g_preview_author_text->y = rect_preview_author[1];
-
-    lay_vec4 rect_preview_players = lay_get_rect(&g_lay_ctx, g_lay_preview_players);
-    g_preview_players_text->x = rect_preview_players[0];
-    g_preview_players_text->y = rect_preview_players[1];
-
-    lay_vec4 rect_preview_type = lay_get_rect(&g_lay_ctx, g_lay_preview_type);
-    g_preview_type_text->x = rect_preview_type[0];
-    g_preview_type_text->y = rect_preview_type[1];
-
-    lay_vec4 rect_preview_path = lay_get_rect(&g_lay_ctx, g_lay_preview_path);
-    g_preview_path_text->x = rect_preview_path[0];
-    g_preview_path_text->y = rect_preview_path[1];
+    // 使用新的布局API：运行布局计算并应用到整个组件树
+    UIComponent_Layout(g_root_container);
 }
 
 // 渲染地图选择界面

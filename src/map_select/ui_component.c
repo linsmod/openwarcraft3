@@ -231,6 +231,8 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->drag_start_y = 0.0f;
     component->drag_offset_x = 0.0f;
     component->drag_offset_y = 0.0f;
+    component->lay_ctx = NULL;
+    component->lay_item_id = LAY_INVALID_ID;
 
     // 初始化事件处理器数组
     memset(component->event_handlers, 0, sizeof(component->event_handlers));
@@ -395,4 +397,147 @@ void UIComponent_PrintTree(const ui_component_t *component, int indent) {
     for (int i = 0; i < component->child_count; i++) {
         UIComponent_PrintTree(component->children[i], indent + 1);
     }
+}
+
+// ==================== 布局API实现 - 对使用者隐藏lay细节 ====================
+
+void UIComponent_SetLayoutContext(ui_component_t *component, lay_context *ctx) {
+    if (!component) {
+        return;
+    }
+    component->lay_ctx = ctx;
+}
+
+lay_id UIComponent_CreateLayoutItem(ui_component_t *component) {
+    if (!component || !component->lay_ctx) {
+        return LAY_INVALID_ID;
+    }
+    if (component->lay_item_id == LAY_INVALID_ID) {
+        component->lay_item_id = lay_item(component->lay_ctx);
+    }
+    return component->lay_item_id;
+}
+
+lay_id UIComponent_GetLayoutItem(const ui_component_t *component) {
+    return component ? component->lay_item_id : LAY_INVALID_ID;
+}
+
+void UIComponent_SetLayoutSize(ui_component_t *component, float width, float height) {
+    UIComponent_SetSize(component, width, height);
+}
+
+void UIComponent_SetLayoutMargins(ui_component_t *component, float left, float top, float right, float bottom) {
+    UIComponent_SetMarginLayout(component, top, right, bottom, left);
+}
+
+void UIComponent_SetSize(ui_component_t *component, float width, float height) {
+    if (!component) return;
+    
+    // 更新组件尺寸
+    component->width = width;
+    component->height = height;
+    
+    // 如果有布局上下文，同步到lay
+    if (component->lay_ctx && component->lay_item_id != LAY_INVALID_ID) {
+        lay_set_size_xy(component->lay_ctx, component->lay_item_id, width, height);
+    }
+}
+
+void UIComponent_GetSize(const ui_component_t *component, float *width, float *height) {
+    if (!component) {
+        if (width) *width = 0.0f;
+        if (height) *height = 0.0f;
+        return;
+    }
+    if (width) *width = component->width;
+    if (height) *height = component->height;
+}
+
+void UIComponent_SetMarginLayout(ui_component_t *component, float top, float right, float bottom, float left) {
+    if (!component) return;
+    
+    // 更新组件边距
+    component->margin[0] = top;
+    component->margin[1] = right;
+    component->margin[2] = bottom;
+    component->margin[3] = left;
+    
+    // 如果有布局上下文，同步到lay
+    if (component->lay_ctx && component->lay_item_id != LAY_INVALID_ID) {
+        lay_set_margins_ltrb(component->lay_ctx, component->lay_item_id, left, top, right, bottom);
+    }
+}
+
+void UIComponent_SetBehave(ui_component_t *component, uint32_t flags) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
+        return;
+    }
+    lay_set_behave(component->lay_ctx, component->lay_item_id, flags);
+}
+
+void UIComponent_SetContain(ui_component_t *component, uint32_t flags) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
+        return;
+    }
+    lay_set_contain(component->lay_ctx, component->lay_item_id, flags);
+}
+
+void UIComponent_SetLayoutContain(ui_component_t *component, uint32_t flags) {
+    UIComponent_SetContain(component, flags);
+}
+
+void UIComponent_SetPosition(ui_component_t *component, float x, float y) {
+    if (!component) return;
+    component->x = x;
+    component->y = y;
+}
+
+// 内部辅助函数：创建layout item
+static void EnsureLayoutItem(ui_component_t *component) {
+    if (!component || !component->lay_ctx) {
+        return;
+    }
+    if (component->lay_item_id == LAY_INVALID_ID) {
+        component->lay_item_id = lay_item(component->lay_ctx);
+    }
+}
+
+// 内部辅助函数：将布局应用到组件
+static void ApplyLayoutToComponent(ui_component_t *component) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
+        return;
+    }
+
+    lay_vec4 rect = lay_get_rect(component->lay_ctx, component->lay_item_id);
+    component->x = rect[0];
+    component->y = rect[1];
+    component->width = rect[2];
+    component->height = rect[3];
+}
+
+// 内部辅助函数：递归应用布局
+static void ApplyLayoutTreeRecursive(ui_component_t *component) {
+    if (!component) {
+        return;
+    }
+
+    // 应用布局到当前组件
+    ApplyLayoutToComponent(component);
+
+    // 递归应用到所有子组件
+    for (int i = 0; i < component->child_count; i++) {
+        ApplyLayoutTreeRecursive(component->children[i]);
+    }
+}
+
+void UIComponent_Layout(ui_component_t *root) {
+    if (!root || !root->lay_ctx) {
+        return;
+    }
+
+    // 运行布局计算
+    lay_run_context(root->lay_ctx);
+
+    // 递归应用布局到整个组件树
+    ApplyLayoutTreeRecursive(root);
 }

@@ -51,12 +51,12 @@ static void container_render(ui_component_t *component) {
     }
 
     // 裁剪区域（如果需要）
-    if (component->flags & UI_FLAG_CLIPPING) {
+    // if (component->flags & UI_FLAG_CLIPPING) {
         // canvas2d_save(component->ctx);
         // canvas2d_begin_path(component->ctx);
         // canvas2d_rect(component->ctx, component->x, component->y, component->width, component->height);
         // canvas2d_clip(component->ctx);
-    }
+    // }
 
     // 渲染所有子组件
     for (int i = 0; i < component->child_count; i++) {
@@ -67,9 +67,9 @@ static void container_render(ui_component_t *component) {
     }
 
     // 恢复裁剪
-    if (component->flags & UI_FLAG_CLIPPING) {
+    // if (component->flags & UI_FLAG_CLIPPING) {
         // canvas2d_restore(component->ctx);
-    }
+    // }
 }
 
 static void container_set_position(ui_component_t *component, float x, float y) {
@@ -94,6 +94,7 @@ static bool container_hit_test(ui_component_t *component, float x, float y) {
            y >= component->y && y < component->y + component->height;
 }
 
+// 容器特定的虚函数
 // 容器特定的虚函数
 static int container_add_child(ui_component_t *component, ui_component_t *child) {
     if (!component || !child) return -1;
@@ -124,6 +125,23 @@ static int container_add_child(ui_component_t *component, ui_component_t *child)
     // 添加子组件
     child->parent = component;
     component->children[component->child_count] = child;
+    
+    // 自动插入到布局系统
+    if (component->lay_ctx) {
+        // 确保子组件使用相同的布局上下文
+        child->lay_ctx = component->lay_ctx;
+        
+        // 如果子组件没有layout item，创建一个
+        if (child->lay_item_id == LAY_INVALID_ID) {
+            child->lay_item_id = lay_item(child->lay_ctx);
+        }
+        
+        // 如果父组件有layout item，插入到布局中
+        if (component->lay_item_id != LAY_INVALID_ID && child->lay_item_id != LAY_INVALID_ID) {
+            lay_insert(component->lay_ctx, component->lay_item_id, child->lay_item_id);
+        }
+    }
+    
     return component->child_count++;
 }
 
@@ -221,7 +239,7 @@ ui_container_t* UIContainer_Create(float x, float y, float width, float height,
     container->max_children = 100;
 
     // 启用裁剪
-    container->base.flags |= UI_FLAG_CLIPPING;
+    // container->base.flags |= UI_FLAG_CLIPPING;
 
     return container;
 }
