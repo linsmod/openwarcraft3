@@ -1,0 +1,14 @@
+{
+  "commands": [
+    {
+      "call": "read_file",
+      "title": "读取MapSelect_Shutdown函数",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "showLineNo": true,
+        "fromLineNo": 1270,
+        "countOfLines": 60
+      }
+    }
+  ]
+}

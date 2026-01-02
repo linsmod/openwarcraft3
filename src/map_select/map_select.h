@@ -38,8 +38,8 @@ typedef enum {
 // ========================================
 // 原有API（保持向后兼容）
 // ========================================
-// 初始化地图选择界面
-int MapSelect_Init(void);
+// 初始化地图选择界面（接收 scene 参数以使用默认资源）
+int MapSelect_Init(scene_t *scene);
 
 // 渲染地图选择界面
 void MapSelect_Render(void);

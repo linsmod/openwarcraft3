@@ -1,4 +1,5 @@
 #include "ui_list_item.h"
+#include "common/shared.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

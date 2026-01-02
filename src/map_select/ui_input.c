@@ -1,5 +1,6 @@
 #include "ui_input.h"
 #include "common/shared.h"
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

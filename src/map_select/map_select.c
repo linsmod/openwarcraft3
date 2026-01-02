@@ -1,4 +1,5 @@
 #include "map_select.h"
+#include "common/shared.h"
 #include "ui_list.h"
 #include "ui_button.h"
 #include "ui_text.h"
@@ -14,6 +15,7 @@
 #include "../common/cmodel.h"
 #include "../common/mapinfo.h"
 #include <SDL2/SDL.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,17 +68,17 @@ static char g_last_filter_text[256] = "";
 // 函数前向声明
 static void UpdateMapPreview(void);
 
-// Canvas2D 画布
+// Canvas2D 画布（从 SceneManager 获取的默认资源）
 static canvas2d_t *g_canvas = NULL;
 static canvas2d_context_t *g_ctx = NULL;
 
-// Lay布局上下文
-static lay_context g_lay_ctx;
+// Lay布局上下文（从 SceneManager 获取的默认资源）
+static lay_context *g_lay_ctx = NULL;
 
-// 事件分发器
-static ui_event_dispatcher_t g_event_dispatcher;
+// 事件分发器（从 SceneManager 获取的默认资源）
+static ui_event_dispatcher_t *g_event_dispatcher = NULL;
 
-// 根容器组件（场景级别的根容器）
+// 根容器组件（场景级别的根容器，我们自己创建）
 static ui_component_t *g_root_container = NULL;
 
 // UI 组件（使用新的基类系统）
@@ -476,88 +478,53 @@ static void FilterCurrentPath(void) {
     printf("Filtered %d items, UI list has %d items\n", g_filtered_count, UIList_GetItemCount((ui_list_t *)g_ui_list));
 }
 
-// 初始化地图选择界面
-int MapSelect_Init(void) {
+// 初始化地图选择界面（使用默认资源）
+int MapSelect_Init(scene_t *scene) {
     printf("Initializing Map Selection Screen...\n");
     
-    // 创建 Canvas
-    g_canvas = canvas2d_create(1024, 768);
-    if (!g_canvas) {
-        printf("Failed to create canvas for map selection\n");
+    if (!scene || !scene->manager) {
+        printf("Error: scene or scene->manager is NULL\n");
         return -1;
     }
     
-    g_ctx = canvas2d_get_context(g_canvas);
+    scene_manager_t *mgr = scene->manager;
     
-    // 初始化lay布局上下文
-    lay_init_context(&g_lay_ctx);
-    lay_reserve_items_capacity(&g_lay_ctx, 20);
+    // 从 SceneManager 获取默认资源
+    g_canvas = SceneManager_GetDefaultCanvas(mgr);
+    g_ctx = SceneManager_GetDefaultCanvasContext(mgr);
+    g_lay_ctx = SceneManager_GetDefaultLayoutContext(mgr);
+    g_event_dispatcher = SceneManager_GetDefaultEventDispatcher(mgr);
+    
+    printf("Using default resources from SceneManager\n");
     
     // 创建根容器（场景级别的根组件）
-    g_root_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 768.0f,
-        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
-        MAKE(COLOR32, 0, 0, 0, 0),
-        g_ctx
-    );
+    g_root_container = SceneManager_GetDefaultRoot(mgr);
     if (!g_root_container) {
         printf("Failed to create root container\n");
         return -1;
     }
     
-    // 初始化事件分发器，设置根组件
-    if (UIEventDispatcher_Init(&g_event_dispatcher, g_root_container, g_ctx) != 0) {
-        printf("Failed to initialize event dispatcher\n");
-        return -1;
-    }
-
     // 设置根组件的布局上下文（所有子组件将共享此上下文）
-    UIComponent_SetLayoutContext(g_root_container, &g_lay_ctx);
+    UIComponent_SetLayoutContext(g_root_container, g_lay_ctx);
 
     // 为根组件创建布局项
     UIComponent_CreateLayoutItem(g_root_container);
     UIComponent_SetLayoutSize(g_root_container, 1024.0f, 768.0f);
     UIComponent_SetLayoutContain(g_root_container, LAY_COLUMN);
 
-    // =============== 创建中间容器 ===============
-
-    // 顶部容器：包含标题和筛选框
-    ui_component_t *top_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 80.0f,
-        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
-        MAKE(COLOR32, 0, 0, 0, 0),
-        g_ctx
-    );
-    UIContainer_AddChild((ui_container_t *)g_root_container, top_container);
-    UIComponent_SetLayoutSize(top_container, 1024.0f, 80.0f);
-    UIComponent_SetBehave(top_container, LAY_HFILL);
-    UIComponent_SetMarginLayout(top_container, 10.0f, 10.0f, 10.0f, 5.0f);
-    UIComponent_SetLayoutContain(top_container, LAY_COLUMN);
-
-    // 主内容容器：包含列表和预览
-    ui_component_t *main_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 550.0f,
-        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
-        MAKE(COLOR32, 0, 0, 0, 0),
-        g_ctx
-    );
-    UIContainer_AddChild((ui_container_t *)g_root_container, main_container);
-    UIComponent_SetLayoutSize(main_container, 1024.0f, 550.0f);
-    UIComponent_SetBehave(main_container, LAY_HFILL | LAY_VFILL);
-    UIComponent_SetMarginLayout(main_container, 10.0f, 0.0f, 10.0f, 5.0f);
-    UIComponent_SetLayoutContain(main_container, LAY_ROW);
-
-    // 底部容器：包含提示和按钮
+    // 创建底部容器
     ui_component_t *bottom_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 80.0f,
+        0.0f, 0.0f, 1024.0f, 40.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
     );
+    if (!bottom_container) {
+        printf("Failed to create bottom container\n");
+        return -1;
+    }
     UIContainer_AddChild((ui_container_t *)g_root_container, bottom_container);
-    UIComponent_SetLayoutSize(bottom_container, 1024.0f, 80.0f);
-    UIComponent_SetBehave(bottom_container, LAY_HFILL);
-    UIComponent_SetMarginLayout(bottom_container, 10.0f, 0.0f, 10.0f, 10.0f);
+    UIComponent_SetLayoutSize(bottom_container, 1024.0f, 40.0f);
     UIComponent_SetLayoutContain(bottom_container, LAY_COLUMN);
 
     // =============== 创建UI组件 ===============
@@ -570,6 +537,20 @@ int MapSelect_Init(void) {
         printf("Failed to create title text\n");
         return -1;
     }
+    // 创建顶部容器
+    ui_component_t *top_container = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, 1024.0f, 35.0f,
+        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
+        MAKE(COLOR32, 0, 0, 0, 0),
+        g_ctx
+    );
+    if (!top_container) {
+        printf("Failed to create top container\n");
+        return -1;
+    }
+    UIContainer_AddChild((ui_container_t *)g_root_container, top_container);
+    UIComponent_SetLayoutSize(top_container, 1024.0f, 35.0f);
+    UIComponent_SetLayoutContain(top_container, LAY_ROW);
     UIContainer_AddChild((ui_container_t *)top_container, g_title_text);
     UIComponent_SetLayoutSize(g_title_text, 700.0f, 35.0f);
     UIComponent_SetBehave(g_title_text, LAY_LEFT);
@@ -611,7 +592,7 @@ int MapSelect_Init(void) {
     UIComponent_SetMarginLayout(g_filter_input, 5.0f, 0.0f, 0.0f, 0.0f);
 
     // 将筛选输入框设置为焦点组件
-    UIEventDispatcher_SetFocus(&g_event_dispatcher, g_filter_input);
+    UIEventDispatcher_SetFocus(g_event_dispatcher, g_filter_input);
 
     // 5. 创建 UI 列表（添加到主容器的左侧）
     g_ui_list = (ui_component_t *)UIList_Create(0.0f, 0.0f, 380.0f, 500.0f, 50.0f, 14.0f, g_ctx);
@@ -621,12 +602,26 @@ int MapSelect_Init(void) {
     }
 
     // 设置事件分发器（用于鼠标捕获功能）
-    UIList_SetDispatcher((ui_list_t *)g_ui_list, &g_event_dispatcher);
+    UIList_SetDispatcher((ui_list_t *)g_ui_list, g_event_dispatcher);
 
     // 设置列表选中项改变回调
     UIList_SetSelectedChangedCallback((ui_list_t *)g_ui_list, OnListSelectedChanged, NULL);
 
     // 将列表添加到主容器
+    // 创建主容器（中间部分）
+    ui_component_t *main_container = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, 1024.0f, 500.0f,
+        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
+        MAKE(COLOR32, 0, 0, 0, 0),
+        g_ctx
+    );
+    if (!main_container) {
+        printf("Failed to create main container\n");
+        return -1;
+    }
+    UIContainer_AddChild((ui_container_t *)g_root_container, main_container);
+    UIComponent_SetLayoutSize(main_container, 1024.0f, 500.0f);
+    UIComponent_SetLayoutContain(main_container, LAY_ROW);
     UIContainer_AddChild((ui_container_t *)main_container, g_ui_list);
     UIComponent_SetLayoutSize(g_ui_list, 380.0f, 500.0f);
     UIComponent_SetBehave(g_ui_list, LAY_VFILL);
@@ -658,7 +653,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_title_text);
-    UIComponent_SetMarginLayout(g_preview_title_text, 10.0f, 10.0f, 10.0f, 0.0f);
+    UIComponent_SetLayoutSize(g_preview_title_text, 560.0f, 18.0f);
+    UIComponent_SetBehave(g_preview_title_text, LAY_HFILL);
+    UIComponent_SetMarginLayout(g_preview_title_text, 10.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（文件名）
     g_preview_filename_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -669,7 +666,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_filename_text);
-    UIComponent_SetMarginLayout(g_preview_filename_text, 10.0f, 5.0f, 10.0f, 0.0f);
+    UIComponent_SetLayoutSize(g_preview_filename_text, 560.0f, 16.0f);
+    UIComponent_SetBehave(g_preview_filename_text, LAY_HFILL);
+    UIComponent_SetMarginLayout(g_preview_filename_text, 5.0f, 5.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（地图名称）
     g_preview_name_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -680,7 +679,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_name_text);
-    UIComponent_SetMarginLayout(g_preview_name_text, 10.0f, 5.0f, 10.0f, 0.0f);
+    UIComponent_SetLayoutSize(g_preview_name_text, 560.0f, 16.0f);
+    UIComponent_SetBehave(g_preview_name_text, LAY_HFILL);
+    UIComponent_SetMarginLayout(g_preview_name_text, 5.0f, 5.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（作者）
     g_preview_author_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -691,7 +692,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_author_text);
-    UIComponent_SetMarginLayout(g_preview_author_text, 10.0f, 5.0f, 10.0f, 0.0f);
+    UIComponent_SetLayoutSize(g_preview_author_text, 560.0f, 16.0f);
+    UIComponent_SetBehave(g_preview_author_text, LAY_HFILL);
+    UIComponent_SetMarginLayout(g_preview_author_text, 5.0f, 5.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（推荐玩家数）
     g_preview_players_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -702,7 +705,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_players_text);
-    UIComponent_SetMarginLayout(g_preview_players_text, 10.0f, 5.0f, 10.0f, 0.0f);
+    UIComponent_SetLayoutSize(g_preview_players_text, 560.0f, 16.0f);
+    UIComponent_SetBehave(g_preview_players_text, LAY_HFILL);
+    UIComponent_SetMarginLayout(g_preview_players_text, 5.0f, 5.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（文件类型）
     g_preview_type_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -713,7 +718,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_type_text);
-    UIComponent_SetMarginLayout(g_preview_type_text, 10.0f, 5.0f, 10.0f, 0.0f);
+    UIComponent_SetLayoutSize(g_preview_type_text, 560.0f, 16.0f);
+    UIComponent_SetBehave(g_preview_type_text, LAY_HFILL);
+    UIComponent_SetMarginLayout(g_preview_type_text, 5.0f, 5.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（完整路径）
     g_preview_path_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -724,7 +731,9 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_path_text);
-    UIComponent_SetMarginLayout(g_preview_path_text, 10.0f, 5.0f, 10.0f, 0.0f);
+    UIComponent_SetLayoutSize(g_preview_path_text, 560.0f, 14.0f);
+    UIComponent_SetBehave(g_preview_path_text, LAY_HFILL);
+    UIComponent_SetMarginLayout(g_preview_path_text, 5.0f, 5.0f, 10.0f, 0.0f);
 
     // 7. 创建提示文本1（添加到底部容器，左侧）
     g_hint_text1 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "UP/DOWN: navigate  ENTER: select  Type: filter",
@@ -735,7 +744,7 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)bottom_container, g_hint_text1);
-    UIComponent_SetLayoutSize(g_hint_text1, 700.0f, 20.0f);
+    UIComponent_SetLayoutSize(g_hint_text1, 700.0f, 40.0f);
     UIComponent_SetBehave(g_hint_text1, LAY_LEFT);
 
     // 8. 创建提示文本2（添加到底部容器，右侧）
@@ -747,7 +756,7 @@ int MapSelect_Init(void) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)bottom_container, g_hint_text2);
-    UIComponent_SetLayoutSize(g_hint_text2, 200.0f, 20.0f);
+    UIComponent_SetLayoutSize(g_hint_text2, 200.0f, 40.0f);
     UIComponent_SetBehave(g_hint_text2, LAY_RIGHT);
     UIComponent_SetMarginLayout(g_hint_text2, 0.0f, 5.0f, 0.0f, 0.0f);
 
@@ -899,7 +908,7 @@ static void UpdateMapPreview(void) {
     
     // 更新完整路径
     char path_text[128];
-    snprintf(path_text, sizeof(path_text), "Path: %s", item->full_path);
+    snprintf(path_text, sizeof(path_text), "Path: %.255s", item->full_path);
     UIText_SetText((ui_text_t *)g_preview_path_text, path_text);
     UIComponent_SetVisible(g_preview_path_text, true);
 }
@@ -1046,96 +1055,15 @@ void MapSelect_SaveMapInfoToFile(const char *mapPath, LPCMAPINFO info) {
 
 // 辅助函数：从lay布局更新UI组件位置
 static void ApplyLayoutToComponents(void) {
+    printf("ApplyLayoutToComponents called\n");
     // 使用新的布局API：运行布局计算并应用到整个组件树
     UIComponent_Layout(g_root_container);
+    printf("ApplyLayoutToComponents completed\n");
 }
 
-// 渲染地图选择界面
-void MapSelect_Render(void) {
-    if (g_state == MAP_SELECT_STATE_DONE) return;
-    
-    // 执行布局计算
-    lay_run_context(&g_lay_ctx);
-    
-    // 应用布局结果到UI组件
-    ApplyLayoutToComponents();
-    
+void MapSelect_RenderBackground(scene_t* scene){
     // 绘制调试网格（包含半透明背景）
     canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
-
-    // 更新事件分发器
-    UIEventDispatcher_Update(&g_event_dispatcher, 0);
-
-    // 渲染 UI 列表
-    UIList_Render((ui_list_t *)g_ui_list);
-    
-    // 检测选中变化并自动加载地图信息
-    int selected = UIList_GetSelected((ui_list_t *)g_ui_list);
-    if (selected >= 0) {
-        void *user_data = UIList_GetSelectedUserData((ui_list_t *)g_ui_list);
-        if (user_data) {
-            int all_index = (int)(intptr_t)user_data;
-            if (all_index >= 0 && all_index < g_all_count) {
-                browser_item_t *item = &g_all_items[all_index];
-                if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
-                    // 比较当前路径是否变化
-                    if (strcmp(item->full_path, g_current_preview_map) != 0) {
-                        // 路径变化，加载新地图信息
-                        strcpy(g_current_preview_map, item->full_path);
-                        // printf("Loading map info for preview: %s\n", g_current_preview_map);
-                        MapSelect_LoadAndSaveMapInfo(g_current_preview_map);
-                    }
-                }
-            }
-        }
-    } else {
-        // 没有选中项，清空当前预览
-        g_current_preview_map[0] = '\0';
-    }
-    
-    // 更新并渲染地图预览容器
-    UpdateMapPreview();
-    UIContainer_Render((ui_container_t *)g_preview_container);
-    
-    // 渲染 START GAME 按钮
-    UIButton_Render((ui_button_t *)g_start_button);
-    
-    // 在右下角显示鼠标位置和调试信息
-    canvas2d_set_fill_style(g_ctx, (COLOR32){255, 255, 0, 255});
-    canvas2d_set_font_size(g_ctx, 14.0f);
-    
-    char mouse_pos_text[128];
-    snprintf(mouse_pos_text, sizeof(mouse_pos_text),
-             "Mouse: (%d, %d) | Event: %d | Button: %d",
-             (int)mouse.origin.x, (int)mouse.origin.y, mouse.event, mouse.button);
-    canvas2d_fill_text(g_ctx, mouse_pos_text, 1024 - 400, 768 - 30);
-    
-    // 检查鼠标是否在按钮内
-    bool in_button = (mouse.origin.x >= g_start_button->x &&
-                      mouse.origin.x < g_start_button->x + g_start_button->width &&
-                      mouse.origin.y >= g_start_button->y &&
-                      mouse.origin.y < g_start_button->y + g_start_button->height);
-    char button_state_text[128];
-    snprintf(button_state_text, sizeof(button_state_text),
-             "Button Rect: (%.0f, %.0f) w=%.0f h=%.0f | InButton: %s | State: %d",
-             g_start_button->x, g_start_button->y,
-             g_start_button->width, g_start_button->height,
-             in_button ? "YES" : "NO",
-             ((ui_button_t *)g_start_button)->state);
-    canvas2d_fill_text(g_ctx, button_state_text, 1024 - 600, 768 - 55);
-    
-    // 渲染文本组件
-    // 更新路径文本
-    if (g_at_root) {
-        UIText_SetText((ui_text_t *)g_path_text, "Root");
-    } else {
-        UIText_SetText((ui_text_t *)g_path_text, g_current_path);
-    }
-    UIText_Render((ui_text_t *)g_title_text);
-    UIText_Render((ui_text_t *)g_path_text);
-    UIText_Render((ui_text_t *)g_hint_text1);
-    UIText_Render((ui_text_t *)g_hint_text2);
-    
 }
 
 // 进入文件夹
@@ -1180,7 +1108,7 @@ bool MapSelect_HandleInput(int key, bool down) {
     // 使用事件分发器处理键盘事件
     if (down) {
         // 按键按下
-        if (UIEventDispatcher_DispatchKeyDown(&g_event_dispatcher, key, 0, 0, false, SDL_GetTicks())) {
+        if (UIEventDispatcher_DispatchKeyDown(g_event_dispatcher, key, 0, 0, false, SDL_GetTicks())) {
             return true;
         }
     } else {
@@ -1236,17 +1164,17 @@ bool MapSelect_HandleMouseEvent(void) {
     // 使用事件分发器处理鼠标事件
     switch (mouse.event) {
         case UI_LEFT_MOUSE_DOWN:
-            handled = UIEventDispatcher_DispatchMouseDown(&g_event_dispatcher,
+            handled = UIEventDispatcher_DispatchMouseDown(g_event_dispatcher,
                                                           mouse.origin.x, mouse.origin.y,
                                                           UI_MOUSE_BUTTON_LEFT, SDL_GetTicks());
             break;
         case UI_LEFT_MOUSE_UP:
-            handled = UIEventDispatcher_DispatchMouseUp(&g_event_dispatcher,
+            handled = UIEventDispatcher_DispatchMouseUp(g_event_dispatcher,
                                                         mouse.origin.x, mouse.origin.y,
                                                         UI_MOUSE_BUTTON_LEFT, SDL_GetTicks());
             break;
         case UI_LEFT_MOUSE_DRAGGED:
-            handled = UIEventDispatcher_DispatchMouseMove(&g_event_dispatcher,
+            handled = UIEventDispatcher_DispatchMouseMove(g_event_dispatcher,
                                                           mouse.origin.x, mouse.origin.y,
                                                           SDL_GetTicks());
             break;
@@ -1281,10 +1209,10 @@ void MapSelect_Shutdown(void) {
     printf("Shutting down Map Selection Screen...\n");
     
     // 清理lay布局上下文
-    lay_destroy_context(&g_lay_ctx);
+    lay_destroy_context(g_lay_ctx);
     
     // 清理事件分发器
-    UIEventDispatcher_Shutdown(&g_event_dispatcher);
+    UIEventDispatcher_Shutdown(g_event_dispatcher);
     
     // 清理根容器（会递归清理所有子组件）
     if (g_root_container) {
@@ -1326,7 +1254,7 @@ void MapSelect_Shutdown(void) {
 // ========================================
 // Scene 接口实现
 // ========================================
-
+void MapSelectScene_RenderBackground(scene_t* scene,size2_t vpsize);
 // Scene实例
 static scene_t g_map_select_scene = {
     .name = "MapSelect",
@@ -1337,7 +1265,9 @@ static scene_t g_map_select_scene = {
     .init = MapSelectScene_Init,
     .shutdown = MapSelectScene_Shutdown,
     .update = MapSelectScene_Update,
-    .render = MapSelectScene_Render,
+    .render = NULL,
+    .render_background = MapSelectScene_RenderBackground,
+    .layout = NULL,
     .on_input = MapSelectScene_OnInput,
     .pause = NULL,
     .resume = NULL
@@ -1356,8 +1286,8 @@ int MapSelectScene_Init(scene_t *scene, const scene_params_t *params) {
         }
     }
     
-    // 调用原有的初始化函数
-    int result = MapSelect_Init();
+    // 调用原有的初始化函数（传递 scene 参数）
+    int result = MapSelect_Init(scene);
     if (result != 0) {
         printf("MapSelectScene: MapSelect_Init failed with code %d\n", result);
         return -1;
@@ -1395,6 +1325,30 @@ scene_transition_t* MapSelectScene_Update(scene_t *scene, int msec) {
             FilterCurrentPath();
         }
     }
+
+    // 检测选中变化并自动加载地图信息
+    int selected = UIList_GetSelected((ui_list_t *)g_ui_list);
+    if (selected >= 0) {
+        void *user_data = UIList_GetSelectedUserData((ui_list_t *)g_ui_list);
+        if (user_data) {
+            int all_index = (int)(intptr_t)user_data;
+            if (all_index >= 0 && all_index < g_all_count) {
+                browser_item_t *item = &g_all_items[all_index];
+                if (item->type == ITEM_TYPE_MAP_W3M || item->type == ITEM_TYPE_MAP_W3X) {
+                    // 比较当前路径是否变化
+                    if (strcmp(item->full_path, g_current_preview_map) != 0) {
+                        // 路径变化，加载新地图信息
+                        strcpy(g_current_preview_map, item->full_path);
+                        // printf("Loading map info for preview: %s\n", g_current_preview_map);
+                        MapSelect_LoadAndSaveMapInfo(g_current_preview_map);
+                    }
+                }
+            }
+        }
+    } else {
+        // 没有选中项，清空当前预览
+        g_current_preview_map[0] = '\0';
+    }
     
     // 检查是否需要切换到游戏场景
     if (g_state == MAP_SELECT_STATE_DONE && g_start_map_path) {
@@ -1424,7 +1378,15 @@ scene_transition_t* MapSelectScene_Update(scene_t *scene, int msec) {
             return transition;
         }
     }
+    // 更新并渲染地图预览容器
+    UpdateMapPreview();
     
+    // 更新路径文本
+    if (g_at_root) {
+        UIText_SetText((ui_text_t *)g_path_text, "Root");
+    } else {
+        UIText_SetText((ui_text_t *)g_path_text, g_current_path);
+    }
     return NULL;
 }
 
@@ -1434,12 +1396,9 @@ scene_t* MapSelectScene_GetInstance(void) {
 }
 
 // Scene 渲染
-void MapSelectScene_Render(scene_t *scene) {
+void MapSelectScene_RenderBackground(scene_t *scene,size2_t vpsize) {
     // 绘制调试网格（包含半透明背景）
-    canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
-    
-    // 渲染场景的所有UI组件（递归渲染根容器及其所有子组件）
-    Scene_RenderUI(scene);
+    canvas2d_draw_debug_grid(g_ctx, 0, 0, vpsize.width, vpsize.height, 40, 30, true);
 }
 
 // Scene 输入处理
@@ -1453,7 +1412,7 @@ void MapSelectScene_OnInput(scene_t *scene, input_event_t *event) {
             
         case INPUT_EVENT_TEXT_INPUT:
             // 文本输入事件 - 分发到事件分发器
-            UIEventDispatcher_DispatchTextInput(&g_event_dispatcher, event->text.text, SDL_GetTicks());
+            UIEventDispatcher_DispatchTextInput(g_event_dispatcher, event->text.text, SDL_GetTicks());
             break;
             
         case INPUT_EVENT_MOUSE_DOWN: {
@@ -1495,7 +1454,7 @@ void MapSelectScene_OnInput(scene_t *scene, input_event_t *event) {
             int wheel_delta = (int)event->wheel.delta;
             
             // 分发滚轮事件到事件分发器
-            UIEventDispatcher_DispatchMouseWheel(&g_event_dispatcher, wheel_x, wheel_y, wheel_delta, SDL_GetTicks());
+            UIEventDispatcher_DispatchMouseWheel(g_event_dispatcher, wheel_x, wheel_y, wheel_delta, SDL_GetTicks());
             break;
         }
             

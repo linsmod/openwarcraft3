@@ -1,4 +1,5 @@
 #include "ui_button.h"
+#include "common/shared.h"
 #include "map_select/ui_component.h"
 #include <stdlib.h>
 #include <string.h>

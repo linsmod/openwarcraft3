@@ -168,6 +168,7 @@ typedef struct ui_component_vtable {
     void (*init)(ui_component_t *component, canvas2d_context_t *ctx);
     void (*shutdown)(ui_component_t *component);
     void (*update)(ui_component_t *component, int msec);
+    void (*layout)(ui_component_t* component, ui_component_t* root,size2_t vpsize);
     void (*render)(ui_component_t *component);
     
     // 布局方法
@@ -220,7 +221,6 @@ typedef struct ui_component_vtable {
     void* (*get_custom_data)(ui_component_t *component, const char *key);
     void (*set_custom_data)(ui_component_t *component, const char *key, void *data);
 } ui_component_vtable_t;
-
 // ==================== 组件结构 ====================
 
 struct ui_component_t {

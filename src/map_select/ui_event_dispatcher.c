@@ -53,6 +53,14 @@ void UIEventDispatcher_Shutdown(ui_event_dispatcher_t *dispatcher) {
     dispatcher->last_clicked = NULL;
 }
 
+void UIEventDispatcher_Destroy(ui_event_dispatcher_t *dispatcher) {
+    if (!dispatcher) return;
+    // 先调用 shutdown 清理资源
+    UIEventDispatcher_Shutdown(dispatcher);
+    // 释放事件分发器本身
+    free(dispatcher);
+}
+
 void UIEventDispatcher_SetRoot(ui_event_dispatcher_t *dispatcher, ui_component_t *root) {
     if (!dispatcher) return;
     dispatcher->root = root;

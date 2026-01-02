@@ -509,10 +509,19 @@ static void ApplyLayoutToComponent(ui_component_t *component) {
     }
 
     lay_vec4 rect = lay_get_rect(component->lay_ctx, component->lay_item_id);
-    component->x = rect[0];
-    component->y = rect[1];
     component->width = rect[2];
     component->height = rect[3];
+    
+    // 如果是根组件，直接使用布局坐标
+    if (!component->parent) {
+        component->x = rect[0];
+        component->y = rect[1];
+    } else {
+        // 对于子组件，布局坐标已经是相对于父容器的，不需要额外计算
+        // 但是我们需要确保父容器的位置已经正确设置
+        component->x = rect[0];
+        component->y = rect[1];
+    }
 }
 
 // 内部辅助函数：递归应用布局
@@ -540,4 +549,9 @@ void UIComponent_Layout(ui_component_t *root) {
 
     // 递归应用布局到整个组件树
     ApplyLayoutTreeRecursive(root);
+    
+    // 调试输出：打印布局后的组件树
+    printf("\n========== UI Layout Tree (After Layout) ==========\n");
+    UIComponent_PrintTree(root, 0);
+    printf("===================================\n\n");
 }

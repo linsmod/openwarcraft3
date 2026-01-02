@@ -1,4 +1,5 @@
 #include "ui_list.h"
+#include "common/shared.h"
 #include "ui_event_dispatcher.h"
 #include <stdlib.h>
 #include <string.h>

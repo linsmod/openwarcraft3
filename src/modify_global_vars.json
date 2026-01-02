@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改全局变量为指针类型",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/map_select/map_select.c",
+        "old_str": "// Canvas2D 画布\nstatic canvas2d_t *g_canvas = NULL;\nstatic canvas2d_context_t *g_ctx = NULL;\n\n// Lay布局上下文\nstatic lay_context g_lay_ctx;\n\n// 事件分发器\nstatic ui_event_dispatcher_t g_event_dispatcher;\n\n// 根容器组件（场景级别的根容器）\nstatic ui_component_t *g_root_container = NULL;",
+        "new_str": "// Canvas2D 画布（从 SceneManager 获取的默认资源）\nstatic canvas2d_t *g_canvas = NULL;\nstatic canvas2d_context_t *g_ctx = NULL;\n\n// Lay布局上下文（从 SceneManager 获取的默认资源）\nstatic lay_context *g_lay_ctx = NULL;\n\n// 事件分发器（从 SceneManager 获取的默认资源）\nstatic ui_event_dispatcher_t *g_event_dispatcher = NULL;\n\n// 根容器组件（场景级别的根容器，我们自己创建）\nstatic ui_component_t *g_root_container = NULL;"
+      }
+    }
+  ]
+}

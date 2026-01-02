@@ -1,4 +1,5 @@
 #include "ui_text.h"
+#include "common/shared.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

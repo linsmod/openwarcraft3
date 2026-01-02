@@ -2,6 +2,8 @@
 #define __SCENE_H__
 
 #include "../common/shared.h"
+#include "canvas2d/canvas2d.h"
+#include "map_select/ui_component.h"
 
 // 前向声明
 typedef struct scene_t scene_t;
@@ -189,6 +191,8 @@ typedef struct {
 typedef int (*scene_init_fn)(scene_t *scene, const scene_params_t *params);
 typedef void (*scene_shutdown_fn)(scene_t *scene);
 typedef scene_transition_t* (*scene_update_fn)(scene_t *scene, int msec);
+typedef void (*scene_layout_fn)(scene_t *scene);
+typedef void (*scene_render_background_fn)(scene_t *scene, size2_t vpsize);
 typedef void (*scene_render_fn)(scene_t *scene);
 typedef void (*scene_pause_fn)(scene_t *scene, const scene_params_t *result);
 typedef void (*scene_resume_fn)(scene_t *scene);
@@ -197,6 +201,7 @@ typedef void (*scene_on_input_fn)(scene_t *scene, input_event_t *event);
 // ========================================
 // 场景结构
 // ========================================
+#include "html/layout.h"
 struct scene_t {
     const char *name;
     scene_state_t state;
@@ -205,13 +210,17 @@ struct scene_t {
     // 启动参数（由SceneManager管理）
     const scene_params_t *launch_params;
     
-    // UI根容器组件（可选）- 用于组织场景中的所有UI组件
     ui_component_t *root_component;
+    canvas2d_t *canvas;
+    canvas2d_context_t *canvas_ctx;
+    lay_context *lay_ctx;
     
     // 场景接口函数
     scene_init_fn init;
     scene_shutdown_fn shutdown;
     scene_update_fn update;      // 可返回跳转请求
+    scene_layout_fn layout;
+    scene_render_background_fn render_background;
     scene_render_fn render;
     scene_pause_fn pause;        // 暂停时接收返回值
     scene_resume_fn resume;
@@ -228,6 +237,14 @@ struct scene_manager_t {
     scene_t *stack[8];  // 场景栈，最多支持8层
     int stack_size;
     scene_t *current_scene;
+    
+    // ============= 默认资源系统 =============
+    // 所有场景共享的默认资源（可选使用）
+    void *default_canvas;              // 默认 canvas (void* 避免循环依赖)
+    void *default_canvas_ctx;          // 默认 canvas 上下文
+    void *default_lay_ctx;             // 默认 lay 布局上下文
+    void *default_event_dispatcher;     // 默认事件分发器
+    ui_component_t *default_root;     // 默认根容器
     
     // 场景注册表（用于通过名称查找场景）
     scene_t *registered_scenes[32];  // 最多支持32个场景
@@ -295,7 +312,7 @@ struct scene_manager_t {
 // ========================================
 // 场景管理API
 // ========================================
-scene_manager_t* SceneManager_Create(void);
+scene_manager_t* SceneManager_Create(int width, int height);  // 创建时指定默认canvas尺寸
 void SceneManager_Destroy(scene_manager_t *mgr);
 
 // 场景注册
@@ -317,6 +334,24 @@ bool SceneManager_IsSceneRegistered(scene_manager_t *mgr, const char *name);
 
 // 获取调用者的返回值（用于pause时的result）
 const scene_params_t* SceneManager_GetPreviousResult(scene_manager_t *mgr);
+
+// ============= 默认资源API =============
+// 获取默认 canvas
+void* SceneManager_GetDefaultCanvas(scene_manager_t *mgr);
+void* SceneManager_GetDefaultCanvasContext(scene_manager_t *mgr);
+
+// 获取默认布局上下文
+void* SceneManager_GetDefaultLayoutContext(scene_manager_t *mgr);
+
+// 获取默认事件分发器
+void* SceneManager_GetDefaultEventDispatcher(scene_manager_t *mgr);
+
+// 获取默认根容器
+ui_component_t* SceneManager_GetDefaultRoot(scene_manager_t *mgr);
+
+// ============= 场景资源管理 =============
+// 初始化场景时自动使用默认资源
+void SceneManager_InitSceneWithDefaults(scene_manager_t *mgr, scene_t *scene);
 
 // 主循环接口
 void SceneManager_Update(scene_manager_t *mgr, int msec);

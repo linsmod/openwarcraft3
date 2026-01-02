@@ -1,6 +1,11 @@
 #include "scene.h"
 #include "../map_select/ui_component.h"
+#include "../map_select/ui_container.h"
+#include "../map_select/ui_event_dispatcher.h"
+#include "../html/layout.h"
+#include "../canvas2d/canvas2d.h"
 #include "common/shared.h"
+#include "r_local.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -287,7 +292,7 @@ void SceneTransition_Destroy(scene_transition_t *transition) {
 // 场景管理器实现
 // ========================================
 
-scene_manager_t* SceneManager_Create(void) {
+scene_manager_t* SceneManager_Create(int width, int height) {
     scene_manager_t *mgr = (scene_manager_t*)malloc(sizeof(scene_manager_t));
     if (!mgr) return NULL;
     
@@ -296,6 +301,65 @@ scene_manager_t* SceneManager_Create(void) {
     
     // 初始化鼠标状态
     SceneManager_InitMouseState(mgr);
+    
+    // ============= 创建默认资源 =============
+    // 注意：这里使用 void* 类型以避免循环依赖
+    // 实际类型在实现中转换
+    printf("SceneManager: Creating default resources (%dx%d)\n", width, height);
+    
+    // 创建默认 canvas
+    mgr->default_canvas = canvas2d_create(width, height);
+    if (mgr->default_canvas) {
+        mgr->default_canvas_ctx = canvas2d_get_context((canvas2d_t *)mgr->default_canvas);
+        printf("  Created default canvas and context\n");
+    }
+    
+    // 创建默认布局上下文
+    if (mgr->default_canvas_ctx) {
+        mgr->default_lay_ctx = (void *)malloc(sizeof(lay_context));
+        if (mgr->default_lay_ctx) {
+            lay_init_context((lay_context *)mgr->default_lay_ctx);
+            printf("  Created default layout context\n");
+        }
+    }
+    
+    // 创建默认根容器
+    if (mgr->default_canvas_ctx) {
+        mgr->default_root = (ui_component_t *)UIContainer_Create(
+            0.0f, 0.0f, (float)width, (float)height,
+            MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
+            MAKE(COLOR32, 0, 0, 0, 0),
+            (canvas2d_context_t *)mgr->default_canvas_ctx
+        );
+        if (mgr->default_root) {
+            printf("  Created default root container\n");
+            // 设置布局上下文
+            UIComponent_SetLayoutContext(mgr->default_root, (lay_context *)mgr->default_lay_ctx);
+            // 创建布局项
+            UIComponent_CreateLayoutItem(mgr->default_root);
+            UIComponent_SetLayoutSize(mgr->default_root, (float)width, (float)height);
+            UIComponent_SetLayoutContain(mgr->default_root, LAY_COLUMN);
+        }
+    }
+    
+    // 创建默认事件分发器
+    if (mgr->default_root && mgr->default_canvas_ctx) {
+        mgr->default_event_dispatcher = (void *)malloc(sizeof(ui_event_dispatcher_t));
+        if (mgr->default_event_dispatcher) {
+            int result = UIEventDispatcher_Init(
+                (ui_event_dispatcher_t *)mgr->default_event_dispatcher,
+                mgr->default_root,
+                (canvas2d_context_t *)mgr->default_canvas_ctx
+            );
+            if (result == 0) {
+                printf("  Created default event dispatcher\n");
+            } else {
+                printf("  Failed to create default event dispatcher: %d\n", result);
+                free(mgr->default_event_dispatcher);
+                mgr->default_event_dispatcher = NULL;
+            }
+        }
+    }
     
     return mgr;
 }
@@ -340,6 +404,40 @@ void SceneManager_Destroy(scene_manager_t *mgr) {
         SceneManager_PopScene(mgr, NULL);
     }
     
+    // ============= 销毁默认资源 =============
+    printf("SceneManager: Destroying default resources\n");
+    
+    // 销毁默认事件分发器（如果有）
+    if (mgr->default_event_dispatcher) {
+        UIEventDispatcher_Destroy((ui_event_dispatcher_t *)mgr->default_event_dispatcher);
+        free(mgr->default_event_dispatcher);
+        mgr->default_event_dispatcher = NULL;
+        printf("  Destroyed default event dispatcher\n");
+    }
+    
+    // 销毁默认根容器（如果有）
+    if (mgr->default_root) {
+        UIContainer_Destroy((ui_container_t *)mgr->default_root);
+        mgr->default_root = NULL;
+        printf("  Destroyed default root container\n");
+    }
+    
+    // 销毁默认布局上下文（如果有）
+    if (mgr->default_lay_ctx) {
+        lay_destroy_context((lay_context *)mgr->default_lay_ctx);
+        free(mgr->default_lay_ctx);
+        mgr->default_lay_ctx = NULL;
+        printf("  Destroyed default layout context\n");
+    }
+    
+    // 销毁默认 canvas（如果有）
+    if (mgr->default_canvas) {
+        canvas2d_destroy((canvas2d_t *)mgr->default_canvas);
+        mgr->default_canvas = NULL;
+        mgr->default_canvas_ctx = NULL;
+        printf("  Destroyed default canvas\n");
+    }
+    
     free(mgr);
 }
 
@@ -357,7 +455,9 @@ void SceneManager_PushScene(scene_manager_t *mgr, scene_t *scene, const scene_pa
     // 设置启动参数
     scene->launch_params = params;
     scene->manager = mgr;
-    
+    scene->canvas = mgr->default_canvas;
+    scene->canvas_ctx = mgr->default_canvas_ctx;
+    scene->lay_ctx = mgr->default_lay_ctx;
     // 初始化场景
     if (scene->state == SCENE_STATE_UNINITIALIZED) {
         if (SCENE_INIT(scene, params) == 0) {
@@ -531,6 +631,8 @@ const scene_params_t* SceneManager_GetPreviousResult(scene_manager_t *mgr) {
     return NULL;
 }
 
+void Scene_LayoutUI(scene_t *scene, int msec);
+
 void SceneManager_Update(scene_manager_t *mgr, int msec) {
     if (!mgr || !mgr->current_scene) return;
     
@@ -541,6 +643,7 @@ void SceneManager_Update(scene_manager_t *mgr, int msec) {
         mgr->pending_transition = NULL;
         return;
     }
+    // 先更新非UI逻辑
     // 调用场景的update函数，检查是否有跳转请求
     scene_transition_t *transition = SCENE_UPDATE(mgr->current_scene, msec);
     if (transition) {
@@ -548,6 +651,17 @@ void SceneManager_Update(scene_manager_t *mgr, int msec) {
         SceneManager_Transition(mgr, mgr->pending_transition);
         SceneTransition_Destroy(mgr->pending_transition);
         mgr->pending_transition = NULL;
+    }
+
+    // 再更新UI逻辑
+    Scene_UpdateUI(mgr->current_scene, msec);
+
+    // 从栈底到栈顶依次渲染（实现叠加效果）
+    for (int i = 0; i < mgr->stack_size; i++) {
+        if (mgr->stack[i]->state == SCENE_STATE_ACTIVE || 
+            mgr->stack[i]->state == SCENE_STATE_PAUSED) {
+            Scene_LayoutUI(mgr->stack[i], msec);
+        }
     }
 }
 
@@ -558,7 +672,7 @@ void SceneManager_Render(scene_manager_t *mgr) {
     for (int i = 0; i < mgr->stack_size; i++) {
         if (mgr->stack[i]->state == SCENE_STATE_ACTIVE || 
             mgr->stack[i]->state == SCENE_STATE_PAUSED) {
-            SCENE_RENDER(mgr->stack[i]);
+            Scene_RenderUI(mgr->stack[i]);
         }
     }
 }
@@ -824,6 +938,41 @@ void SceneManager_OnInput(scene_manager_t *mgr, input_event_t *event) {
 }
 
 // ========================================
+// 默认资源API实现
+// ========================================
+
+void* SceneManager_GetDefaultCanvas(scene_manager_t *mgr) {
+    return mgr ? mgr->default_canvas : NULL;
+}
+
+void* SceneManager_GetDefaultCanvasContext(scene_manager_t *mgr) {
+    return mgr ? mgr->default_canvas_ctx : NULL;
+}
+
+void* SceneManager_GetDefaultLayoutContext(scene_manager_t *mgr) {
+    return mgr ? mgr->default_lay_ctx : NULL;
+}
+
+void* SceneManager_GetDefaultEventDispatcher(scene_manager_t *mgr) {
+    return mgr ? mgr->default_event_dispatcher : NULL;
+}
+
+ui_component_t* SceneManager_GetDefaultRoot(scene_manager_t *mgr) {
+    return mgr ? mgr->default_root : NULL;
+}
+
+// 初始化场景时自动使用默认资源
+void SceneManager_InitSceneWithDefaults(scene_manager_t *mgr, scene_t *scene) {
+    if (!mgr || !scene) return;
+    
+    // 如果场景没有设置根容器，使用默认的
+    if (!scene->root_component && mgr->default_root) {
+        printf("SceneManager: Setting default root for scene '%s'\n", scene->name);
+        scene->root_component = mgr->default_root;
+    }
+}
+
+// ========================================
 // 场景UI辅助函数实现
 // ========================================
 
@@ -835,6 +984,7 @@ void Scene_SetRootComponent(scene_t *scene, ui_component_t *root) {
 ui_component_t* Scene_GetRootComponent(scene_t *scene) {
     return scene ? scene->root_component : NULL;
 }
+
 
 void Scene_UpdateUI(scene_t *scene, int msec) {
     if (!scene || !scene->root_component) return;
@@ -865,6 +1015,35 @@ void Scene_UpdateUI(scene_t *scene, int msec) {
     }
 }
 
+void Scene_LayoutUI(scene_t *scene, int msec) {
+    if (!scene || !scene->root_component) return;
+    
+    // 递归更新所有组件
+    ui_component_t **stack[128];
+    int stack_size = 0;
+    stack[stack_size++] = &scene->root_component;
+    size2_t vpsize = R_GetViewPortSize();
+    while (stack_size > 0) {
+        ui_component_t **comp_ptr = stack[--stack_size];
+        ui_component_t *comp = *comp_ptr;
+        if (!comp) continue;
+        
+        // 调用组件的layout方法（如果存在）
+        if (comp->vtable && comp->vtable->layout) {
+            comp->vtable->layout(comp, scene->root_component,vpsize);
+        }
+        
+        // 添加子组件到栈（用于容器组件）
+        if (comp->children) {
+            for (int i = 0; i < comp->child_count; i++) {
+                if (stack_size < 128) {
+                    stack[stack_size++] = &comp->children[i];
+                }
+            }
+        }
+    }
+}
+
 void Scene_RenderUI(scene_t *scene) {
     if (!scene || !scene->root_component) return;
     
@@ -872,7 +1051,6 @@ void Scene_RenderUI(scene_t *scene) {
     ui_component_t **stack[128];
     int stack_size = 0;
     stack[stack_size++] = &scene->root_component;
-    
     while (stack_size > 0) {
         ui_component_t **comp_ptr = stack[--stack_size];
         ui_component_t *comp = *comp_ptr;

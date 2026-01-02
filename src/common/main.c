@@ -52,8 +52,8 @@ int main(int argc, LPSTR argv[]) {
     Com_Init();
     html_init("../html_tests/splash.html");
     
-    // 初始化SceneManager
-    scene_manager_t *scene_mgr = SceneManager_Create();
+    // 初始化SceneManager（使用默认尺寸 1024x768）
+    scene_manager_t *scene_mgr = SceneManager_Create(1024, 768);
     if (!scene_mgr) {
         printf("Failed to create SceneManager\n");
         return 1;
