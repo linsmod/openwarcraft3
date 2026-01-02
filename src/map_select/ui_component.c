@@ -281,6 +281,24 @@ void UIComponent_RenderBackground(ui_component_t *component) {
     canvas2d_fill_rect(component->ctx, component->x, component->y, component->width, component->height);
 }
 
+// 绘制组件边框
+void UIComponent_RenderBorder(ui_component_t *component) {
+    if (!component || !UIComponent_IsVisible(component)) return;
+
+    // 默认实现：检查是否有边框颜色（对于非容器组件，这里使用一个简单的默认边框）
+    // 对于容器组件（ui_container_t），边框在 container_render 中绘制
+    // 这里提供一个基础实现，子类可以覆盖
+    
+    // 默认不绘制边框，除非组件有特定的标志或状态
+    // 例如：当组件获得焦点时，可以绘制一个焦点边框
+    if (component->flags & UI_FLAG_FOCUSED) {
+        COLOR32 focus_color = MAKE(COLOR32, 0, 120, 215, 255); // 蓝色焦点边框
+        canvas2d_set_stroke_style(component->ctx, focus_color);
+        canvas2d_set_line_width(component->ctx, 2.0f);
+        canvas2d_stroke_rect(component->ctx, component->x, component->y, component->width, component->height);
+    }
+}
+
 void UIComponent_SetBgColor(ui_component_t *component, COLOR32 color) {
     if (component) {
         // 设置所有状态为相同颜色
@@ -554,4 +572,16 @@ void UIComponent_Layout(ui_component_t *root) {
     printf("\n========== UI Layout Tree (After Layout) ==========\n");
     UIComponent_PrintTree(root, 0);
     printf("===================================\n\n");
+}
+
+// ==================== 组件渲染默认实现 ====================
+
+// 默认的组件渲染实现
+void UIComponent_Render(ui_component_t *component) {
+    if (!component || !UIComponent_IsVisible(component)) return;
+    
+    // 调用组件的 render 方法（如果存在）
+    if (component->vtable && component->vtable->render) {
+        component->vtable->render(component);
+    }
 }

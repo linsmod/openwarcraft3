@@ -1,6 +1,6 @@
 #include "scene.h"
 #include "../map_select/ui_component.h"
-// ui_container 已合并到 ui_component
+#include "../map_select/ui_container.h"
 #include "../map_select/ui_event_dispatcher.h"
 #include "../html/layout.h"
 #include "../canvas2d/canvas2d.h"
@@ -409,7 +409,7 @@ void SceneManager_Destroy(scene_manager_t *mgr) {
     
     // 销毁默认事件分发器（如果有）
     if (mgr->default_event_dispatcher) {
-        UIEventDispatcher_Destroy((ui_event_dispatcher_t *)mgr->default_event_dispatcher);
+        UIEventDispatcher_Shutdown((ui_event_dispatcher_t *)mgr->default_event_dispatcher);
         free(mgr->default_event_dispatcher);
         mgr->default_event_dispatcher = NULL;
         printf("  Destroyed default event dispatcher\n");
@@ -1037,24 +1037,22 @@ void Scene_RenderUI(scene_t *scene) {
         // 只渲染可见的组件
         if (comp->flags & UI_FLAG_VISIBLE) {
             // 调用组件的render方法（如果存在）,否则使用默认的
+            // 优先使用 vtable 中的渲染函数，如果存在的话
             if (comp->vtable && comp->vtable->render_background) {
                 comp->vtable->render_background(comp);
-            }
-            else{
+            } else {
                 UIComponent_RenderBackground(comp);
             }
 
             if (comp->vtable && comp->vtable->render_border) {
                 comp->vtable->render_border(comp);
-            }
-            else{
+            } else {
                 UIComponent_RenderBorder(comp);
             }
 
             if (comp->vtable && comp->vtable->render) {
                 comp->vtable->render(comp);
-            }
-            else{
+            } else {
                 UIComponent_Render(comp);
                 // 添加子组件到栈（用于容器组件）
                 if (comp->children) {

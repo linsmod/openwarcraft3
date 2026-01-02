@@ -171,6 +171,10 @@ typedef struct ui_component_vtable {
     void (*layout)(ui_component_t* component, ui_component_t* root,size2_t vpsize);
     void (*render)(ui_component_t *component);
     
+    // 渲染辅助方法（可选，用于自定义渲染）
+    void (*render_background)(ui_component_t *component);
+    void (*render_border)(ui_component_t *component);
+    
     // 布局方法
     void (*set_position)(ui_component_t *component, float x, float y);
     void (*set_size)(ui_component_t *component, float width, float height);
@@ -317,6 +321,7 @@ void UIComponent_Destroy(ui_component_t *component);
 
 void UIComponent_Render(ui_component_t *component);
 void UIComponent_RenderBackground(ui_component_t *component);
+void UIComponent_RenderBorder(ui_component_t *component);
 
 // ==================== 样式相关函数 ====================
 
