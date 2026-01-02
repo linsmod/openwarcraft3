@@ -261,6 +261,10 @@ void UIComponent_ShutdownBase(ui_component_t *component) {
 // 绘制组件背景
 void UIComponent_RenderBackground(ui_component_t *component) {
     if (!component || !UIComponent_IsVisible(component)) return;
+    
+    // 从布局系统获取组件的实际位置和尺寸
+    lay_scalar x, y, w, h;
+    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x, &y, &w, &h);
 
     // 根据组件状态选择背景色
     COLOR32 bg_color;
@@ -278,12 +282,16 @@ void UIComponent_RenderBackground(ui_component_t *component) {
     if (bg_color.a == 0) return;
 
     canvas2d_set_fill_style(component->ctx, bg_color);
-    canvas2d_fill_rect(component->ctx, component->x, component->y, component->width, component->height);
+    canvas2d_fill_rect(component->ctx, (float)x, (float)y, (float)w, (float)h);
 }
 
 // 绘制组件边框
 void UIComponent_RenderBorder(ui_component_t *component) {
     if (!component || !UIComponent_IsVisible(component)) return;
+    
+    // 从布局系统获取组件的实际位置和尺寸
+    lay_scalar x, y, w, h;
+    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x, &y, &w, &h);
 
     // 默认实现：检查是否有边框颜色（对于非容器组件，这里使用一个简单的默认边框）
     // 对于容器组件（ui_container_t），边框在 container_render 中绘制
@@ -295,7 +303,7 @@ void UIComponent_RenderBorder(ui_component_t *component) {
         COLOR32 focus_color = MAKE(COLOR32, 0, 120, 215, 255); // 蓝色焦点边框
         canvas2d_set_stroke_style(component->ctx, focus_color);
         canvas2d_set_line_width(component->ctx, 2.0f);
-        canvas2d_stroke_rect(component->ctx, component->x, component->y, component->width, component->height);
+        canvas2d_stroke_rect(component->ctx, (float)x, (float)y, (float)w, (float)h);
     }
 }
 
@@ -407,9 +415,12 @@ void UIComponent_PrintTree(const ui_component_t *component, int indent) {
     const char *enabled = UIComponent_IsEnabled(component) ? "E" : "-";
     const char *focused = UIComponent_IsFocused(component) ? "F" : "-";
 
-    printf("[%s%s%s] %s @ (%.1f, %.1f) [%.1f x %.1f]\n",
+    lay_scalar x,y,w,h;
+    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id,&x,&y,&w,&h);
+
+    printf("[%s%s%s] %s @ (%.1d, %.1d) [%.1d x %.1d]\n",
            visible, enabled, focused, type_name,
-           component->x, component->y, component->width, component->height);
+           x,y,w,h);
 
     // 递归打印子组件
     for (int i = 0; i < component->child_count; i++) {
@@ -542,21 +553,6 @@ static void ApplyLayoutToComponent(ui_component_t *component) {
     }
 }
 
-// 内部辅助函数：递归应用布局
-static void ApplyLayoutTreeRecursive(ui_component_t *component) {
-    if (!component) {
-        return;
-    }
-
-    // 应用布局到当前组件
-    ApplyLayoutToComponent(component);
-
-    // 递归应用到所有子组件
-    for (int i = 0; i < component->child_count; i++) {
-        ApplyLayoutTreeRecursive(component->children[i]);
-    }
-}
-
 void UIComponent_Layout(ui_component_t *root) {
     if (!root || !root->lay_ctx) {
         return;
@@ -564,9 +560,6 @@ void UIComponent_Layout(ui_component_t *root) {
 
     // 运行布局计算
     lay_run_context(root->lay_ctx);
-
-    // 递归应用布局到整个组件树
-    ApplyLayoutTreeRecursive(root);
     
     // 调试输出：打印布局后的组件树
     printf("\n========== UI Layout Tree (After Layout) ==========\n");

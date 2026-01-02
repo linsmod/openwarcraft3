@@ -817,13 +817,6 @@ int MapSelect_Init(scene_t *scene) {
     FilterCurrentPath();
     
     g_state = MAP_SELECT_STATE_LIST;
-
-    // 打印布局树
-    printf("\n========== UI Layout Tree ==========\n");
-    UIComponent_PrintTree(g_root_container, 0);
-    printf("===================================\n\n");
-
-    printf("Map Selection Screen initialized\n");
     return 0;
 }
 
