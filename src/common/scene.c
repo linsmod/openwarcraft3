@@ -449,6 +449,7 @@ void SceneManager_PushScene(scene_manager_t *mgr, scene_t *scene, const scene_pa
     scene->canvas = mgr->default_canvas;
     scene->canvas_ctx = mgr->default_canvas_ctx;
     scene->lay_ctx = mgr->default_lay_ctx;
+    scene->root_component = mgr->default_root;
     // 初始化场景
     if (scene->state == SCENE_STATE_UNINITIALIZED) {
         if (SCENE_INIT(scene, params) == 0) {
