@@ -97,7 +97,27 @@ canvas2d_t* canvas2d_create(int width, int height) {
     canvas->context->stateStackSize = 0;
     canvas->context->stateStackCapacity = 10;
 
+    canvas->context->lay_ctx = malloc(sizeof(lay_context));
+    lay_init_context(canvas->context->lay_ctx);
+    canvas->context->lay_id = lay_item(canvas->context->lay_ctx);
+    lay_set_contain(canvas->context->lay_ctx, canvas->context->lay_id, LAY_COLUMN);
+    lay_set_size_xy(canvas->context->lay_ctx, canvas->context->lay_id, width, height);
     return canvas;
+}
+
+lay_context* canvas2d_getlayctx(canvas2d_t *canvas) {
+    if (!canvas || !canvas->initialized) {
+        canvas2d_log_error("Canvas not initialized");
+        return NULL;
+    }
+    return canvas->context->lay_ctx;
+}
+lay_id canvas2d_getlayid(canvas2d_t *canvas) {
+    if (!canvas || !canvas->initialized) {
+        canvas2d_log_error("Canvas not initialized");
+        return 0;
+    }
+    return canvas->context->lay_id;
 }
 
 void canvas2d_destroy(canvas2d_t *canvas) {

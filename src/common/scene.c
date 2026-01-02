@@ -313,16 +313,8 @@ scene_manager_t* SceneManager_Create(int width, int height) {
     mgr->default_canvas = canvas2d_create(width, height);
     if (mgr->default_canvas) {
         mgr->default_canvas_ctx = canvas2d_get_context((canvas2d_t *)mgr->default_canvas);
+        mgr->default_lay_ctx = canvas2d_getlayctx((canvas2d_t *)mgr->default_canvas);
         printf("  Created default canvas and context\n");
-    }
-    
-    // 创建默认布局上下文
-    if (mgr->default_canvas_ctx) {
-        mgr->default_lay_ctx = (void *)malloc(sizeof(lay_context));
-        if (mgr->default_lay_ctx) {
-            lay_init_context((lay_context *)mgr->default_lay_ctx);
-            printf("  Created default layout context\n");
-        }
     }
     
     // 创建默认根容器
@@ -334,13 +326,10 @@ scene_manager_t* SceneManager_Create(int width, int height) {
             (canvas2d_context_t *)mgr->default_canvas_ctx
         );
         if (mgr->default_root) {
+            lay_insert(mgr->default_lay_ctx, 
+                canvas2d_getlayid((canvas2d_t *)mgr->default_canvas), 
+                mgr->default_root->lay_item_id);
             printf("  Created default root container\n");
-            // 设置布局上下文
-            UIComponent_SetLayoutContext(mgr->default_root, (lay_context *)mgr->default_lay_ctx);
-            // 创建布局项
-            UIComponent_CreateLayoutItem(mgr->default_root);
-            UIComponent_SetSize(mgr->default_root, (float)width, (float)height);
-            UIComponent_SetContain(mgr->default_root, LAY_COLUMN);
         }
     }
     
@@ -1021,7 +1010,7 @@ void Scene_LayoutUI(scene_t *scene, int msec) {
     if (!scene || !scene->root_component) return;
     
     // 使用lay库对使用children注册的组件布局
-    lay_run_context(scene->root_component->lay_ctx);
+    UIComponent_Layout(scene->root_component);
 
     // 递归所有组件, 调用组件的layout方法（如果存在）
     ui_component_t **stack[128];
@@ -1068,17 +1057,13 @@ void Scene_RenderUI(scene_t *scene) {
         if (comp->flags & UI_FLAG_VISIBLE) {
             // 调用组件的render方法（如果存在）,否则使用默认的
             // 优先使用 vtable 中的渲染函数，如果存在的话
-            if (comp->vtable && comp->vtable->render_background) {
-                comp->vtable->render_background(comp);
-            } else {
-                UIComponent_RenderBackground(comp);
-            }
+            lay_scalar x, y, w, h;
+            lay_get_rect_xywh(scene->lay_ctx, comp->lay_item_id, &x,&y,&w,&h);
 
-            if (comp->vtable && comp->vtable->render_border) {
-                comp->vtable->render_border(comp);
-            } else {
-                UIComponent_RenderBorder(comp);
-            }
+            // comp->x = x;
+            // comp->y = y;
+            // comp->width = w;
+            // comp->height = h;
 
             if (comp->vtable && comp->vtable->render) {
                 comp->vtable->render(comp);

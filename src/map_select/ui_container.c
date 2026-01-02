@@ -1,4 +1,7 @@
 #include "ui_container.h"
+#include "common/scene.h"
+#include "html/layout.h"
+#include "map_select/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -40,9 +43,6 @@ static void container_render(ui_component_t *component) {
     ui_container_t *container = (ui_container_t *)component;
     if (!container || !UIComponent_IsVisible(component)) return;
 
-    // 使用基础组件背景渲染
-    UIComponent_RenderBackground(component);
-
     // 绘制边框
     if (container->border_width > 0) {
         canvas2d_set_stroke_style(component->ctx, container->border_color);
@@ -59,12 +59,12 @@ static void container_render(ui_component_t *component) {
     // }
 
     // 渲染所有子组件
-    for (int i = 0; i < component->child_count; i++) {
-        ui_component_t *child = component->children[i];
-        if (child && child->vtable && child->vtable->render) {
-            child->vtable->render(child);
-        }
-    }
+    // for (int i = 0; i < component->child_count; i++) {
+    //     ui_component_t *child = component->children[i];
+    //     if (child && child->vtable && child->vtable->render) {
+    //         child->vtable->render(child);
+    //     }
+    // }
 
     // 恢复裁剪
     // if (component->flags & UI_FLAG_CLIPPING) {
@@ -185,7 +185,7 @@ static const ui_component_vtable_t g_container_vtable = {
     .init = container_init,
     .shutdown = container_shutdown,
     .update = container_update,
-    .render = container_render,
+    .render = NULL,
     .set_position = container_set_position,
     .set_size = container_set_size,
     .set_bounds = container_set_bounds,
@@ -231,12 +231,13 @@ ui_container_t* UIContainer_Create(float x, float y, float width, float height,
 
     container->base.x = x;
     container->base.y = y;
-    container->base.width = width;
-    container->base.height = height;
+    UIComponent_SetMargin(&container->base, y, 0, 0, x);
+    UIComponent_SetSize(&container->base, width, height);
     UIComponent_SetBgColor(&container->base, bg_color);
     container->border_color = border_color;
     container->border_width = 1.0f;
     container->max_children = 100;
+    UIComponent_SetLayoutContain((ui_component_t*)container,LAY_COLUMN);
 
     // 启用裁剪
     // container->base.flags |= UI_FLAG_CLIPPING;

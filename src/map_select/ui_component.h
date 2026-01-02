@@ -320,8 +320,6 @@ void UIComponent_Destroy(ui_component_t *component);
 // ==================== 组件渲染 ====================
 
 void UIComponent_Render(ui_component_t *component);
-void UIComponent_RenderBackground(ui_component_t *component);
-void UIComponent_RenderBorder(ui_component_t *component);
 
 // ==================== 样式相关函数 ====================
 
@@ -355,10 +353,10 @@ void UIComponent_SetSize(ui_component_t *component, float width, float height);
 void UIComponent_GetSize(const ui_component_t *component, float *width, float *height);
 
 // 设置布局尺寸（旧API，用于初始化）
-void UIComponent_SetLayoutSize(ui_component_t *component, float width, float height);
+void UIComponent_SetSize(ui_component_t *component, float width, float height);
 
 // 设置组件的边距（自动同步到布局系统）
-void UIComponent_SetMarginLayout(ui_component_t *component, float top, float right, float bottom, float left);
+void UIComponent_SetMargin(ui_component_t *component, float top, float right, float bottom, float left);
 
 // 设置布局边距（旧API）
 void UIComponent_SetLayoutMargins(ui_component_t *component, float left, float top, float right, float bottom);

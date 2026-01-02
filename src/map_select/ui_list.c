@@ -61,9 +61,6 @@ static void list_render(ui_component_t *component) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsVisible(component)) return;
 
-    // 使用基础组件背景渲染
-    UIComponent_RenderBackground(component);
-
     // 绘制边框
     canvas2d_set_stroke_style(component->ctx, list->border_color);
     canvas2d_set_line_width(component->ctx, 1.0f);
@@ -563,20 +560,6 @@ void UIList_SetSelectedChangedCallback(ui_list_t *list, ui_list_on_selected_chan
     if (!list) return;
     list->on_selected_changed = callback;
     list->callback_user_data = user_data;
-}
-
-void UIList_Update(ui_list_t *list, int msec) {
-    if (!list) return;
-    if (list->base.vtable && list->base.vtable->update) {
-        list->base.vtable->update(&list->base, msec);
-    }
-}
-
-void UIList_Render(ui_list_t *list) {
-    if (!list) return;
-    if (list->base.vtable && list->base.vtable->render) {
-        list->base.vtable->render(&list->base);
-    }
 }
 
 void UIList_Shutdown(ui_list_t *list) {

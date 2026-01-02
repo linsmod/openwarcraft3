@@ -1,4 +1,6 @@
 #include "ui_component.h"
+#include "html/layout.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -231,8 +233,8 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->drag_start_y = 0.0f;
     component->drag_offset_x = 0.0f;
     component->drag_offset_y = 0.0f;
-    component->lay_ctx = NULL;
-    component->lay_item_id = LAY_INVALID_ID;
+    component->lay_ctx = ctx->lay_ctx;
+    component->lay_item_id = lay_item(ctx->lay_ctx);
 
     // 初始化事件处理器数组
     memset(component->event_handlers, 0, sizeof(component->event_handlers));
@@ -259,7 +261,7 @@ void UIComponent_ShutdownBase(ui_component_t *component) {
 // ==================== 样式相关函数 ====================
 
 // 绘制组件背景
-void UIComponent_RenderBackground(ui_component_t *component) {
+static void UIComponent_RenderBackground(ui_component_t *component) {
     if (!component || !UIComponent_IsVisible(component)) return;
     
     // 从布局系统获取组件的实际位置和尺寸
@@ -286,7 +288,7 @@ void UIComponent_RenderBackground(ui_component_t *component) {
 }
 
 // 绘制组件边框
-void UIComponent_RenderBorder(ui_component_t *component) {
+static void UIComponent_RenderBorder(ui_component_t *component) {
     if (!component || !UIComponent_IsVisible(component)) return;
     
     // 从布局系统获取组件的实际位置和尺寸
@@ -330,14 +332,6 @@ COLOR32 UIComponent_GetBgColor(const ui_component_t *component) {
     } else {
         return component->bg_color.normal;
     }
-}
-
-void UIComponent_SetMargin(ui_component_t *component, float top, float right, float bottom, float left) {
-    if (!component) return;
-    component->margin[0] = top;
-    component->margin[1] = right;
-    component->margin[2] = bottom;
-    component->margin[3] = left;
 }
 
 void UIComponent_GetMargin(const ui_component_t *component, float *top, float *right, float *bottom, float *left) {
@@ -451,12 +445,8 @@ lay_id UIComponent_GetLayoutItem(const ui_component_t *component) {
     return component ? component->lay_item_id : LAY_INVALID_ID;
 }
 
-void UIComponent_SetLayoutSize(ui_component_t *component, float width, float height) {
-    UIComponent_SetSize(component, width, height);
-}
-
 void UIComponent_SetLayoutMargins(ui_component_t *component, float left, float top, float right, float bottom) {
-    UIComponent_SetMarginLayout(component, top, right, bottom, left);
+    UIComponent_SetMargin(component, top, right, bottom, left);
 }
 
 void UIComponent_SetSize(ui_component_t *component, float width, float height) {
@@ -482,7 +472,7 @@ void UIComponent_GetSize(const ui_component_t *component, float *width, float *h
     if (height) *height = component->height;
 }
 
-void UIComponent_SetMarginLayout(ui_component_t *component, float top, float right, float bottom, float left) {
+void UIComponent_SetMargin(ui_component_t *component, float top, float right, float bottom, float left) {
     if (!component) return;
     
     // 更新组件边距
@@ -570,11 +560,21 @@ void UIComponent_Layout(ui_component_t *root) {
 // ==================== 组件渲染默认实现 ====================
 
 // 默认的组件渲染实现
-void UIComponent_Render(ui_component_t *component) {
-    if (!component || !UIComponent_IsVisible(component)) return;
-    
+void UIComponent_Render(ui_component_t *comp) {
+    if (!comp || !UIComponent_IsVisible(comp)) return;
+    if (comp->vtable && comp->vtable->render_background) {
+        comp->vtable->render_background(comp);
+    } else {
+        UIComponent_RenderBackground(comp);
+    }
+
+    if (comp->vtable && comp->vtable->render_border) {
+        comp->vtable->render_border(comp);
+    } else {
+        UIComponent_RenderBorder(comp);
+    }
     // 调用组件的 render 方法（如果存在）
-    if (component->vtable && component->vtable->render) {
-        component->vtable->render(component);
+    if (comp->vtable && comp->vtable->render) {
+        comp->vtable->render(comp);
     }
 }
