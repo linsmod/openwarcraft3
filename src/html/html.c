@@ -6,7 +6,7 @@
  * Copyright 2008 Andrew Sidwell <takkaria@netsurf-browser.org> 
  * Copyright 2008 John-Mark Bell <jmb@netsurf-browser.org>
  */
-
+#define LAY_IMPLEMENTATION
 #include "common/common.h"
 #include "common/shared.h"
 #include "libcss/errors.h"

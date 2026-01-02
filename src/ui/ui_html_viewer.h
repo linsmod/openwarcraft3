@@ -7,6 +7,10 @@
 #include "html/html.h"
 #include "html/layout.h"
 
+// ==================== 前向声明 ====================
+
+typedef struct ui_html_viewer_t ui_html_viewer_t;
+
 // ==================== 回调类型 ====================
 
 typedef void (*html_viewer_element_clicked_fn)(ui_html_viewer_t *viewer,
@@ -19,7 +23,7 @@ typedef void (*html_viewer_link_clicked_fn)(ui_html_viewer_t *viewer,
 
 // ==================== 组件结构 ====================
 
-typedef struct ui_html_viewer_t {
+struct ui_html_viewer_t {
     ui_component_t base;
 
     context *html_ctx;
@@ -41,7 +45,7 @@ typedef struct ui_html_viewer_t {
     html_viewer_link_clicked_fn on_link_clicked;
     void *callback_user_data;
 
-} ui_html_viewer_t;
+};
 
 // ==================== 创建和销毁 ====================
 

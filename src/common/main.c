@@ -50,7 +50,6 @@ int main(int argc, LPSTR argv[]) {
     }
     // 初始化游戏系统
     Com_Init();
-    html_init("../html_tests/splash.html");
     
     // 初始化SceneManager（使用默认尺寸 1024x768）
     scene_manager_t *scene_mgr = SceneManager_Create(1024, 768);

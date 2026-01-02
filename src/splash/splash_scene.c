@@ -1,10 +1,10 @@
 #include "splash_scene.h"
 #include "../client/client.h"
+#include "../ui/ui_html_viewer.h"
+#include "../ui/ui_container.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define LAY_IMPLEMENTATION
-#include "html/html.h"
 
 // ========================================
 // Splash 场景数据结构
@@ -43,6 +43,13 @@ static scene_t g_splash_scene = {
 int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
     printf("SplashScene: Initializing...\n");
     
+    // 获取场景根容器
+    ui_component_t *root = scene->root_component;
+    if (!root) {
+        printf("SplashScene: Root component not found\n");
+        return -1;
+    }
+    
     // 分配场景数据
     splash_scene_data_t *data = (splash_scene_data_t*)malloc(sizeof(splash_scene_data_t));
     if (!data) {
@@ -54,7 +61,7 @@ int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
     
     // 设置默认参数
     data->elapsed_time = 0.0f;
-    data->display_duration = 5000.0f;  // 
+    data->display_duration = 5000.0f;  // 显示5秒
     data->fade_in_duration = 500.0f;   // 淡入0.5秒
     data->fade_out_duration = 500.0f;  // 淡出0.5秒
     data->can_skip = true;             // 允许跳过
@@ -77,9 +84,33 @@ int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
                duration, fade_in, fade_out, skip ? "true" : "false");
     }
     
+    // 创建HTML Viewer组件，填满整个场景
+    float scene_width = root->width;
+    float scene_height = root->height;
+    
+    canvas2d_context_t *canvas_ctx = scene->canvas_ctx;
+    ui_html_viewer_t *viewer = UIHTMLViewer_Create(0.0f, 0.0f, scene_width, scene_height, canvas_ctx);
+    if (!viewer) {
+        printf("SplashScene: Failed to create HTML viewer\n");
+        free(data);
+        return -1;
+    }
+    
+    // 加载HTML文件
+    if (UIHTMLViewer_LoadFromFile(viewer, "../html_tests/splash.html") != 0) {
+        printf("SplashScene: Failed to load splash.html\n");
+        UIHTMLViewer_Destroy(viewer);
+        free(data);
+        return -1;
+    }
+    
+    // 将HTML Viewer添加到根容器
+    UIContainer_AddChild((ui_container_t *)root, (ui_component_t *)viewer);
+    
+    // 保存viewer和数据
     scene->user_data = data;
     
-    printf("SplashScene: Initialized successfully\n");
+    printf("SplashScene: Initialized successfully (HTML viewer: %p)\n", viewer);
     return 0;
 }
 
@@ -93,6 +124,9 @@ void SplashScene_Shutdown(scene_t *scene) {
         scene->user_data = NULL;
     }
     
+    // 注意：viewer组件会通过Scene_RenderUI的清理自动销毁
+    // 因为它是通过UIContainer_AddChild添加到根容器的
+    
     printf("SplashScene: Shutdown complete\n");
 }
 
@@ -101,38 +135,25 @@ scene_transition_t* SplashScene_Update(scene_t *scene, int msec) {
     splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
     if (!data || data->is_finished) return NULL;
     
-    // 更新HTML渲染
-    float delta_time = (float)msec / 1000.0f;  // 毫秒转秒
-    html_update_and_layout(delta_time, 0);
+    // 注意：HTML更新由场景管线的Scene_UpdateUI自动处理
+    // 不需要在这里手动调用 html_update_and_layout
     
-    // 累加时间（仅用于调试信息）
+    // 累加时间
     data->elapsed_time += (float)msec;
     
-    // 调试模式：不自动切换，只等待用户点击
-    // 移除了自动切换的逻辑，splash屏幕会一直显示直到用户点击
+    // 检查是否需要自动跳转（如果设置了超时）
+    // 这里保持原有的调试模式：不自动切换，只等待用户点击
     
     return NULL;
 }
 
 // Scene 渲染
 void SplashScene_Render(scene_t *scene) {
-    splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
-    if (!data) return;
+    // 使用场景管线渲染所有UI组件（包括HTML viewer）
+    Scene_RenderUI(scene);
     
-    // 计算透明度（用于淡入淡出效果）
-    float alpha = 1.0f;
-    
-    // 淡入阶段
-    if (data->elapsed_time < data->fade_in_duration) {
-        alpha = data->elapsed_time / data->fade_in_duration;
-    }
-    // 淡出阶段
-    else if (data->elapsed_time >= (data->fade_in_duration + data->display_duration)) {
-        float fade_out_elapsed = data->elapsed_time - (data->fade_in_duration + data->display_duration);
-        alpha = 1.0f - (fade_out_elapsed / data->fade_out_duration);
-        if (alpha < 0.0f) alpha = 0.0f;
-    }
-    html_render();
+    // 注意：不再直接调用 html_render()
+    // HTML渲染由ui_html_viewer的vtable->render自动处理
 }
 
 // Scene 输入处理
@@ -184,3 +205,4 @@ void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
 scene_t* SplashScene_GetInstance(void) {
     return &g_splash_scene;
 }
+
