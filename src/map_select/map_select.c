@@ -507,29 +507,57 @@ int MapSelect_Init(scene_t *scene) {
     // 设置根组件的布局上下文（所有子组件将共享此上下文）
     // UIComponent_SetLayoutContext(g_root_container, g_lay_ctx);
 
+    // 设置根组件的布局上下文（所有子组件将共享此上下文）
+    // UIComponent_SetLayoutContext(g_root_container, g_lay_ctx);
+
     // 为根组件创建布局项
     // UIComponent_CreateLayoutItem(g_root_container);
     // UIComponent_SetSize(g_root_container, 1024.0f, 768.0f);
     // UIComponent_SetLayoutContain(g_root_container, LAY_COLUMN);
 
-    // 创建底部容器
-    ui_component_t *bottom_container = (ui_component_t *)UIContainer_Create(
+    // ========================================
+    // 新的界面布局结构
+    // ========================================
+    // g_root_container (COLUMN)
+    //   ├── title_container (ROW) - 标题
+    //   ├── path_container (ROW) - 路径
+    //   └── content_container (ROW)
+    //        ├── left_container (COLUMN) - 搜索+列表
+    //        │    ├── filter_label
+    //        │    ├── filter_input
+    //        │    └── ui_list
+    //        └── right_container (COLUMN) - 预览+按钮
+    //             ├── preview_container
+    //             │     ├── preview_title_text
+    //             │     ├── preview_filename_text
+    //             │     ├── preview_name_text
+    //             │     ├── preview_author_text
+    //             │     ├── preview_players_text
+    //             │     ├── preview_type_text
+    //             │     └── preview_path_text
+    //             └── hint_container (ROW)
+    //                  ├── hint_text1
+    //                  ├── hint_text2
+    //                  └── start_button
+
+    // =============== 创建UI组件 ===============
+
+    // 1. 创建标题容器（第一行）
+    ui_component_t *title_container = (ui_component_t *)UIContainer_Create(
         0.0f, 0.0f, 1024.0f, 40.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
     );
-    if (!bottom_container) {
-        printf("Failed to create bottom container\n");
+    if (!title_container) {
+        printf("Failed to create title container\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_root_container, bottom_container);
-    UIComponent_SetSize(bottom_container, 1024.0f, 40.0f);
-    UIComponent_SetLayoutContain(bottom_container, LAY_COLUMN);
+    UIContainer_AddChild((ui_container_t *)g_root_container, title_container);
+    UIComponent_SetSize(title_container, 1024.0f, 40.0f);
+    UIComponent_SetLayoutContain(title_container, LAY_ROW);
 
-    // =============== 创建UI组件 ===============
-
-    // 1. 创建标题文本（添加到顶部容器）
+    // 创建标题文本
     g_title_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "SELECT MAP",
                                                    (COLOR32){255, 215, 0, 255}, 30.0f,
                                                    UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
@@ -537,37 +565,70 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create title text\n");
         return -1;
     }
-    // 创建顶部容器
-    ui_component_t *top_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 35.0f,
+    UIContainer_AddChild((ui_container_t *)title_container, g_title_text);
+    UIComponent_SetSize(g_title_text, 700.0f, 40.0f);
+    UIComponent_SetBehave(g_title_text, LAY_LEFT);
+    UIComponent_SetMargin(g_title_text, 10.0f, 0.0f, 0.0f, 10.0f);
+
+    // 2. 创建路径容器（第二行）
+    ui_component_t *path_container = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, 1024.0f, 30.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
     );
-    if (!top_container) {
-        printf("Failed to create top container\n");
+    if (!path_container) {
+        printf("Failed to create path container\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_root_container, top_container);
-    UIComponent_SetSize(top_container, 1024.0f, 35.0f);
-    UIComponent_SetLayoutContain(top_container, LAY_ROW);
-    UIContainer_AddChild((ui_container_t *)top_container, g_title_text);
-    UIComponent_SetSize(g_title_text, 700.0f, 35.0f);
-    UIComponent_SetBehave(g_title_text, LAY_LEFT);
+    UIContainer_AddChild((ui_container_t *)g_root_container, path_container);
+    UIComponent_SetSize(path_container, 1024.0f, 30.0f);
+    UIComponent_SetLayoutContain(path_container, LAY_ROW);
 
-    // 2. 创建路径文本（添加到顶部容器，在标题右侧）
+    // 创建路径文本
     g_path_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "Root",
                                                   (COLOR32){200, 200, 200, 255}, 16.0f,
-                                                  UI_TEXT_ALIGN_RIGHT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
+                                                  UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
     if (!g_path_text) {
         printf("Failed to create path text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)top_container, g_path_text);
-    UIComponent_SetSize(g_path_text, 300.0f, 35.0f);
-    UIComponent_SetBehave(g_path_text, LAY_RIGHT);
+    UIContainer_AddChild((ui_container_t *)path_container, g_path_text);
+    UIComponent_SetSize(g_path_text, 1024.0f, 30.0f);
+    UIComponent_SetBehave(g_path_text, LAY_LEFT);
+    UIComponent_SetMargin(g_path_text, 10.0f, 0.0f, 0.0f, 10.0f);
 
-    // 3. 创建筛选标签（添加到顶部容器）
+    // 3. 创建内容容器（第三行，左右分栏）
+    ui_component_t *content_container = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, 1024.0f, 698.0f,
+        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
+        MAKE(COLOR32, 0, 0, 0, 0),
+        g_ctx
+    );
+    if (!content_container) {
+        printf("Failed to create content container\n");
+        return -1;
+    }
+    UIContainer_AddChild((ui_container_t *)g_root_container, content_container);
+    UIComponent_SetSize(content_container, 1024.0f, 698.0f);
+    UIComponent_SetLayoutContain(content_container, LAY_ROW);
+
+    // 4. 创建左侧容器（搜索+列表）
+    ui_component_t *left_container = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, 380.0f, 698.0f,
+        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
+        MAKE(COLOR32, 0, 0, 0, 0),
+        g_ctx
+    );
+    if (!left_container) {
+        printf("Failed to create left container\n");
+        return -1;
+    }
+    UIContainer_AddChild((ui_container_t *)content_container, left_container);
+    UIComponent_SetSize(left_container, 380.0f, 698.0f);
+    UIComponent_SetLayoutContain(left_container, LAY_COLUMN);
+
+    // 创建筛选标签
     g_filter_label = (ui_component_t *)UILabel_Create(0.0f, 0.0f, 50.0f, 28.0f, "Filter:",
                                                      (COLOR32){200, 200, 200, 255}, 14.0f,
                                                      UI_LABEL_ALIGN_LEFT, UI_LABEL_VALIGN_MIDDLE, g_ctx);
@@ -575,27 +636,27 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create filter label\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)top_container, g_filter_label);
-    UIComponent_SetSize(g_filter_label, 50.0f, 28.0f);
+    UIContainer_AddChild((ui_container_t *)left_container, g_filter_label);
+    UIComponent_SetSize(g_filter_label, 360.0f, 28.0f);
     UIComponent_SetBehave(g_filter_label, LAY_LEFT);
-    UIComponent_SetMargin(g_filter_label, 0.0f, 5.0f, 0.0f, 0.0f);
+    UIComponent_SetMargin(g_filter_label, 10.0f, 0.0f, 5.0f, 10.0f);
 
-    // 4. 创建筛选输入框（添加到顶部容器）
-    g_filter_input = (ui_component_t *)UIInput_Create(0.0f, 0.0f, 950.0f, 28.0f, 14.0f, "Type to filter...", g_ctx);
+    // 创建筛选输入框
+    g_filter_input = (ui_component_t *)UIInput_Create(0.0f, 0.0f, 360.0f, 28.0f, 14.0f, "Type to filter...", g_ctx);
     if (!g_filter_input) {
         printf("Failed to create filter input\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)top_container, g_filter_input);
-    UIComponent_SetSize(g_filter_input, 950.0f, 28.0f);
-    UIComponent_SetBehave(g_filter_input, LAY_HFILL);
-    UIComponent_SetMargin(g_filter_input, 5.0f, 0.0f, 0.0f, 0.0f);
+    UIContainer_AddChild((ui_component_t *)left_container, g_filter_input);
+    UIComponent_SetSize(g_filter_input, 360.0f, 28.0f);
+    UIComponent_SetBehave(g_filter_input, LAY_LEFT);
+    UIComponent_SetMargin(g_filter_input, 10.0f, 0.0f, 5.0f, 0.0f);
 
     // 将筛选输入框设置为焦点组件
     UIEventDispatcher_SetFocus(g_event_dispatcher, g_filter_input);
 
-    // 5. 创建 UI 列表（添加到主容器的左侧）
-    g_ui_list = (ui_component_t *)UIList_Create(0.0f, 0.0f, 380.0f, 500.0f, 50.0f, 14.0f, g_ctx);
+    // 创建 UI 列表
+    g_ui_list = (ui_component_t *)UIList_Create(0.0f, 0.0f, 360.0f, 650.0f, 50.0f, 14.0f, g_ctx);
     if (!g_ui_list) {
         printf("Failed to create UI list\n");
         return -1;
@@ -607,28 +668,29 @@ int MapSelect_Init(scene_t *scene) {
     // 设置列表选中项改变回调
     UIList_SetSelectedChangedCallback((ui_list_t *)g_ui_list, OnListSelectedChanged, NULL);
 
-    // 将列表添加到主容器
-    // 创建主容器（中间部分）
-    ui_component_t *main_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 500.0f,
+    // 将列表添加到左侧容器
+    UIContainer_AddChild((ui_container_t *)left_container, g_ui_list);
+    UIComponent_SetSize(g_ui_list, 360.0f, 630.0f);
+    UIComponent_SetBehave(g_ui_list, LAY_VFILL);
+    UIComponent_SetMargin(g_ui_list, 10.0f, 0.0f, 10.0f, 0.0f);
+
+    // 5. 创建右侧容器（预览+按钮）
+    ui_component_t *right_container = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, 644.0f, 698.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
     );
-    if (!main_container) {
-        printf("Failed to create main container\n");
+    if (!right_container) {
+        printf("Failed to create right container\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_root_container, main_container);
-    UIComponent_SetSize(main_container, 1024.0f, 500.0f);
-    UIComponent_SetLayoutContain(main_container, LAY_ROW);
-    UIContainer_AddChild((ui_container_t *)main_container, g_ui_list);
-    UIComponent_SetSize(g_ui_list, 380.0f, 500.0f);
-    UIComponent_SetBehave(g_ui_list, LAY_VFILL);
-    UIComponent_SetMargin(g_ui_list, 0.0f, 0.0f, 5.0f, 0.0f);
+    UIContainer_AddChild((ui_container_t *)content_container, right_container);
+    UIComponent_SetSize(right_container, 644.0f, 698.0f);
+    UIComponent_SetLayoutContain(right_container, LAY_COLUMN);
 
-    // 6. 创建地图预览容器（添加到主容器的右侧）
-    g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 580.0f, 500.0f,
+    // 创建地图预览容器
+    g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 624.0f, 600.0f,
                                                                (COLOR32){40, 40, 50, 230},
                                                                (COLOR32){255, 215, 0, 255}, g_ctx);
     if (!g_preview_container) {
@@ -637,12 +699,12 @@ int MapSelect_Init(scene_t *scene) {
     }
     
     // 设置布局行为
-    UIComponent_SetSize(g_preview_container, 580.0f, 500.0f);
-    UIComponent_SetBehave(g_preview_container, LAY_HFILL | LAY_VFILL);
-    UIComponent_SetMargin(g_preview_container, 5.0f, 0.0f, 0.0f, 0.0f);
+    UIComponent_SetSize(g_preview_container, 624.0f, 600.0f);
+    UIComponent_SetBehave(g_preview_container, LAY_HFILL);
+    UIComponent_SetMargin(g_preview_container, 10.0f, 0.0f, 10.0f, 0.0f);
 
-    // 将预览容器添加到主容器
-    UIContainer_AddChild((ui_container_t *)main_container, g_preview_container);
+    // 将预览容器添加到右侧容器
+    UIContainer_AddChild((ui_container_t *)right_container, g_preview_container);
 
     // 创建预览文本组件（标题 "Map Preview"）
     g_preview_title_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "Map Preview",
@@ -653,7 +715,7 @@ int MapSelect_Init(scene_t *scene) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_title_text);
-    UIComponent_SetSize(g_preview_title_text, 560.0f, 18.0f);
+    UIComponent_SetSize(g_preview_title_text, 604.0f, 18.0f);
     UIComponent_SetBehave(g_preview_title_text, LAY_HFILL);
     UIComponent_SetMargin(g_preview_title_text, 10.0f, 10.0f, 5.0f, 0.0f);
     
@@ -665,10 +727,10 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview filename text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_filename_text);
-    UIComponent_SetSize(g_preview_filename_text, 560.0f, 16.0f);
+    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_filename_text);
+    UIComponent_SetSize(g_preview_filename_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_filename_text, LAY_HFILL);
-    UIComponent_SetMargin(g_preview_filename_text, 5.0f, 5.0f, 5.0f, 0.0f);
+    UIComponent_SetMargin(g_preview_filename_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（地图名称）
     g_preview_name_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -678,10 +740,10 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview name text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_name_text);
-    UIComponent_SetSize(g_preview_name_text, 560.0f, 16.0f);
+    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_name_text);
+    UIComponent_SetSize(g_preview_name_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_name_text, LAY_HFILL);
-    UIComponent_SetMargin(g_preview_name_text, 5.0f, 5.0f, 5.0f, 0.0f);
+    UIComponent_SetMargin(g_preview_name_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（作者）
     g_preview_author_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -691,10 +753,10 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview author text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_author_text);
-    UIComponent_SetSize(g_preview_author_text, 560.0f, 16.0f);
+    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_author_text);
+    UIComponent_SetSize(g_preview_author_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_author_text, LAY_HFILL);
-    UIComponent_SetMargin(g_preview_author_text, 5.0f, 5.0f, 5.0f, 0.0f);
+    UIComponent_SetMargin(g_preview_author_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（推荐玩家数）
     g_preview_players_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -704,10 +766,10 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview players text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_players_text);
-    UIComponent_SetSize(g_preview_players_text, 560.0f, 16.0f);
+    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_players_text);
+    UIComponent_SetSize(g_preview_players_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_players_text, LAY_HFILL);
-    UIComponent_SetMargin(g_preview_players_text, 5.0f, 5.0f, 5.0f, 0.0f);
+    UIComponent_SetMargin(g_preview_players_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（文件类型）
     g_preview_type_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -717,10 +779,10 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview type text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_type_text);
-    UIComponent_SetSize(g_preview_type_text, 560.0f, 16.0f);
+    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_type_text);
+    UIComponent_SetSize(g_preview_type_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_type_text, LAY_HFILL);
-    UIComponent_SetMargin(g_preview_type_text, 5.0f, 5.0f, 5.0f, 0.0f);
+    UIComponent_SetMargin(g_preview_type_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（完整路径）
     g_preview_path_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
@@ -730,12 +792,27 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview path text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_path_text);
-    UIComponent_SetSize(g_preview_path_text, 560.0f, 14.0f);
+    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_path_text);
+    UIComponent_SetSize(g_preview_path_text, 604.0f, 14.0f);
     UIComponent_SetBehave(g_preview_path_text, LAY_HFILL);
-    UIComponent_SetMargin(g_preview_path_text, 5.0f, 5.0f, 10.0f, 0.0f);
+    UIComponent_SetMargin(g_preview_path_text, 5.0f, 10.0f, 10.0f, 0.0f);
 
-    // 7. 创建提示文本1（添加到底部容器，左侧）
+    // 6. 创建提示容器（底部按钮区域）
+    ui_component_t *hint_container = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, 644.0f, 50.0f,
+        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
+        MAKE(COLOR32, 0, 0, 0, 0),
+        g_ctx
+    );
+    if (!hint_container) {
+        printf("Failed to create hint container\n");
+        return -1;
+    }
+    UIContainer_AddChild((ui_container_t *)right_container, hint_container);
+    UIComponent_SetSize(hint_container, 644.0f, 50.0f);
+    UIComponent_SetLayoutContain(hint_container, LAY_ROW);
+
+    // 创建提示文本1
     g_hint_text1 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "UP/DOWN: navigate  ENTER: select  Type: filter",
                                                    (COLOR32){200, 200, 200, 255}, 14.0f,
                                                    UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
@@ -743,11 +820,11 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create hint text 1\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)bottom_container, g_hint_text1);
-    UIComponent_SetSize(g_hint_text1, 700.0f, 40.0f);
+    UIContainer_AddChild((ui_container_t *)hint_container, g_hint_text1);
+    UIComponent_SetSize(g_hint_text1, 394.0f, 50.0f);
     UIComponent_SetBehave(g_hint_text1, LAY_LEFT);
 
-    // 8. 创建提示文本2（添加到底部容器，右侧）
+    // 创建提示文本2
     g_hint_text2 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "ESC: quit",
                                                    (COLOR32){200, 200, 200, 255}, 14.0f,
                                                    UI_TEXT_ALIGN_RIGHT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
@@ -755,12 +832,12 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create hint text 2\n");
         return -1;
     }
-    UIContainer_AddChild((ui_container_t *)bottom_container, g_hint_text2);
-    UIComponent_SetSize(g_hint_text2, 200.0f, 40.0f);
+    UIContainer_AddChild((ui_container_t *)hint_container, g_hint_text2);
+    UIComponent_SetSize(g_hint_text2, 200.0f, 50.0f);
     UIComponent_SetBehave(g_hint_text2, LAY_RIGHT);
-    UIComponent_SetMargin(g_hint_text2, 0.0f, 5.0f, 0.0f, 0.0f);
+    UIComponent_SetMargin(g_hint_text2, 0.0f, 0.0f, 0.0f, 10.0f);
 
-    // 9. 创建 START GAME 按钮（添加到底部容器，居中）
+    // 7. 创建 START GAME 按钮
     ui_button_config_t button_config = UIButton_GetDefaultConfig();
     strncpy(button_config.text, "START GAME [ENTER]", 127);
     button_config.bg_colors.normal = (COLOR32){0, 150, 0, 255};
@@ -787,12 +864,11 @@ int MapSelect_Init(scene_t *scene) {
     // 添加按钮点击事件
     UIButton_AddOnClick((ui_button_t *)g_start_button, OnStartGameClick, NULL);
     
-    // 将按钮添加到底部容器
-    UIContainer_AddChild((ui_container_t *)bottom_container, g_start_button);
+    // 将按钮添加到提示容器
+    UIContainer_AddChild((ui_container_t *)hint_container, g_start_button);
     UIComponent_SetSize(g_start_button, 250.0f, 50.0f);
     UIComponent_SetBehave(g_start_button, LAY_HCENTER);
-    UIComponent_SetMargin(g_start_button, 0.0f, 5.0f, 0.0f, 0.0f);
-
+    UIComponent_SetMargin(g_start_button, 0.0f, 0.0f, 0.0f, 10.0f);
     // 从(listfile)加载地图列表
     g_map_count = 0;
     

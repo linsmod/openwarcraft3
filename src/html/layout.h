@@ -1,6 +1,6 @@
 #ifndef LAY_INCLUDE_HEADER
 #define LAY_INCLUDE_HEADER
-
+#define LAY_FLOAT 1
 // Do this:
 //
 //   #define LAY_IMPLEMENTATION

@@ -1,4 +1,4 @@
-#define LAY_FLOAT 1
+
 #include "scene.h"
 #include "../map_select/ui_component.h"
 #include "../map_select/ui_container.h"
@@ -1060,10 +1060,17 @@ void Scene_RenderUI(scene_t *scene) {
             lay_scalar x, y, w, h;
             lay_get_rect_xywh(scene->lay_ctx, comp->lay_item_id, &x,&y,&w,&h);
 
-            // comp->x = x;
-            // comp->y = y;
+            lay_scalar l, t, r, b;
+            lay_get_margins_ltrb(scene->lay_ctx, comp->lay_item_id, &l, &t, &r, &b);
+            // comp->x = x+l;
+            // comp->y = y+t;
             // comp->width = w;
             // comp->height = h;
+
+            comp->x = x;
+            comp->y = y;
+            comp->width = w;
+            comp->height = h;
 
             if (comp->vtable && comp->vtable->render) {
                 comp->vtable->render(comp);
