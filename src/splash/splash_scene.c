@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define LAY_IMPLEMENTATION
 #include "html/html.h"
 
 // ========================================

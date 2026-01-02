@@ -1,0 +1,241 @@
+/**
+ * @file html_context_example.c
+ * @brief HTML Context API 使用示例
+ *
+ * 演示如何使用新的Context API加载、更新和渲染HTML文档
+ */
+
+#include "html/html.h"
+#include <stdio.h>
+
+// 简单的示例：单实例
+void example_single_instance() {
+    printf("=== 单实例示例 ===\n");
+
+    // 1. 创建HTML上下文
+    context *ctx = html_context_create();
+    if (!ctx) {
+        printf("Failed to create HTML context\n");
+        return;
+    }
+
+    // 2. 加载HTML文件
+    if (html_context_load_file(ctx, "test.html") != 0) {
+        printf("Failed to load HTML file\n");
+        html_context_destroy(ctx);
+        return;
+    }
+
+    // 3. 设置字体（可选）
+    html_context_set_font(ctx, "/path/to/font.ttf", 16);
+
+    // 4. 扫描关键帧动画
+    html_context_scan_keyframes(ctx);
+    printf("Keyframes count: %d\n", html_context_get_keyframes_count(ctx));
+
+    // 5. 重新应用动画
+    html_context_reapply_animations(ctx);
+
+    // 6. 获取文档和根元素
+    xmlDoc *doc = html_context_get_document(ctx);
+    xmlNode *root = html_context_get_root(ctx);
+    if (root) {
+        printf("Root element: %s\n", (char*)root->name);
+    }
+
+    // 7. 查找元素
+    xmlNode *elem = html_context_find_by_id(ctx, "my-element");
+    if (elem) {
+        printf("Found element with ID 'my-element': %s\n", (char*)elem->name);
+    }
+
+    // 8. 在主循环中更新和渲染（模拟）
+    for (int i = 0; i < 10; i++) {
+        float delta_time = 0.016f;  // 约60FPS
+
+        // 更新HTML内容和布局
+        html_context_update(ctx, delta_time);
+
+        // 渲染HTML文档
+        // html_context_render(ctx);  // 实际渲染需要canvas上下文
+
+        printf("Frame %d: Updated and rendered\n", i);
+    }
+
+    // 9. 清理
+    html_context_destroy(ctx);
+    printf("Cleaned up\n");
+}
+
+// 多实例示例：同时加载多个HTML文档
+void example_multiple_instances() {
+    printf("\n=== 多实例示例 ===\n");
+
+    // 创建两个HTML上下文
+    context *ctx1 = html_context_create();
+    context *ctx2 = html_context_create();
+
+    if (!ctx1 || !ctx2) {
+        printf("Failed to create HTML contexts\n");
+        if (ctx1) html_context_destroy(ctx1);
+        if (ctx2) html_context_destroy(ctx2);
+        return;
+    }
+
+    // 分别加载不同的HTML文件
+    if (html_context_load_file(ctx1, "page1.html") != 0) {
+        printf("Failed to load page1.html\n");
+    } else {
+        printf("Loaded page1.html\n");
+    }
+
+    if (html_context_load_file(ctx2, "page2.html") != 0) {
+        printf("Failed to load page2.html\n");
+    } else {
+        printf("Loaded page2.html\n");
+    }
+
+    // 分别扫描动画
+    html_context_scan_keyframes(ctx1);
+    html_context_scan_keyframes(ctx2);
+
+    printf("Page1 keyframes: %d\n", html_context_get_keyframes_count(ctx1));
+    printf("Page2 keyframes: %d\n", html_context_get_keyframes_count(ctx2));
+
+    // 分别获取根元素
+    xmlNode *root1 = html_context_get_root(ctx1);
+    xmlNode *root2 = html_context_get_root(ctx2);
+    printf("Page1 root: %s\n", root1 ? (char*)root1->name : "NULL");
+    printf("Page2 root: %s\n", root2 ? (char*)root2->name : "NULL");
+
+    // 在主循环中分别更新和渲染
+    for (int i = 0; i < 5; i++) {
+        float delta_time = 0.016f;
+
+        // 更新两个HTML文档
+        html_context_update(ctx1, delta_time);
+        html_context_update(ctx2, delta_time);
+
+        // 渲染两个HTML文档（实际需要设置不同的位置）
+        // html_context_render(ctx1);  // 可以设置不同的位置
+        // html_context_render(ctx2);
+
+        printf("Frame %d: Updated both pages\n", i);
+    }
+
+    // 清理
+    html_context_destroy(ctx1);
+    html_context_destroy(ctx2);
+    printf("Cleaned up both contexts\n");
+}
+
+// 从内存加载HTML示例
+void example_load_from_memory() {
+    printf("\n=== 从内存加载示例 ===\n");
+
+    // 示例HTML内容
+    const char *html_data = "<!DOCTYPE html>"
+                          "<html>"
+                          "<head><title>Test</title></head>"
+                          "<body>"
+                          "<div id='main'>Hello from memory!</div>"
+                          "</body>"
+                          "</html>";
+
+    size_t length = strlen(html_data);
+
+    // 创建context并从内存加载
+    context *ctx = html_context_create();
+    if (!ctx) {
+        printf("Failed to create HTML context\n");
+        return;
+    }
+
+    if (html_context_load_memory(ctx, html_data, length) != 0) {
+        printf("Failed to load HTML from memory\n");
+        html_context_destroy(ctx);
+        return;
+    }
+
+    printf("Loaded HTML from memory (%zu bytes)\n", length);
+
+    // 查找元素
+    xmlNode *elem = html_context_find_by_id(ctx, "main");
+    if (elem) {
+        printf("Found element: %s\n", (char*)elem->name);
+        // 可以访问子节点等
+    }
+
+    // 清理
+    html_context_destroy(ctx);
+    printf("Cleaned up\n");
+}
+
+// DOM操作示例
+void example_dom_operations() {
+    printf("\n=== DOM操作示例 ===\n");
+
+    context *ctx = html_context_create();
+    if (!ctx) {
+        printf("Failed to create HTML context\n");
+        return;
+    }
+
+    if (html_context_load_file(ctx, "test.html") != 0) {
+        html_context_destroy(ctx);
+        return;
+    }
+
+    // 查找根元素
+    xmlNode *root = html_context_get_root(ctx);
+    if (root) {
+        printf("Document root: %s\n", (char*)root->name);
+
+        // 遍历子元素
+        xmlNode *child = root->children;
+        int count = 0;
+        while (child) {
+            if (child->type == XML_ELEMENT_NODE) {
+                printf("  Child %d: %s\n", ++count, (char*)child->name);
+            }
+            child = child->next;
+        }
+    }
+
+    // 查找特定ID的元素
+    const char *test_ids[] = {"header", "content", "footer"};
+    for (int i = 0; i < 3; i++) {
+        xmlNode *elem = html_context_find_by_id(ctx, test_ids[i]);
+        if (elem) {
+            printf("Found element with ID '%s': %s\n", test_ids[i], (char*)elem->name);
+        } else {
+            printf("Element with ID '%s' not found\n", test_ids[i]);
+        }
+    }
+
+    // 获取布局上下文
+    lay_context *layout_ctx = html_context_get_layout(ctx);
+    if (layout_ctx) {
+        printf("Layout context: %p\n", (void*)layout_ctx);
+        // 可以进行布局查询等操作
+    }
+
+    html_context_destroy(ctx);
+    printf("Cleaned up\n");
+}
+
+// 主函数
+int main(int argc, char *argv[]) {
+    printf("HTML Context API 示例程序\n");
+    printf("============================\n\n");
+
+    // 运行示例
+    example_single_instance();
+    example_multiple_instances();
+    example_load_from_memory();
+    example_dom_operations();
+
+    printf("\n所有示例运行完成！\n");
+
+    return 0;
+}

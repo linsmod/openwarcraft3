@@ -34,8 +34,6 @@
 #include <hubbub/tree.h>
 #include <libcss/libcss.h>
 #include <libcss/select.h>
-#define LAY_IMPLEMENTATION
-#include "layout.h"
 
 #include "html.h"
 #include "animation/anim_state.h"
@@ -1753,10 +1751,10 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			printf("DEBUG: width is percentage, calculated: %d\n", width);
 		}
 		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Current size before setting width: (%d,%d)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Current size before setting width: (%lf,%lf)\n", current_size[0], current_size[1]);
 		lay_set_size_xy(c->layout_ctx, layout_id, width, current_size[1]);
 		current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Size after setting width: (%d,%d)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Size after setting width: (%lf,%lf)\n", current_size[0], current_size[1]);
 	}
 	
 	if (strstr(css, "height:")) {
@@ -1773,10 +1771,10 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			printf("DEBUG: height is percentage, calculated: %d\n", height);
 		}
 		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Current size before setting height: (%d,%d)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Current size before setting height: (%lf,%lf)\n", current_size[0], current_size[1]);
 		lay_set_size_xy(c->layout_ctx, layout_id, current_size[0], height);
 		current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Size after setting height: (%d,%d)\n", current_size[0], current_size[1]);
+		printf("DEBUG: Size after setting height: (%lf,%lf)\n", current_size[0], current_size[1]);
 	}
 	
 	/* Background color support */
@@ -3321,4 +3319,327 @@ void html_render_set_mode(html_render_mode_t mode) {
 void html_render_set_enabled(bool enabled) {
     g_html_render_enabled = enabled;
     printf("HTML rendering %s\n", enabled ? "enabled" : "disabled");
+}
+// ========================================
+// Context API实现
+// 这些函数提供基于context的HTML处理接口
+// ========================================
+
+/**
+ * @brief 创建HTML上下文
+ * @return 新的HTML上下文，失败返回NULL
+ */
+context* html_context_create(void) {
+    context *ctx = NULL;
+    error_code err = create_context(NULL, &ctx);
+    if (err != OK || !ctx) {
+        fprintf(stderr, "Failed to create HTML context\n");
+        return NULL;
+    }
+    
+    printf("Created HTML context\n");
+    return ctx;
+}
+
+/**
+ * @brief 销毁HTML上下文
+ * @param ctx HTML上下文
+ */
+void html_context_destroy(context *ctx) {
+    if (!ctx) return;
+    
+    destroy_context(ctx);
+    printf("Destroyed HTML context\n");
+}
+
+/**
+ * @brief 从文件加载HTML
+ * @param ctx HTML上下文
+ * @param filename 文件名
+ * @return 0成功，非0失败
+ */
+int html_context_load_file(context *ctx, const char *filename) {
+    if (!ctx || !filename) {
+        fprintf(stderr, "Invalid parameters\n");
+        return -1;
+    }
+    
+    FILE *input = fopen(filename, "r");
+    if (!input) {
+        fprintf(stderr, "Failed to open file: %s\n", filename);
+        return -1;
+    }
+    
+    // 获取文件大小
+    fseek(input, 0, SEEK_END);
+    size_t len = ftell(input);
+    fseek(input, 0, SEEK_SET);
+    
+    // 读取文件内容
+    uint8_t *buf = malloc(len);
+    if (!buf) {
+        fclose(input);
+        fprintf(stderr, "Failed to allocate memory\n");
+        return -1;
+    }
+    
+    fread(buf, 1, len, input);
+    fclose(input);
+    
+    // 解析HTML
+    error_code err = parse_chunk(ctx, buf, len);
+    
+    // 释放缓冲区
+    free(buf);
+    
+    if (err != OK && err != ENCODINGCHANGE) {
+        fprintf(stderr, "Failed to parse HTML file\n");
+        return -1;
+    }
+    
+    // 完成解析
+    err = parse_completed(ctx);
+    if (err != OK) {
+        fprintf(stderr, "Failed to complete parsing\n");
+        return -1;
+    }
+    
+    printf("Loaded HTML file: %s\n", filename);
+    return 0;
+}
+
+/**
+ * @brief 从内存加载HTML
+ * @param ctx HTML上下文
+ * @param html_data HTML数据
+ * @param length 数据长度
+ * @return 0成功，非0失败
+ */
+int html_context_load_memory(context *ctx, const char *html_data, size_t length) {
+    if (!ctx || !html_data || length == 0) {
+        fprintf(stderr, "Invalid parameters\n");
+        return -1;
+    }
+    
+    // 解析HTML
+    error_code err = parse_chunk(ctx, (const uint8_t *)html_data, length);
+    
+    if (err != OK && err != ENCODINGCHANGE) {
+        fprintf(stderr, "Failed to parse HTML data\n");
+        return -1;
+    }
+    
+    // 完成解析
+    err = parse_completed(ctx);
+    if (err != OK) {
+        fprintf(stderr, "Failed to complete parsing\n");
+        return -1;
+    }
+    
+    printf("Loaded HTML from memory (%zu bytes)\n", length);
+    return 0;
+}
+
+/**
+ * @brief 更新和布局
+ * @param ctx HTML上下文
+ * @param delta_time 时间增量（秒）
+ */
+void html_context_update(context *ctx, float delta_time) {
+    if (!ctx || !ctx->document) return;
+    
+    // 获取根节点
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (root) {
+        // 处理样式和脚本
+        html_process_styles_and_scripts(ctx, root, 0);
+    }
+    
+    // 更新动画
+    if (delta_time > 0.0f && ctx->anim_mgr) {
+        anim_manager_update(ctx->anim_mgr, delta_time);
+    }
+    
+    // 运行布局
+    lay_run_context(ctx->layout_ctx);
+}
+
+/**
+ * @brief 渲染HTML
+ * @param ctx HTML上下文
+ */
+void html_context_render(context *ctx) {
+    if (!ctx || !ctx->document) return;
+    
+    // 渲染背景
+    draw_html_background(ctx);
+    
+    // 渲染HTML元素
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (root) {
+        render_html_element(ctx, root, 0);
+    }
+}
+
+/**
+ * @brief 设置字体
+ * @param ctx HTML上下文
+ * @param font_path 字体路径
+ * @param size 字体大小
+ * @return true成功
+ */
+bool html_context_set_font(context *ctx, const char *font_path, DWORD size) {
+    if (!ctx || !font_path) {
+        return false;
+    }
+    
+    // 调用全局的字体设置（需要后续改造为context相关）
+    return 1;//html_render_set_font(font_path, size);
+}
+
+/**
+ * @brief 扫描关键帧
+ * @param ctx HTML上下文
+ */
+void html_context_scan_keyframes(context *ctx) {
+    if (!ctx || !ctx->document) return;
+    
+    // 重置关键帧存储
+    ctx->num_keyframes = 0;
+    memset(ctx->keyframes_store, 0, sizeof(ctx->keyframes_store));
+    
+    printf("Scanning for @keyframes...\n");
+    
+    // 获取根节点
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (root) {
+        scan_node_for_keyframes(ctx, root);
+    }
+    
+    printf("Total keyframes stored: %d\n", ctx->num_keyframes);
+}
+
+/**
+ * @brief 重新应用动画
+ * @param ctx HTML上下文
+ */
+void html_context_reapply_animations(context *ctx) {
+    if (!ctx || !ctx->document) return;
+    
+    printf("Reapplying all animations...\n");
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (root) {
+        reapply_node_animations(ctx, root);
+    }
+}
+
+/**
+ * @brief 获取文档
+ * @param ctx HTML上下文
+ * @return XML文档
+ */
+xmlDoc* html_context_get_document(context *ctx) {
+    if (!ctx) return NULL;
+    return ctx->document;
+}
+
+/**
+ * @brief 获取根元素
+ * @param ctx HTML上下文
+ * @return 根节点
+ */
+xmlNode* html_context_get_root(context *ctx) {
+    if (!ctx || !ctx->document) return NULL;
+    return xmlDocGetRootElement(ctx->document);
+}
+
+/**
+ * @brief 获取布局上下文
+ * @param ctx HTML上下文
+ * @return 布局上下文
+ */
+lay_context* html_context_get_layout(context *ctx) {
+    if (!ctx) return NULL;
+    return ctx->layout_ctx;
+}
+
+/**
+ * @brief 根据ID查找元素
+ * @param ctx HTML上下文
+ * @param id 元素ID
+ * @return 元素节点
+ */
+xmlNode* html_context_find_by_id(context *ctx, const char *id) {
+    if (!ctx || !ctx->document || !id) return NULL;
+    
+    // 简化版本：遍历DOM树查找
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (root) {
+        xmlNode *node = root;
+        while (node) {
+            xmlAttr *attr = node->properties;
+            while (attr) {
+                if (xmlStrcmp(attr->name, BAD_CAST "id") == 0) {
+                    xmlChar *attr_value = xmlNodeGetContent(attr->children);
+                    if (attr_value && xmlStrcmp(attr_value, BAD_CAST id) == 0) {
+                        xmlFree(attr_value);
+                        return node;
+                    }
+                    if (attr_value) xmlFree(attr_value);
+                }
+                attr = attr->next;
+            }
+            // 简单的深度优先遍历
+            if (node->children) {
+                node = node->children;
+            } else if (node->next) {
+                node = node->next;
+            } else {
+                // 向上查找兄弟节点
+                while (node && !node->next) {
+                    node = node->parent;
+                }
+                if (node) node = node->next;
+            }
+        }
+    }
+    
+    return NULL;
+}
+
+// ========================================
+// 全局API的Context包装（向后兼容）
+// 这些函数内部使用全局context，但通过新API实现
+// ========================================
+
+/**
+ * @brief 初始化HTML（使用全局context）
+ * @param filename HTML文件
+ * @return 0成功，非0失败
+ */
+int html_init_wrapper(const char *filename) {
+    // 使用第一个全局context
+    if (g_html_pages_count >= MAX_HTML_PAGES) {
+        fprintf(stderr, "Maximum HTML pages reached\n");
+        return -1;
+    }
+    
+    // 创建新context
+    context *ctx = html_context_create();
+    if (!ctx) {
+        return -1;
+    }
+    
+    // 加载HTML文件
+    int result = html_context_load_file(ctx, filename);
+    if (result != 0) {
+        html_context_destroy(ctx);
+        return -1;
+    }
+    
+    // 存储到全局数组
+    g_html_render_context[g_html_pages_count++] = ctx;
+    
+    return 0;
 }

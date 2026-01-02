@@ -647,7 +647,7 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create filter input\n");
         return -1;
     }
-    UIContainer_AddChild((ui_component_t *)left_container, g_filter_input);
+    UIContainer_AddChild((ui_container_t *)left_container, g_filter_input);
     UIComponent_SetSize(g_filter_input, 360.0f, 28.0f);
     UIComponent_SetBehave(g_filter_input, LAY_LEFT);
     UIComponent_SetMargin(g_filter_input, 10.0f, 0.0f, 5.0f, 0.0f);
@@ -727,7 +727,7 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview filename text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_filename_text);
+    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_filename_text);
     UIComponent_SetSize(g_preview_filename_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_filename_text, LAY_HFILL);
     UIComponent_SetMargin(g_preview_filename_text, 5.0f, 10.0f, 5.0f, 0.0f);
@@ -740,7 +740,7 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview name text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_name_text);
+    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_name_text);
     UIComponent_SetSize(g_preview_name_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_name_text, LAY_HFILL);
     UIComponent_SetMargin(g_preview_name_text, 5.0f, 10.0f, 5.0f, 0.0f);
@@ -753,7 +753,7 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview author text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_author_text);
+    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_author_text);
     UIComponent_SetSize(g_preview_author_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_author_text, LAY_HFILL);
     UIComponent_SetMargin(g_preview_author_text, 5.0f, 10.0f, 5.0f, 0.0f);
@@ -766,7 +766,7 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview players text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_players_text);
+    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_players_text);
     UIComponent_SetSize(g_preview_players_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_players_text, LAY_HFILL);
     UIComponent_SetMargin(g_preview_players_text, 5.0f, 10.0f, 5.0f, 0.0f);
@@ -779,7 +779,7 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview type text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_type_text);
+    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_type_text);
     UIComponent_SetSize(g_preview_type_text, 604.0f, 16.0f);
     UIComponent_SetBehave(g_preview_type_text, LAY_HFILL);
     UIComponent_SetMargin(g_preview_type_text, 5.0f, 10.0f, 5.0f, 0.0f);
@@ -792,7 +792,7 @@ int MapSelect_Init(scene_t *scene) {
         printf("Failed to create preview path text\n");
         return -1;
     }
-    UIContainer_AddChild((ui_component_t *)g_preview_container, g_preview_path_text);
+    UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_path_text);
     UIComponent_SetSize(g_preview_path_text, 604.0f, 14.0f);
     UIComponent_SetBehave(g_preview_path_text, LAY_HFILL);
     UIComponent_SetMargin(g_preview_path_text, 5.0f, 10.0f, 10.0f, 0.0f);
@@ -976,7 +976,7 @@ static void UpdateMapPreview(void) {
     UIComponent_SetVisible(g_preview_type_text, true);
     
     // 更新完整路径
-    char path_text[128];
+    char path_text[256];
     snprintf(path_text, sizeof(path_text), "Path: %.255s", item->full_path);
     UIText_SetText((ui_text_t *)g_preview_path_text, path_text);
     UIComponent_SetVisible(g_preview_path_text, true);
