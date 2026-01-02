@@ -966,7 +966,7 @@ bool MapSelect_LoadAndSaveMapInfo(const char *mapPath) {
     // 保存到txt文件
     MapSelect_SaveMapInfoToFile(mapPath, info);
     
-    printf("Map info loaded and saved successfully\n");
+    // printf("Map info loaded and saved successfully\n");
     return true;
 }
 
@@ -1083,7 +1083,7 @@ void MapSelect_SaveMapInfoToFile(const char *mapPath, LPCMAPINFO info) {
     fprintf(fp, "\n========================================\n");
     
     fclose(fp);
-    printf("Map info saved to: %s\n", txtPath);
+    // printf("Map info saved to: %s\n", txtPath);
 }
 
 // 辅助函数：从lay布局更新UI组件位置

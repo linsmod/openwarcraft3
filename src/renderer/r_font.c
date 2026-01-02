@@ -14,8 +14,9 @@
 #include <stdint.h>
 #include <wchar.h>
 #define MAX_GLYPHSET 256
-#define FONT_SCALE 2
-#define INV_SCALE(x) ((x) / (FONT_SCALE * 1000.f))
+#define FONT_SCALE 2.5
+#define INV_SCALE_X(x) ((x) / (FONT_SCALE * 1024.f))
+#define INV_SCALE_Y(y) ((y) / (FONT_SCALE * 768.f))
 
 LPFONT g_default_text_font;
 typedef struct {
@@ -392,14 +393,14 @@ FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet(font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        x += INV_SCALE(g->xadvance);
+        x += INV_SCALE_X(g->xadvance);
     }
     return x;
 }
 
 
 FLOAT R_GetFontHeight(LPFONT font) {
-    return FONT_SCALE * INV_SCALE(font->height);
+    return FONT_SCALE * INV_SCALE_X(font->height);
 }
 
 BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
@@ -408,7 +409,7 @@ BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        width -= INV_SCALE(g->xadvance);
+        width -= INV_SCALE_X(g->xadvance);
     }
     return width >= -0.001;
 }
@@ -441,10 +442,10 @@ static RECT get_uvrect(stbtt_bakedchar *g, FLOAT h, FLOAT w) {
 
 static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
     RECT const screen = {
-        .x = cursor->x + INV_SCALE(g->xoff),
-        .y = cursor->y + INV_SCALE(g->yoff),
-        .w = INV_SCALE(g->x1 - g->x0),
-        .h = INV_SCALE(g->y1 - g->y0),
+        .x = cursor->x + INV_SCALE_X(g->xoff),
+        .y = cursor->y + INV_SCALE_Y(g->yoff),
+        .w = INV_SCALE_X(g->x1 - g->x0),
+        .h = INV_SCALE_Y(g->y1 - g->y0),
     };
     return screen;
 }
@@ -518,7 +519,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet(font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        FLOAT charWidth = INV_SCALE(g->xadvance);
+        FLOAT charWidth = INV_SCALE_X(g->xadvance);
         if (arg->wordWrap && ((cursor.x + charWidth) - (pos.x + arg->textWidth))> 0.001) {
             cursor.x = pos.x;
             cursor.y += linesize * arg->lineHeight;

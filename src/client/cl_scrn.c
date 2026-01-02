@@ -8,6 +8,7 @@
 #include "g_local.h"
 #include "../canvas2d/canvas2d_test.h"
 #include "../map_select/map_select.h"
+#include "r_local.h"
 
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
@@ -330,6 +331,8 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     };
     RECT rects[BACKDROP_SIZE];
     backdrop_rects(screen, rects, backdrop->CornerSize);
+
+    size2_t vpsize= R_GetViewPortSize();
     
     size2_t backSize = re.GetTextureSize(cl.pics[backdrop->Background]);
     size2_t edgeSize = re.GetTextureSize(cl.pics[backdrop->EdgeFile]);
@@ -338,7 +341,7 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
         if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
             continue;
         FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
-        FLOAT const h = edgeSize.height / 1000.f;
+        FLOAT const h = edgeSize.height*1.0 / vpsize.height;
         FLOAT const tile = backdrop_edge_tile(rects+corners[i], corners[i], h);
         if (tile > 100) {
             backdrop_edge_tile(rects+corners[i], corners[i], h);
@@ -363,8 +366,8 @@ void SCR_DrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bac
     background.h -= backdrop->BackgroundInsets[BACKDROPINSET_TOP];
     background.h -= backdrop->BackgroundInsets[BACKDROPINSET_BOTTOM];
     if (backdrop->TileBackground) {
-        uv.w = background.w / (backSize.width / 1000.f);
-        uv.h = background.h / (backSize.height / 1000.f);
+        uv.w = background.w / (backSize.width*1.0 / vpsize.width);
+        uv.h = background.h / (backSize.height*1.0 / vpsize.height);
     }
     re.DrawImage(cl.pics[backdrop->Background], &background, &uv, frame->color);
 }
