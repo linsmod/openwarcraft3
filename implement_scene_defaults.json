@@ -1,0 +1,31 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改SceneManager_Create，创建默认资源",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/common/scene.c",
+        "old_str": "scene_manager_t* SceneManager_Create(void) {\n    scene_manager_t *mgr = (scene_manager_t*)malloc(sizeof(scene_manager_t));\n    if (!mgr) return NULL;\n    \n    memset(mgr, 0, sizeof(scene_manager_t));\n    mgr->registered_count = 0;\n    \n    // 初始化鼠标状态\n    SceneManager_InitMouseState(mgr);\n    \n    return mgr;\n}",
+        "new_str": "scene_manager_t* SceneManager_Create(int width, int height) {\n    scene_manager_t *mgr = (scene_manager_t*)malloc(sizeof(scene_manager_t));\n    if (!mgr) return NULL;\n    \n    memset(mgr, 0, sizeof(scene_manager_t));\n    mgr->registered_count = 0;\n    \n    // 初始化鼠标状态\n    SceneManager_InitMouseState(mgr);\n    \n    // ============= 创建默认资源 =============\n    // 注意：这里使用 void* 类型以避免循环依赖\n    // 实际类型在实现中转换\n    printf(\"SceneManager: Creating default resources (%dx%d)\\n\", width, height);\n    \n    // TODO: 创建默认 canvas\n    // mgr->default_canvas = canvas2d_create(width, height);\n    // mgr->default_canvas_ctx = canvas2d_get_context(mgr->default_canvas);\n    \n    // TODO: 创建默认布局上下文\n    // mgr->default_lay_ctx = lay_init_context_ex();\n    \n    // TODO: 创建默认事件分发器\n    // mgr->default_event_dispatcher = ui_event_dispatcher_create(mgr->default_root, mgr->default_canvas_ctx);\n    \n    // TODO: 创建默认根容器\n    // mgr->default_root = ui_container_create(0, 0, width, height, transparent, transparent, mgr->default_canvas_ctx);\n    \n    return mgr;\n}"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改SceneManager_Destroy，销毁默认资源",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/common/scene.c",
+        "old_str": "void SceneManager_Destroy(scene_manager_t *mgr) {\n    if (!mgr) return;\n    \n    // 清理待处理的跳转请求\n    if (mgr->pending_transition) {\n        SceneTransition_Destroy(mgr->pending_transition);\n        mgr->pending_transition = NULL;\n    }\n    \n    // 清理所有场景\n    while (mgr->stack_size > 0) {\n        SceneManager_PopScene(mgr, NULL);\n    }\n    \n    free(mgr);\n}",
+        "new_str": "void SceneManager_Destroy(scene_manager_t *mgr) {\n    if (!mgr) return;\n    \n    // 清理待处理的跳转请求\n    if (mgr->pending_transition) {\n        SceneTransition_Destroy(mgr->pending_transition);\n        mgr->pending_transition = NULL;\n    }\n    \n    // 清理所有场景\n    while (mgr->stack_size > 0) {\n        SceneManager_PopScene(mgr, NULL);\n    }\n    \n    // ============= 销毁默认资源 =============\n    printf(\"SceneManager: Destroying default resources\\n\");\n    \n    // TODO: 销毁默认根容器（如果有）\n    // if (mgr->default_root) {\n    //     UIContainer_Destroy((ui_container_t *)mgr->default_root);\n    //     mgr->default_root = NULL;\n    // }\n    \n    // TODO: 销毁默认事件分发器（如果有）\n    // if (mgr->default_event_dispatcher) {\n    //     UIEventDispatcher_Destroy(mgr->default_event_dispatcher);\n    //     mgr->default_event_dispatcher = NULL;\n    // }\n    \n    // TODO: 销毁默认布局上下文（如果有）\n    // if (mgr->default_lay_ctx) {\n    //     lay_destroy_context(mgr->default_lay_ctx);\n    //     mgr->default_lay_ctx = NULL;\n    // }\n    \n    // TODO: 销毁默认 canvas（如果有）\n    // if (mgr->default_canvas) {\n    //     canvas2d_destroy(mgr->default_canvas);\n    //     mgr->default_canvas = NULL;\n    //     mgr->default_canvas_ctx = NULL;\n    // }\n    \n    free(mgr);\n}"
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "添加默认资源获取函数实现",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/common/scene.c",
+        "old_str": "// ========================================\n// 场景UI辅助函数实现\n// ========================================",
+        "new_str": "// ========================================\n// 默认资源API实现\n// ========================================\n\nvoid* SceneManager_GetDefaultCanvas(scene_manager_t *mgr) {\n    return mgr ? mgr->default_canvas : NULL;\n}\n\nvoid* SceneManager_GetDefaultCanvasContext(scene_manager_t *mgr) {\n    return mgr ? mgr->default_canvas_ctx : NULL;\n}\n\nvoid* SceneManager_GetDefaultLayoutContext(scene_manager_t *mgr) {\n    return mgr ? mgr->default_lay_ctx : NULL;\n}\n\nvoid* SceneManager_GetDefaultEventDispatcher(scene_manager_t *mgr) {\n    return mgr ? mgr->default_event_dispatcher : NULL;\n}\n\nui_component_t* SceneManager_GetDefaultRoot(scene_manager_t *mgr) {\n    return mgr ? mgr->default_root : NULL;\n}\n\n// 初始化场景时自动使用默认资源\nvoid SceneManager_InitSceneWithDefaults(scene_manager_t *mgr, scene_t *scene) {\n    if (!mgr || !scene) return;\n    \n    // 如果场景没有设置根容器，使用默认的\n    if (!scene->root_component && mgr->default_root) {\n        printf(\"SceneManager: Setting default root for scene '%s'\\n\", scene->name);\n        scene->root_component = mgr->default_root;\n    }\n}\n\n// ========================================\n// 场景UI辅助函数实现\n// ========================================"
+      }
+    }
+  ]
+}
