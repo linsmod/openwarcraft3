@@ -98,7 +98,6 @@ set(MAP_SELECT_SOURCES
     src/ui/ui_input.c
     src/ui/ui_container.c
     src/ui/ui_component.c
-    src/ui/ui_event_dispatcher.c
     src/ui/ui_html_viewer.c
 )
 
