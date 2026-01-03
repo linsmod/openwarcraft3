@@ -1,0 +1,14 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改ui_list.h中的dispatcher字段为scene_manager_t",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.h",
+        "old_str": "// UI 列表组件（继承自 ui_component_t）\nstruct ui_list_t {\n    ui_component_t base;              // 基础组件（包含bg_color）\n    ui_event_dispatcher_t *dispatcher; // 事件分发器（用于鼠标捕获）",
+        "new_str": "// UI 列表组件（继承自 ui_component_t）\nstruct ui_list_t {\n    ui_component_t base;              // 基础组件（包含bg_color）\n    scene_manager_t *scene_manager;   // 场景管理器（用于鼠标捕获）",
+        "startLine": 20
+      }
+    }
+  ]
+}

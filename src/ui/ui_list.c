@@ -1,6 +1,6 @@
 #include "ui_list.h"
 #include "common/shared.h"
-#include "ui_event_dispatcher.h"
+#include "../common/scene.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -199,8 +199,8 @@ static bool list_on_mouse_up(ui_component_t *component, event_t *event) {
     if (list->is_dragging_scrollbar) {
         list->is_dragging_scrollbar = false;
         // 释放鼠标捕获
-        if (list->dispatcher) {
-            UIEventDispatcher_ReleaseMouse(list->dispatcher);
+        if (list->scene_manager) {
+            SceneManager_ReleaseMouse(list->scene_manager);
         }
     }
     return true;
@@ -228,8 +228,8 @@ static bool list_on_mouse_down(ui_component_t *component, event_t *event) {
                 list->scrollbar_drag_start_y = event->mouse.y;
                 list->scrollbar_drag_start_offset = list->scroll_offset;
                 // 捕获鼠标，防止鼠标移出范围后丢失事件
-                if (list->dispatcher) {
-                    UIEventDispatcher_CaptureMouse(list->dispatcher, component);
+                if (list->scene_manager) {
+                    SceneManager_CaptureMouse(list->scene_manager, component);
                 }
                 return true;
             } else {
@@ -243,8 +243,8 @@ static bool list_on_mouse_down(ui_component_t *component, event_t *event) {
                 list->scrollbar_drag_start_y = event->mouse.y;
                 list->scrollbar_drag_start_offset = list->scroll_offset;
                 // 捕获鼠标，防止鼠标移出范围后丢失事件
-                if (list->dispatcher) {
-                    UIEventDispatcher_CaptureMouse(list->dispatcher, component);
+                if (list->scene_manager) {
+                    SceneManager_CaptureMouse(list->scene_manager, component);
                 }
                 return true;
             }
@@ -388,7 +388,7 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
     list->base.y = y;
     list->base.width = width;
     list->base.height = height;
-    list->dispatcher = NULL;  // 初始化为NULL，需要在创建后设置
+    list->scene_manager = NULL;  // 初始化为NULL，需要在创建后设置
     list->item_height = item_height;
     list->item_spacing = 2.0f;
     list->font_size = font_size;
@@ -417,7 +417,7 @@ int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx) {
     // 使用新的组件系统初始化基础部分
     UIComponent_InitBase(&list->base, UI_COMPONENT_TYPE_LIST, &g_list_vtable, ctx);
 
-    list->dispatcher = NULL;
+    list->scene_manager = NULL;
     list->on_selected_changed = NULL;
     list->callback_user_data = NULL;
     list->item_height = 24.0f;
@@ -579,7 +579,7 @@ void UIList_Destroy(ui_list_t *list) {
 }
 
 // 设置事件分发器（用于鼠标捕获功能）
-void UIList_SetDispatcher(ui_list_t *list, ui_event_dispatcher_t *dispatcher) {
+void UIList_SetSceneManager(ui_list_t *list, scene_manager_t *manager) {
     if (!list) return;
-    list->dispatcher = dispatcher;
+    list->scene_manager = manager;
 }

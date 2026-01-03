@@ -120,6 +120,17 @@ lay_id canvas2d_getlayid(canvas2d_t *canvas) {
     return canvas->context->lay_id;
 }
 
+void canvas2d_resetlayctx(canvas2d_t *canvas){
+    if (!canvas || !canvas->initialized) {
+        canvas2d_log_error("Canvas not initialized");
+        return;
+    }
+    lay_reset_context(canvas->context->lay_ctx);
+    canvas->context->lay_id = lay_item(canvas->context->lay_ctx);
+    lay_set_contain(canvas->context->lay_ctx, canvas->context->lay_id, LAY_COLUMN);
+    lay_set_size_xy(canvas->context->lay_ctx, canvas->context->lay_id, canvas->width, canvas->height);
+}
+
 void canvas2d_destroy(canvas2d_t *canvas) {
     if (!canvas) return;
 
@@ -130,6 +141,9 @@ void canvas2d_destroy(canvas2d_t *canvas) {
 
         if (canvas->context->stateStack) {
             MemFree(canvas->context->stateStack);
+        }
+        if( canvas->context->lay_ctx){
+            lay_destroy_context(canvas->context->lay_ctx);
         }
         MemFree(canvas->context);
     }

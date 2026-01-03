@@ -293,6 +293,97 @@ void SceneTransition_Destroy(scene_transition_t *transition) {
 // 场景管理器实现
 // ========================================
 
+// ========================================
+// 场景资源管理
+// ========================================
+
+// 创建场景独立的资源（canvas、canvas_ctx、lay_ctx、root_component）
+int Scene_CreateResources(scene_t *scene, int width, int height) {
+    if (!scene) return -1;
+    
+    printf("Scene %s: Creating independent resources (%dx%d)\n", scene->name, width, height);
+    
+    // 创建 canvas
+    scene->canvas = canvas2d_create(width, height);
+    if (!scene->canvas) {
+        printf("Scene %s: Failed to create canvas\n", scene->name);
+        return -1;
+    }
+    
+    // 获取 canvas 上下文
+    scene->canvas_ctx = canvas2d_get_context((canvas2d_t *)scene->canvas);
+    if (!scene->canvas_ctx) {
+        printf("Scene %s: Failed to get canvas context\n", scene->name);
+        canvas2d_destroy((canvas2d_t *)scene->canvas);
+        scene->canvas = NULL;
+        return -1;
+    }
+    
+    // 获取 lay 上下文
+    scene->lay_ctx = canvas2d_getlayctx((canvas2d_t *)scene->canvas);
+    if (!scene->lay_ctx) {
+        printf("Scene %s: Failed to get lay context\n", scene->name);
+        canvas2d_destroy((canvas2d_t *)scene->canvas);
+        scene->canvas = NULL;
+        scene->canvas_ctx = NULL;
+        return -1;
+    }
+    
+    // 创建根容器
+    scene->root_component = (ui_component_t *)UIContainer_Create(
+        0.0f, 0.0f, (float)width, (float)height,
+        MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
+        MAKE(COLOR32, 0, 0, 0, 0),
+        scene->canvas_ctx
+    );
+    if (!scene->root_component) {
+        printf("Scene %s: Failed to create root container\n", scene->name);
+        canvas2d_destroy((canvas2d_t *)scene->canvas);
+        scene->canvas = NULL;
+        scene->canvas_ctx = NULL;
+        scene->lay_ctx = NULL;
+        return -1;
+    }
+    
+    // 插入根容器到布局系统
+    lay_insert(scene->lay_ctx, 
+        canvas2d_getlayid((canvas2d_t *)scene->canvas), 
+        scene->root_component->lay_item_id);
+    
+    printf("Scene %s: Resources created successfully\n", scene->name);
+    return 0;
+}
+
+// 销毁场景的独立资源
+void Scene_DestroyResources(scene_t *scene) {
+    if (!scene) return;
+    
+    printf("Scene %s: Destroying resources\n", scene->name);
+    
+    // 销毁根容器
+    if (scene->root_component) {
+        UIContainer_Destroy((ui_container_t *)scene->root_component);
+        scene->root_component = NULL;
+        printf("  Destroyed root container\n");
+    }
+    
+    // 销毁布局上下文
+    if (scene->lay_ctx) {
+        // 注意：lay_ctx是canvas内部管理的，这里不需要手动销毁
+        scene->lay_ctx = NULL;
+    }
+    
+    // 销毁 canvas
+    if (scene->canvas) {
+        canvas2d_destroy((canvas2d_t *)scene->canvas);
+        scene->canvas = NULL;
+        scene->canvas_ctx = NULL;
+        printf("  Destroyed canvas\n");
+    }
+    
+    printf("Scene %s: Resources destroyed\n", scene->name);
+}
+
 scene_manager_t* SceneManager_Create(int width, int height) {
     scene_manager_t *mgr = (scene_manager_t*)malloc(sizeof(scene_manager_t));
     if (!mgr) return NULL;
@@ -300,37 +391,14 @@ scene_manager_t* SceneManager_Create(int width, int height) {
     memset(mgr, 0, sizeof(scene_manager_t));
     mgr->registered_count = 0;
     
+    // 保存窗口尺寸
+    mgr->width = width;
+    mgr->height = height;
+    
     // 初始化鼠标状态
     SceneManager_InitMouseState(mgr);
     
-    // ============= 创建默认资源 =============
-    // 注意：这里使用 void* 类型以避免循环依赖
-    // 实际类型在实现中转换
-    printf("SceneManager: Creating default resources (%dx%d)\n", width, height);
-    
-    // 创建默认 canvas
-    mgr->default_canvas = canvas2d_create(width, height);
-    if (mgr->default_canvas) {
-        mgr->default_canvas_ctx = canvas2d_get_context((canvas2d_t *)mgr->default_canvas);
-        mgr->default_lay_ctx = canvas2d_getlayctx((canvas2d_t *)mgr->default_canvas);
-        printf("  Created default canvas and context\n");
-    }
-    
-    // 创建默认根容器
-    if (mgr->default_canvas_ctx) {
-        mgr->default_root = (ui_component_t *)UIContainer_Create(
-            0.0f, 0.0f, (float)width, (float)height,
-            MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
-            MAKE(COLOR32, 0, 0, 0, 0),
-            (canvas2d_context_t *)mgr->default_canvas_ctx
-        );
-        if (mgr->default_root) {
-            lay_insert(mgr->default_lay_ctx, 
-                canvas2d_getlayid((canvas2d_t *)mgr->default_canvas), 
-                mgr->default_root->lay_item_id);
-            printf("  Created default root container\n");
-        }
-    }
+    printf("SceneManager: Created (window size: %dx%d)\n", width, height);
     
     return mgr;
 }
@@ -375,36 +443,10 @@ void SceneManager_Destroy(scene_manager_t *mgr) {
         SceneManager_PopScene(mgr, NULL);
     }
     
-    // ============= 销毁默认资源 =============
-    printf("SceneManager: Destroying default resources\n");
-    
     // 释放鼠标捕获
     if (mgr->captured) {
         SDL_CaptureMouse(SDL_FALSE);
         mgr->captured = NULL;
-    }
-    
-    // 销毁默认根容器（如果有）
-    if (mgr->default_root) {
-        UIContainer_Destroy((ui_container_t *)mgr->default_root);
-        mgr->default_root = NULL;
-        printf("  Destroyed default root container\n");
-    }
-    
-    // 销毁默认布局上下文（如果有）
-    if (mgr->default_lay_ctx) {
-        lay_destroy_context((lay_context *)mgr->default_lay_ctx);
-        free(mgr->default_lay_ctx);
-        mgr->default_lay_ctx = NULL;
-        printf("  Destroyed default layout context\n");
-    }
-    
-    // 销毁默认 canvas（如果有）
-    if (mgr->default_canvas) {
-        canvas2d_destroy((canvas2d_t *)mgr->default_canvas);
-        mgr->default_canvas = NULL;
-        mgr->default_canvas_ctx = NULL;
-        printf("  Destroyed default canvas\n");
     }
     
     free(mgr);
@@ -424,10 +466,19 @@ void SceneManager_PushScene(scene_manager_t *mgr, scene_t *scene, const scene_pa
     // 设置启动参数
     scene->launch_params = params;
     scene->manager = mgr;
-    scene->canvas = mgr->default_canvas;
-    scene->canvas_ctx = mgr->default_canvas_ctx;
-    scene->lay_ctx = mgr->default_lay_ctx;
-    scene->root_component = mgr->default_root;
+    
+    // 为场景创建独立的资源（如果尚未创建）
+    if (!scene->canvas && !scene->root_component) {
+        // 从场景管理器获取窗口尺寸
+        int scene_width = mgr->width;
+        int scene_height = mgr->height;
+        
+        if (Scene_CreateResources(scene, scene_width, scene_height) != 0) {
+            printf("Scene %s: Failed to create resources\n", scene->name);
+            scene->launch_params = NULL;
+            return;
+        }
+    }
     
     // 初始化场景
     if (scene->state == SCENE_STATE_UNINITIALIZED) {
@@ -468,6 +519,9 @@ void SceneManager_PopScene(scene_manager_t *mgr, const scene_params_t *result) {
     scene->state = SCENE_STATE_SHUTDOWN;
     SCENE_SHUTDOWN(scene);
     scene->launch_params = NULL;
+    
+    // 销毁场景的独立资源
+    Scene_DestroyResources(scene);
     
     // 从栈中移除
     mgr->stack[--mgr->stack_size] = NULL;
@@ -1208,24 +1262,8 @@ void SceneManager_ReleaseMouse(scene_manager_t *mgr) {
 }
 
 // ========================================
-// 默认资源API实现
+// 场景资源API实现
 // ========================================
-
-void* SceneManager_GetDefaultCanvas(scene_manager_t *mgr) {
-    return mgr ? mgr->default_canvas : NULL;
-}
-
-void* SceneManager_GetDefaultCanvasContext(scene_manager_t *mgr) {
-    return mgr ? mgr->default_canvas_ctx : NULL;
-}
-
-void* SceneManager_GetDefaultLayoutContext(scene_manager_t *mgr) {
-    return mgr ? mgr->default_lay_ctx : NULL;
-}
-
-ui_component_t* SceneManager_GetDefaultRoot(scene_manager_t *mgr) {
-    return mgr ? mgr->default_root : NULL;
-}
 
 
 void Scene_UpdateUI(scene_t *scene, int msec) {

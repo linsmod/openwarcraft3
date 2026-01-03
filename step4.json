@@ -1,0 +1,14 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "替换list_on_mouse_up中的UIEventDispatcher调用",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.c",
+        "old_str": "    // 结束滚动条拖动\n    if (list->is_dragging_scrollbar) {\n        list->is_dragging_scrollbar = false;\n        // 释放鼠标捕获\n        if (list->dispatcher) {\n            UIEventDispatcher_ReleaseMouse(list->dispatcher);\n        }\n    }",
+        "new_str": "    // 结束滚动条拖动\n    if (list->is_dragging_scrollbar) {\n        list->is_dragging_scrollbar = false;\n        // 释放鼠标捕获\n        if (list->scene_manager) {\n            SceneManager_ReleaseMouse(list->scene_manager);\n        }\n    }",
+        "startLine": 198
+      }
+    }
+  ]
+}

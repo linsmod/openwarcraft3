@@ -5,9 +5,6 @@
 #include <string.h>
 #include <stdio.h>
 
-// 添加UI组件类型
-#define UI_COMPONENT_TYPE_HTML_VIEWER 20
-
 // 虚函数
 static void html_viewer_init(ui_component_t *component, canvas2d_context_t *ctx);
 static void html_viewer_shutdown(ui_component_t *component);

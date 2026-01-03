@@ -3,9 +3,9 @@
 
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
+#include "../common/scene.h"
 #include "ui_component.h"
 #include "ui_list_item.h"
-#include "ui_event_dispatcher.h"
 
 // 前向声明
 typedef struct ui_list_t ui_list_t;
@@ -19,7 +19,7 @@ typedef void (*ui_list_on_selected_changed_t)(ui_list_t *list, int index, void *
 // UI 列表组件（继承自 ui_component_t）
 struct ui_list_t {
     ui_component_t base;              // 基础组件（包含bg_color）
-    ui_event_dispatcher_t *dispatcher; // 事件分发器（用于鼠标捕获）
+    scene_manager_t *scene_manager;   // 场景管理器（用于鼠标捕获）
     ui_list_item_t *items[UI_LIST_MAX_ITEMS];  // 列表项指针数组
     ui_list_on_selected_changed_t on_selected_changed;  // 选中项改变回调
     void *callback_user_data;         // 回调用户数据
@@ -46,8 +46,8 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
 // 初始化 UI 列表
 int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx);
 
-// 设置事件分发器（用于鼠标捕获功能）
-void UIList_SetDispatcher(ui_list_t *list, ui_event_dispatcher_t *dispatcher);
+// 设置场景管理器（用于鼠标捕获功能）
+void UIList_SetSceneManager(ui_list_t *list, scene_manager_t *manager);
 
 // 添加列表项
 int UIList_AddItem(ui_list_t *list, const char *text, void *user_data);

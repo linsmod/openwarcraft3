@@ -205,12 +205,9 @@ struct scene_manager_t {
     int stack_size;
     scene_t *current_scene;
     
-    // ============= 默认资源系统 =============
-    // 所有场景共享的默认资源（可选使用）
-    void *default_canvas;              // 默认 canvas (void* 避免循环依赖)
-    void *default_canvas_ctx;          // 默认 canvas 上下文
-    void *default_lay_ctx;             // 默认 lay 布局上下文
-    ui_component_t *default_root;      // 默认根容器
+    // 窗口尺寸（用于创建场景的默认资源）
+    int width;
+    int height;
     
     // 场景注册表（用于通过名称查找场景）
     scene_t *registered_scenes[32];  // 最多支持32个场景
@@ -307,20 +304,12 @@ bool SceneManager_IsSceneRegistered(scene_manager_t *mgr, const char *name);
 // 获取调用者的返回值（用于pause时的result）
 const scene_params_t* SceneManager_GetPreviousResult(scene_manager_t *mgr);
 
-// ============= 默认资源API =============
-// 获取默认 canvas
-void* SceneManager_GetDefaultCanvas(scene_manager_t *mgr);
-void* SceneManager_GetDefaultCanvasContext(scene_manager_t *mgr);
-
-// 获取默认布局上下文
-void* SceneManager_GetDefaultLayoutContext(scene_manager_t *mgr);
-
-// 获取默认根容器
-ui_component_t* SceneManager_GetDefaultRoot(scene_manager_t *mgr);
-
 // ============= 场景资源管理 =============
-// 初始化场景时自动使用默认资源
-void SceneManager_InitSceneWithDefaults(scene_manager_t *mgr, scene_t *scene);
+// 创建场景独立的资源（canvas、canvas_ctx、lay_ctx、root_component）
+int Scene_CreateResources(scene_t *scene, int width, int height);
+
+// 销毁场景的独立资源
+void Scene_DestroyResources(scene_t *scene);
 
 // 主循环接口
 void SceneManager_Update(scene_manager_t *mgr, int msec);

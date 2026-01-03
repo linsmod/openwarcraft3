@@ -1,0 +1,24 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改ui_list.h移除ui_event_dispatcher头文件引用",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.h",
+        "old_str": "#include \"../canvas2d/canvas2d.h\"\n#include \"../common/shared.h\"\n#include \"ui_component.h\"\n#include \"ui_list_item.h\"\n#include \"ui_event_dispatcher.h\"\n\n// 前向声明\ntypedef struct ui_list_t ui_list_t;",
+        "new_str": "#include \"../canvas2d/canvas2d.h\"\n#include \"../common/shared.h\"\n#include \"../common/scene.h\"\n#include \"ui_component.h\"\n#include \"ui_list_item.h\"\n\n// 前向声明\ntypedef struct ui_list_t ui_list_t;",
+        "startLine": 1
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改ui_list.h中的API声明",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.h",
+        "old_str": "// 设置事件分发器（用于鼠标捕获功能）\nvoid UIList_SetDispatcher(ui_list_t *list, ui_event_dispatcher_t *dispatcher);",
+        "new_str": "// 设置场景管理器（用于鼠标捕获功能）\nvoid UIList_SetSceneManager(ui_list_t *list, scene_manager_t *manager);",
+        "startLine": 49
+      }
+    }
+  ]
+}

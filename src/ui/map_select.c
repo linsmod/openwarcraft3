@@ -14,6 +14,7 @@
 #include "../common/cmodel.h"
 #include "../common/mapinfo.h"
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,17 +68,14 @@ static char g_last_filter_text[256] = "";
 // 函数前向声明
 static void UpdateMapPreview(void);
 
-// Canvas2D 画布（从 SceneManager 获取的默认资源）
+// Canvas2D 画布（使用 scene 独立资源）
 static canvas2d_t *g_canvas = NULL;
 static canvas2d_context_t *g_ctx = NULL;
 
-// Lay布局上下文（从 SceneManager 获取的默认资源）
+// Lay布局上下文（使用 scene 独立资源）
 static lay_context *g_lay_ctx = NULL;
 
-// 事件分发器（从 SceneManager 获取的默认资源）
-static ui_event_dispatcher_t *g_event_dispatcher = NULL;
-
-// 根容器组件（场景级别的根容器，我们自己创建）
+// 根容器组件（使用 scene 独立资源）
 static ui_component_t *g_root_container = NULL;
 
 // UI 组件（使用新的基类系统）
@@ -488,18 +486,18 @@ int MapSelect_Init(scene_t *scene) {
     
     scene_manager_t *mgr = scene->manager;
     
-    // 从 SceneManager 获取默认资源
-    g_canvas = SceneManager_GetDefaultCanvas(mgr);
-    g_ctx = SceneManager_GetDefaultCanvasContext(mgr);
-    g_lay_ctx = SceneManager_GetDefaultLayoutContext(mgr);
+    // 使用 scene 独立资源
+    g_canvas = scene->canvas;
+    g_ctx = scene->canvas_ctx;
+    g_lay_ctx = scene->lay_ctx;
     // 注意：不再使用UIEventDispatcher，直接使用SceneManager的事件处理
     
-    printf("Using default resources from SceneManager\n");
+    printf("Using scene independent resources\n");
     
-    // 创建根容器（场景级别的根组件）
-    g_root_container = SceneManager_GetDefaultRoot(mgr);
+    // 使用场景根容器（scene 独立资源）
+    g_root_container = scene->root_component;
     if (!g_root_container) {
-        printf("Failed to create root container\n");
+        printf("Failed to get root container from scene\n");
         return -1;
     }
     
@@ -661,8 +659,8 @@ int MapSelect_Init(scene_t *scene) {
         return -1;
     }
 
-    // 设置事件分发器（用于鼠标捕获功能）
-    UIList_SetDispatcher((ui_list_t *)g_ui_list, (ui_event_dispatcher_t*)scene->manager);
+    // 设置场景管理器（用于鼠标捕获功能）
+    UIList_SetSceneManager((ui_list_t *)g_ui_list, scene->manager);
 
     // 设置列表选中项改变回调
     UIList_SetSelectedChangedCallback((ui_list_t *)g_ui_list, OnListSelectedChanged, NULL);
@@ -1131,7 +1129,15 @@ static void ApplyLayoutToComponents(void) {
 
 void MapSelect_RenderBackground(scene_t* scene){
     // 绘制调试网格（包含半透明背景）
-    canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
+    // 使用场景的实际尺寸
+    if (scene && scene->root_component) {
+        canvas2d_draw_debug_grid(g_ctx, 0, 0, 
+            scene->root_component->width, 
+            scene->root_component->height, 40, 30, true);
+    } else {
+        // 回退到固定尺寸
+        canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
+    }
 }
 
 // 进入文件夹
@@ -1168,88 +1174,6 @@ static void EnterFolder(const char *folder_path) {
     // 重新过滤列表
     FilterCurrentPath();
 }
-
-// 处理输入事件
-bool MapSelect_HandleInput(int key, bool down) {
-    if (g_state == MAP_SELECT_STATE_DONE) return false;
-
-    // 使用事件分发器处理键盘事件
-    if (down) {
-        // 按键按下
-        if (UIEventDispatcher_DispatchKeyDown(g_event_dispatcher, key, 0, 0, false, SDL_GetTicks())) {
-            return true;
-        }
-    } else {
-        // 按键释放（暂不处理keyup）
-        // UIEventDispatcher_DispatchKeyUp(&g_event_dispatcher, key, 0, 0, SDL_GetTicks());
-    }
-    
-    if (down) {
-        switch (key) {
-            case SDLK_RETURN: {
-                int selected = UIList_GetSelected((ui_list_t *)g_ui_list);
-                if (selected >= 0) {
-                    void *user_data = UIList_GetSelectedUserData((ui_list_t *)g_ui_list);
-                    if (user_data) {
-                        int all_index = (int)(intptr_t)user_data;
-                        if (all_index < 0 || all_index >= g_all_count) break;
-                        
-                        browser_item_t *item = &g_all_items[all_index];
-                        
-                        if (item->type == ITEM_TYPE_FOLDER) {
-                            // 进入文件夹
-                            EnterFolder(item->name);
-                        } else {
-                            // 选择地图 - 地图信息已在预览时加载，直接开始游戏
-                            StartGame(item->full_path, "keyboard");
-                        }
-                    }
-                } else {
-                    // 处理 ".." 返回上级目录的特殊情况
-                    EnterFolder("..");
-                }
-                return true;
-            }
-            
-            case SDLK_ESCAPE:
-                // 退出游戏
-                return true;
-        }
-    }
-    
-    return false;
-}
-
-// 处理鼠标事件
-bool MapSelect_HandleMouseEvent(void) {
-    if (g_state == MAP_SELECT_STATE_DONE) return false;
-    
-    bool handled = false;
-    
-    // printf("[Mouse] Event=%d, Pos=(%d,%d), Button=%d\n",
-    //        mouse.event, (int)mouse.origin.x, (int)mouse.origin.y, mouse.button);
-    
-    // 使用事件分发器处理鼠标事件
-    switch (mouse.event) {
-        case UI_LEFT_MOUSE_DOWN:
-            handled = UIEventDispatcher_DispatchMouseDown(g_event_dispatcher,
-                                                          mouse.origin.x, mouse.origin.y,
-                                                          UI_MOUSE_BUTTON_LEFT, SDL_GetTicks());
-            break;
-        case UI_LEFT_MOUSE_UP:
-            handled = UIEventDispatcher_DispatchMouseUp(g_event_dispatcher,
-                                                        mouse.origin.x, mouse.origin.y,
-                                                        UI_MOUSE_BUTTON_LEFT, SDL_GetTicks());
-            break;
-        case UI_LEFT_MOUSE_DRAGGED:
-            handled = UIEventDispatcher_DispatchMouseMove(g_event_dispatcher,
-                                                          mouse.origin.x, mouse.origin.y,
-                                                          SDL_GetTicks());
-            break;
-    }
-    
-    return handled;
-}
 char* MapSelect_GetStartMap(void) {
     return g_start_map_path;
 }   
@@ -1278,9 +1202,6 @@ void MapSelect_Shutdown(void) {
     
     // 清理lay布局上下文
     lay_destroy_context(g_lay_ctx);
-    
-    // 清理事件分发器
-    UIEventDispatcher_Shutdown(g_event_dispatcher);
     
     // 清理根容器（会递归清理所有子组件）
     if (g_root_container) {
@@ -1461,68 +1382,43 @@ scene_t* MapSelectScene_GetInstance(void) {
 // Scene 渲染
 void MapSelectScene_RenderBackground(scene_t *scene,size2_t vpsize) {
     // 绘制调试网格（包含半透明背景）
-    canvas2d_draw_debug_grid(g_ctx, 0, 0, vpsize.width, vpsize.height, 40, 30, true);
-}
-
-// Scene 输入处理
-void MapSelectScene_OnInput(scene_t *scene, input_event_t *event) {
-    switch (event->type) {
-        case INPUT_EVENT_KEY_DOWN:
-        case INPUT_EVENT_KEY_UP:
-            // 键盘事件 - 使用事件分发器处理
-            MapSelect_HandleInput(event->key.key, event->key.down);
-            break;
-            
-        case INPUT_EVENT_TEXT_INPUT:
-            // 文本输入事件 - 分发到事件分发器
-            UIEventDispatcher_DispatchTextInput(g_event_dispatcher, event->text.text, SDL_GetTicks());
-            break;
-            
-        case INPUT_EVENT_MOUSE_DOWN: {
-            // 鼠标按下事件 - 坐标已在main.c中归一化
-            mouse.origin.x = event->mouse.x;
-            mouse.origin.y = event->mouse.y;
-            mouse.button = event->mouse.button;
-            mouse.event = UI_LEFT_MOUSE_DOWN;
-            
-            MapSelect_HandleMouseEvent();
-            break;
-        }
-            
-        case INPUT_EVENT_MOUSE_UP: {
-            // 鼠标释放事件 - 坐标已在main.c中归一化
-            mouse.origin.x = event->mouse.x;
-            mouse.origin.y = event->mouse.y;
-            mouse.button = 0;
-            mouse.event = UI_LEFT_MOUSE_UP;
-            
-            MapSelect_HandleMouseEvent();
-            break;
-        }
-            
-        case INPUT_EVENT_MOUSE_MOTION: {
-            // 鼠标移动事件 - 坐标已在main.c中归一化
-            mouse.origin.x = event->motion.x;
-            mouse.origin.y = event->motion.y;
-            mouse.event = UI_LEFT_MOUSE_DRAGGED;
-            
-            MapSelect_HandleMouseEvent();
-            break;
-        }
-            
-        case INPUT_EVENT_MOUSE_WHEEL: {
-            // 鼠标滚轮事件（鼠标位置已在input_converter中获取）
-            float wheel_x = event->wheel.x;
-            float wheel_y = event->wheel.y;
-            int wheel_delta = (int)event->wheel.delta;
-            
-            // 分发滚轮事件到事件分发器
-            UIEventDispatcher_DispatchMouseWheel(g_event_dispatcher, wheel_x, wheel_y, wheel_delta, SDL_GetTicks());
-            break;
-        }
-            
-        default:
-            break;
+    // 使用场景的实际尺寸
+    if (scene && scene->root_component) {
+        canvas2d_draw_debug_grid(g_ctx, 0, 0, 
+            scene->root_component->width, 
+            scene->root_component->height, 40, 30, true);
+    } else {
+        // 回退到vpsize
+        canvas2d_draw_debug_grid(g_ctx, 0, 0, vpsize.width, vpsize.height, 40, 30, true);
     }
 }
 
+// Scene 输入处理
+bool MapSelectScene_OnKeyDown(scene_t *scene, input_event_t *event) {
+    switch (event->key.key) {
+        case SDLK_RETURN: {
+            int selected = UIList_GetSelected((ui_list_t *)g_ui_list);
+            if (selected >= 0) {
+                void *user_data = UIList_GetSelectedUserData((ui_list_t *)g_ui_list);
+                if (user_data) {
+                    int all_index = (int)(intptr_t)user_data;
+                    if (all_index < 0 || all_index >= g_all_count) break;
+                    
+                    browser_item_t *item = &g_all_items[all_index];
+                    
+                    if (item->type == ITEM_TYPE_FOLDER) {
+                        // 进入文件夹
+                        EnterFolder(item->name);
+                    } else {
+                        // 选择地图 - 地图信息已在预览时加载，直接开始游戏
+                        StartGame(item->full_path, "keyboard");
+                    }
+                }
+            } else {
+                // 处理 ".." 返回上级目录的特殊情况
+                EnterFolder("..");
+            }
+            return true;
+        }
+    }
+}

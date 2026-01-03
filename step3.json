@@ -1,0 +1,14 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改ui_list.c头文件引用",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.c",
+        "old_str": "#include \"ui_list.h\"\n#include \"common/shared.h\"\n#include \"ui_event_dispatcher.h\"\n#include <stdlib.h>\n#include <string.h>\n#include <stdio.h>\n#include <SDL2/SDL.h>",
+        "new_str": "#include \"ui_list.h\"\n#include \"common/shared.h\"\n#include \"../common/scene.h\"\n#include <stdlib.h>\n#include <string.h>\n#include <stdio.h>\n#include <SDL2/SDL.h>",
+        "startLine": 1
+      }
+    }
+  ]
+}

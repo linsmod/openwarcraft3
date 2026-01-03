@@ -1,0 +1,24 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改UIList_Create中的dispatcher初始化",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.c",
+        "old_str": "    list->base.x = x;\n    list->base.y = y;\n    list->base.width = width;\n    list->base.height = height;\n    list->dispatcher = NULL;  // 初始化为NULL，需要在创建后设置\n    list->item_height = item_height;",
+        "new_str": "    list->base.x = x;\n    list->base.y = y;\n    list->base.width = width;\n    list->base.height = height;\n    list->scene_manager = NULL;  // 初始化为NULL，需要在创建后设置\n    list->item_height = item_height;",
+        "startLine": 387
+      }
+    },
+    {
+      "call": "replace_by_content",
+      "title": "修改UIList_SetDispatcher为UIList_SetSceneManager",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.c",
+        "old_str": "void UIList_SetDispatcher(ui_list_t *list, ui_event_dispatcher_t *dispatcher) {\n    if (!list) return;\n    list->dispatcher = dispatcher;\n}",
+        "new_str": "void UIList_SetSceneManager(ui_list_t *list, scene_manager_t *manager) {\n    if (!list) return;\n    list->scene_manager = manager;\n}",
+        "startLine": 582
+      }
+    }
+  ]
+}
