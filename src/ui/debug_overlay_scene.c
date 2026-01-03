@@ -1,0 +1,93 @@
+#include "debug_overlay_scene.h"
+#include "../canvas2d/canvas2d.h"
+#include "../common/shared.h"
+#include <stdio.h>
+#include <SDL2/SDL.h>
+
+// 前向声明
+static int DebugOverlay_Init(scene_t *scene, const scene_params_t *params);
+static void DebugOverlay_Shutdown(scene_t *scene);
+static scene_transition_t* DebugOverlay_Update(scene_t *scene, int msec);
+
+// 创建调试覆盖层场景
+scene_t* DebugOverlayScene_Create(void) {
+    scene_t *scene = (scene_t*)malloc(sizeof(scene_t));
+    if (!scene) {
+        printf("DebugOverlayScene: Failed to allocate memory\n");
+        return NULL;
+    }
+
+    memset(scene, 0, sizeof(scene_t));
+    scene->name = "DebugOverlay";
+    scene->state = SCENE_STATE_UNINITIALIZED;
+
+    // 设置场景函数指针
+    scene->init = DebugOverlay_Init;
+    scene->shutdown = DebugOverlay_Shutdown;
+    scene->update = DebugOverlay_Update;
+    scene->render = DebugOverlayScene_Render;
+
+    printf("DebugOverlayScene: Created\n");
+    return scene;
+}
+
+// 初始化调试覆盖层场景
+static int DebugOverlay_Init(scene_t *scene, const scene_params_t *params) {
+    (void)params;
+
+    printf("DebugOverlayScene: Initialized\n");
+    return 0;
+}
+
+// 关闭调试覆盖层场景
+static void DebugOverlay_Shutdown(scene_t *scene) {
+    (void)scene;
+
+    printf("DebugOverlayScene: Shutdown\n");
+}
+
+// 更新调试覆盖层场景（不需要更新逻辑）
+static scene_transition_t* DebugOverlay_Update(scene_t *scene, int msec) {
+    (void)scene;
+    (void)msec;
+
+    // 不产生任何场景跳转请求
+    return NULL;
+}
+
+// 渲染调试覆盖层场景
+void DebugOverlayScene_Render(scene_t *scene) {
+    if (!scene || !scene->manager) return;
+
+    scene_manager_t *mgr = scene->manager;
+
+    // 如果有当前场景且有命中的组件
+    if (mgr->current_scene && mgr->mouse_target) {
+        ui_component_t *target = mgr->mouse_target;
+
+        // 获取画布上下文
+        canvas2d_context_t *ctx = mgr->current_scene->canvas_ctx;
+        if (!ctx) return;
+
+        // 绘制红色边框表示命中的组件
+        canvas2d_set_stroke_style(ctx, MAKE(COLOR32, 255, 0, 0, 255)); // 红色
+        canvas2d_set_line_width(ctx, 2.0f);
+        canvas2d_stroke_rect(ctx, target->x, target->y, target->width, target->height);
+
+        // 绘制组件类型名称
+        const char *type_name = UIComponent_GetTypeName(target->type);
+        if (type_name) {
+            char info_text[256];
+            snprintf(info_text, sizeof(info_text),
+                "[%s] (%.0f, %.0f) %.0fx%.0f",
+                type_name, target->x, target->y, target->width, target->height);
+
+            // 设置文字样式
+            canvas2d_set_font_size(ctx, 14.0f);
+            canvas2d_set_fill_style(ctx, MAKE(COLOR32, 255, 255, 0, 255)); // 黄色
+            
+            // 在组件上方显示信息
+            canvas2d_fill_text(ctx, info_text, target->x, target->y - 20);
+        }
+    }
+}

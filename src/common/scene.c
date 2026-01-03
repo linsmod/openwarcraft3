@@ -2,6 +2,7 @@
 #include "scene.h"
 #include "../ui/ui_component.h"
 #include "../ui/ui_container.h"
+#include "../ui/debug_overlay_scene.h"
 
 #include "../html/layout.h"
 #include "../canvas2d/canvas2d.h"
@@ -398,6 +399,18 @@ scene_manager_t* SceneManager_Create(int width, int height) {
     // 初始化鼠标状态
     SceneManager_InitMouseState(mgr);
     
+    // 创建调试覆盖层场景
+    mgr->debug_overlay_scene = DebugOverlayScene_Create();
+    if (!mgr->debug_overlay_scene) {
+        printf("SceneManager: Warning - Failed to create debug overlay scene\n");
+    } else {
+        mgr->debug_overlay_scene->manager = mgr;
+        // 初始化调试覆盖层场景
+        if (SCENE_INIT(mgr->debug_overlay_scene, NULL) != 0) {
+            printf("SceneManager: Warning - Failed to init debug overlay scene\n");
+        }
+    }
+    
     printf("SceneManager: Created (window size: %dx%d)\n", width, height);
     
     return mgr;
@@ -447,6 +460,13 @@ void SceneManager_Destroy(scene_manager_t *mgr) {
     if (mgr->captured) {
         SDL_CaptureMouse(SDL_FALSE);
         mgr->captured = NULL;
+    }
+    
+    // 销毁调试覆盖层场景
+    if (mgr->debug_overlay_scene) {
+        SCENE_SHUTDOWN(mgr->debug_overlay_scene);
+        free(mgr->debug_overlay_scene);
+        mgr->debug_overlay_scene = NULL;
     }
     
     free(mgr);
@@ -700,6 +720,11 @@ void SceneManager_Render(scene_manager_t *mgr) {
             Scene_RenderUI(mgr->stack[i]);
         }
     }
+    
+    // 最后渲染调试覆盖层（始终显示在顶部）
+    if (mgr->debug_overlay_scene) {
+        DebugOverlayScene_Render(mgr->debug_overlay_scene);
+    }
 }
 
 // ========================================
@@ -757,11 +782,17 @@ static ui_component_t* component_hit_test(ui_component_t *component, float x, fl
 
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
     if (!mgr || !mgr->current_scene || !mgr->current_scene->root_component) {
+        mgr->mouse_target = NULL;
         return NULL;
     }
     
     // 从根组件开始递归遍历
-    return component_hit_test(mgr->current_scene->root_component, x, y);
+    ui_component_t *hit = component_hit_test(mgr->current_scene->root_component, x, y);
+    
+    // 保存命中的组件到mgr（用于调试覆盖层显示）
+    mgr->mouse_target = hit;
+    
+    return hit;
 }
 
 void static ProcessUIHandlessEvent(scene_t *scene, event_t *event){

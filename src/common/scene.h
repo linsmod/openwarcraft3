@@ -175,6 +175,7 @@ struct scene_t {
     // 场景管理器指针
     scene_manager_t *manager;
 
+    // 属于场景的事件处理函数不需要返回值
     void (*on_mouse_down)(scene_t *this, event_t *event);
     void (*on_mouse_up)(scene_t *this, event_t *event);
     void (*on_mouse_motion)(scene_t *this, event_t *event);
@@ -239,6 +240,9 @@ struct scene_manager_t {
     
     // ============= 鼠标捕获管理 =============
     ui_component_t *captured;           // 当前捕获鼠标的组件（优先接收所有鼠标事件）
+    
+    // ============= 调试覆盖层 =============
+    scene_t *debug_overlay_scene;        // 调试覆盖层场景（始终显示在顶部）
 };
 
 // ========================================
