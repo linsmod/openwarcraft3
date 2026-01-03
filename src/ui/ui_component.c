@@ -124,9 +124,9 @@ bool UIComponent_RemoveEventHandler(ui_component_t *component, ui_event_type_t e
     return true;
 }
 
-bool UIComponent_TriggerEvent(ui_component_t *component, event_t *event) {
+void UIComponent_TriggerEvent(ui_component_t *component, event_t *event) {
     if (!component || !event) {
-        return false;
+        return;
     }
 
     // 初始化事件
@@ -138,7 +138,7 @@ bool UIComponent_TriggerEvent(ui_component_t *component, event_t *event) {
     // 检查事件类型是否在有效范围内
     int event_type_index = (int)event->type;
     if (event_type_index < 0 || event_type_index >= 32) {
-        return false;
+        return;
     }
 
     // 调用注册的事件处理器
@@ -146,10 +146,10 @@ bool UIComponent_TriggerEvent(ui_component_t *component, event_t *event) {
     void *user_data = component->event_handler_user_data[event_type_index];
 
     if (handler) {
-        return handler(component, event, user_data);
+        handler(component, event, user_data);
     }
 
-    return false;
+    return;
 }
 
 // ==================== 坐标转换 ====================

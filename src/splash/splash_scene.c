@@ -28,8 +28,7 @@ typedef struct {
 // ========================================
 // 前置声明
 // ========================================
-static void SplashScene_OnMouseDown(scene_t *scene, event_t *event);
-static void SplashScene_OnKeyDown(scene_t *scene, event_t *event);
+static void SplashScene_OnClick(scene_t *scene, event_t *event);
 
 // Scene实例
 static scene_t g_splash_scene = {
@@ -45,8 +44,7 @@ static scene_t g_splash_scene = {
     .pause = NULL,
     .resume = NULL,
     // 细化的事件处理函数
-    .on_mouse_down = SplashScene_OnMouseDown,
-    .on_key_down = SplashScene_OnKeyDown
+    .on_click = SplashScene_OnClick
 };
 
 // Scene 初始化
@@ -99,6 +97,9 @@ int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
         return -1;
     }
     
+    // 设置HTML viewer不拦截点击事件，让事件能传播到场景
+    UIHTMLViewer_SetElementClicked(viewer, NULL, NULL);
+    
     // 加载HTML文件
     if (UIHTMLViewer_LoadFromFile(viewer, "../html_tests/splash.html") != 0) {
         printf("SplashScene: Failed to load splash.html\n");
@@ -149,44 +150,9 @@ scene_transition_t* SplashScene_Update(scene_t *scene, int msec) {
     
     return NULL;
 }
-// 处理鼠标按下事件
-static void SplashScene_OnMouseDown(scene_t *scene, event_t *event) {
-    splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
-    if (!data || data->is_finished) return;
-    
-    // 如果不允许跳过，不处理输入
-    if (!data->can_skip) {
-        return;
-    }
-    
-    printf("SplashScene: Mouse down, skipping splash\n");
-    
-    // 创建跳转到下一个场景的请求
-    scene_params_t *params = NULL;
-    const char* target_scene_name = "MapSelect";
-    
-    if (scene->launch_params) {
-        char map_path[MAX_PATHLEN];
-        if (SceneParams_GetString(scene->launch_params, "map_path", map_path, sizeof(map_path)) && strlen(map_path) > 0) {
-            params = SceneParams_Create();
-            SceneParams_SetString(params, "map_path", map_path);
-            SceneParams_SetString(params, "start_folder", "");
-            target_scene_name = "Game";
-        }
-    }
-    
-    scene_transition_t *transition = SceneTransition_CreateByName(
-        TRANSITION_SWITCH,
-        target_scene_name,
-        params,
-        NULL
-    );
-    
-    scene->manager->pending_transition = transition;
-}
 
 // 处理键盘按下事件
-static void SplashScene_OnKeyDown(scene_t *scene, event_t *event) {
+static void SplashScene_OnClick(scene_t *scene, event_t *event) {
     splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
     if (!data || data->is_finished) return;
     
@@ -218,7 +184,11 @@ static void SplashScene_OnKeyDown(scene_t *scene, event_t *event) {
         NULL
     );
     
-    scene->manager->pending_transition = transition;
+    // 直接执行场景切换，而不是设置pending_transition
+    if (scene->manager) {
+        SceneManager_Transition(scene->manager, transition);
+        // 不需要销毁transition，因为它已经被处理了
+    }
 }
 
 // 获取场景实例

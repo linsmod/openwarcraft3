@@ -148,7 +148,6 @@ int main(int argc, LPSTR argv[]) {
                 // 事件转换失败，跳过此事件
                 continue;
             }
-            input_event.handled = false;
             
             // 分发输入事件给当前场景
             SceneManager_ProcessEvent(scene_mgr, &input_event);

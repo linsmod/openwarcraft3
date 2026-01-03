@@ -69,7 +69,7 @@ typedef event_t ui_event_t;
 
 // ==================== 事件处理器类型 ====================
 
-typedef bool (*ui_event_handler_t)(ui_component_t *component, event_t *event, void *user_data);
+typedef void (*ui_event_handler_t)(ui_component_t *component, event_t *event, void *user_data);
 
 // ==================== 背景颜色状态 ====================
 
@@ -103,35 +103,35 @@ typedef struct ui_component_vtable {
     bool (*hit_test)(ui_component_t *component, float x, float y);
     
     // 鼠标事件处理
-    bool (*on_mouse_enter)(ui_component_t *component, event_t *event);
-    bool (*on_mouse_leave)(ui_component_t *component, event_t *event);
-    bool (*on_mouse_down)(ui_component_t *component, event_t *event);
-    bool (*on_mouse_up)(ui_component_t *component, event_t *event);
-    bool (*on_click)(ui_component_t *component, event_t *event);
-    bool (*on_double_click)(ui_component_t *component, event_t *event);
-    bool (*on_mouse_move)(ui_component_t *component, event_t *event);
-    bool (*on_mouse_wheel)(ui_component_t *component, event_t *event);
-    bool (*on_context_menu)(ui_component_t *component, event_t *event);
+    void (*on_mouse_enter)(ui_component_t *component, event_t *event);
+    void (*on_mouse_leave)(ui_component_t *component, event_t *event);
+    void (*on_mouse_down)(ui_component_t *component, event_t *event);
+    void (*on_mouse_up)(ui_component_t *component, event_t *event);
+    void (*on_click)(ui_component_t *component, event_t *event);
+    void (*on_double_click)(ui_component_t *component, event_t *event);
+    void (*on_mouse_move)(ui_component_t *component, event_t *event);
+    void (*on_mouse_wheel)(ui_component_t *component, event_t *event);
+    void (*on_context_menu)(ui_component_t *component, event_t *event);
     
     // 拖拽事件处理
-    bool (*on_drag_start)(ui_component_t *component, event_t *event);
-    bool (*on_drag)(ui_component_t *component, event_t *event);
-    bool (*on_drag_end)(ui_component_t *component, event_t *event);
+    void (*on_drag_start)(ui_component_t *component, event_t *event);
+    void (*on_drag)(ui_component_t *component, event_t *event);
+    void (*on_drag_end)(ui_component_t *component, event_t *event);
     
     // 键盘事件处理
-    bool (*on_key_down)(ui_component_t *component, event_t *event);
-    bool (*on_key_up)(ui_component_t *component, event_t *event);
-    bool (*on_text_input)(ui_component_t *component, event_t *event);
+    void (*on_key_down)(ui_component_t *component, event_t *event);
+    void (*on_key_up)(ui_component_t *component, event_t *event);
+    void (*on_text_input)(ui_component_t *component, event_t *event);
     
     // 焦点事件处理
-    bool (*on_focus)(ui_component_t *component, event_t *event);
-    bool (*on_blur)(ui_component_t *component, event_t *event);
+    void (*on_focus)(ui_component_t *component, event_t *event);
+    void (*on_blur)(ui_component_t *component, event_t *event);
     
     // 尺寸改变事件
-    bool (*on_resize)(ui_component_t *component, void *event);
+    void (*on_resize)(ui_component_t *component, void *event);
     
     // 滚动事件
-    bool (*on_scroll)(ui_component_t *component, void *event);
+    void (*on_scroll)(ui_component_t *component, void *event);
     
     // 容器特定方法
     int (*add_child)(ui_component_t *component, ui_component_t *child);
@@ -190,6 +190,7 @@ struct ui_component_t {
     float drag_start_y;
     float drag_offset_x;
     float drag_offset_y;
+    bool interact_disabled;
 };
 
 // ==================== 事件操作 ====================
@@ -215,7 +216,7 @@ const char* UIComponent_GetTypeName(int typeid);
 bool UIComponent_AddEventHandler(ui_component_t *component, ui_event_type_t event_type,
                                  event_handler_t handler, void *user_data);
 bool UIComponent_RemoveEventHandler(ui_component_t *component, ui_event_type_t event_type);
-bool UIComponent_TriggerEvent(ui_component_t *component, event_t *event);
+void UIComponent_TriggerEvent(ui_component_t *component, event_t *event);
 
 // ==================== 坐标转换 ====================
 

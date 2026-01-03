@@ -649,8 +649,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetBehave(g_filter_input, LAY_LEFT);
     UIComponent_SetMargin(g_filter_input, 10.0f, 0.0f, 5.0f, 0.0f);
 
-    // 将筛选输入框设置为焦点组件
-    SceneManager_SetFocus(scene->manager, g_filter_input);
+    mgr->focused = g_filter_input;
 
     // 创建 UI 列表
     g_ui_list = (ui_component_t *)UIList_Create(0.0f, 0.0f, 360.0f, 650.0f, 50.0f, 14.0f, g_ctx);

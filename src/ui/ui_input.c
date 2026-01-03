@@ -154,9 +154,9 @@ static bool input_hit_test(ui_component_t *component, float x, float y) {
 }
 
 // 鼠标按下事件
-static bool input_on_mouse_down(ui_component_t *component, event_t *event) {
+static void input_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
-    if (!input) return false;
+    if (!input) return;
     
     // 获取焦点
     input->focused = true;
@@ -168,20 +168,17 @@ static bool input_on_mouse_down(ui_component_t *component, event_t *event) {
     // 重置光标闪烁状态，使光标立即显示
     input->cursor_blink_visible = true;
     input->cursor_blink_timer = 0;
-    
-    return true;
 }
 // 鼠标释放事件
-static bool input_on_mouse_up(ui_component_t *component, event_t *event) {
+static void input_on_mouse_up(ui_component_t *component, event_t *event) {
     (void)component;
     (void)event;
-    return false;
 }
 
 // 键盘按下事件
-static bool input_on_key_down(ui_component_t *component, event_t *event) {
+static void input_on_key_down(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
-    if (!input || !input->focused || input->readonly) return false;
+    if (!input || !input->focused || input->readonly) return;
 
     int text_len = strlen(input->text);
 
@@ -202,7 +199,7 @@ static bool input_on_key_down(ui_component_t *component, event_t *event) {
                     input->scroll_offset = input->cursor_pos;
                 }
             }
-            return true;
+            break;
         }
         case SDLK_DELETE: {
             // 删除光标后的字符（正确处理多字节 UTF-8 字符）
@@ -214,7 +211,7 @@ static bool input_on_key_down(ui_component_t *component, event_t *event) {
                 // 删除整个字符（可能包含多个字节）
                 memmove(input->text + input->cursor_pos, input->text + next_start, text_len - next_start + 1);
             }
-            return true;
+            break;
         }
         case SDLK_LEFT: {
             // 光标左移（正确处理多字节 UTF-8 字符）
@@ -224,47 +221,45 @@ static bool input_on_key_down(ui_component_t *component, event_t *event) {
                     input->scroll_offset = input->cursor_pos;
                 }
             }
-            return true;
+            break;
         }
         case SDLK_RIGHT: {
             // 光标右移（正确处理多字节 UTF-8 字符）
             if (input->cursor_pos < text_len) {
                 input->cursor_pos = find_next_char_start(input->text, input->cursor_pos, text_len);
             }
-            return true;
+            break;
         }
         case SDLK_HOME: {
             // 光标移到开头
             input->cursor_pos = 0;
             input->scroll_offset = 0;
-            return true;
+            break;
         }
         case SDLK_END: {
             // 光标移到结尾
             input->cursor_pos = text_len;
-            return true;
+            break;
         }
         case SDLK_RETURN:
         case SDLK_KP_ENTER: {
             // 回车键，可以触发输入完成事件
-            return true;
+            break;
         }
         case SDLK_ESCAPE: {
             // ESC键，可以取消输入
             input->focused = false;
-            return true;
+            break;
         }
         default:
             break;
     }
-    
-    return false;
 }
 
 // 文本输入事件（支持中文输入法）
-static bool input_on_text_input(ui_component_t *component, event_t *event) {
+static void input_on_text_input(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
-    if (!input || !input->focused || input->readonly || !event) return false;
+    if (!input || !input->focused || input->readonly || !event) return;
     
     int text_len = strlen(input->text);
     const char *text = event->text.text;
@@ -272,7 +267,7 @@ static bool input_on_text_input(ui_component_t *component, event_t *event) {
     
     // 检查最大长度限制
     if (input->max_length > 0 && text_len + new_text_len >= input->max_length) {
-        return false;
+        return;
     }
     
     // 插入文本
@@ -288,14 +283,12 @@ static bool input_on_text_input(ui_component_t *component, event_t *event) {
     if (input->cursor_pos - input->scroll_offset > max_visible_chars) {
         input->scroll_offset = input->cursor_pos - max_visible_chars;
     }
-    
-    return true;
 }
 
 // 焦点失去事件
-static bool input_on_blur(ui_component_t *component, event_t *event) {
+static void input_on_blur(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
-    if (!input) return false;
+    if (!input) return;
     
     (void)event;  // 未使用
     
@@ -304,8 +297,6 @@ static bool input_on_blur(ui_component_t *component, event_t *event) {
     
     // 失去焦点
     input->focused = false;
-    
-    return false;
 }
 
 // ==================== 虚函数表定义 ====================

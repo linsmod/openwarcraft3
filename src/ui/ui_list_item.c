@@ -113,18 +113,16 @@ static bool list_item_hit_test(ui_component_t *component, float x, float y) {
            y >= component->y && y < component->y + component->height;
 }
 
-static bool list_item_on_mouse_enter(ui_component_t *component, event_t *event) {
+static void list_item_on_mouse_enter(ui_component_t *component, event_t *event) {
     ui_list_item_t *item = (ui_list_item_t *)component;
-    if (!item || !UIComponent_IsEnabled(component)) return false;
+    if (!item || !UIComponent_IsEnabled(component)) return;
     item->hovered = true;
-    return true;
 }
 
-static bool list_item_on_mouse_leave(ui_component_t *component, event_t *event) {
+static void list_item_on_mouse_leave(ui_component_t *component, event_t *event) {
     ui_list_item_t *item = (ui_list_item_t *)component;
-    if (!item) return false;
+    if (!item) return;
     item->hovered = false;
-    return true;
 }
 
 // ==================== 虚函数表定义 ====================

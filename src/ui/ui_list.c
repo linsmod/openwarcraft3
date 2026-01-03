@@ -142,9 +142,9 @@ static bool list_hit_test(ui_component_t *component, float x, float y) {
 }
 
 // 列表特定的鼠标事件处理
-static bool list_on_mouse_move(ui_component_t *component, event_t *event) {
+static void list_on_mouse_move(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
-    if (!list || !UIComponent_IsEnabled(component)) return false;
+    if (!list || !UIComponent_IsEnabled(component)) return;
 
     // 处理滚动条拖动
     if (list->is_dragging_scrollbar) {
@@ -162,7 +162,6 @@ static bool list_on_mouse_move(ui_component_t *component, event_t *event) {
         if (new_offset > max_scroll) new_offset = max_scroll;
         
         list->scroll_offset = new_offset;
-        return true;
     }
 
     // 更新所有可见items的hover状态
@@ -187,13 +186,11 @@ static bool list_on_mouse_move(ui_component_t *component, event_t *event) {
 
         item_y += list->item_height + list->item_spacing;
     }
-
-    return true;
 }
 
-static bool list_on_mouse_up(ui_component_t *component, event_t *event) {
+static void list_on_mouse_up(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
-    if (!list) return false;
+    if (!list) return;
     
     // 结束滚动条拖动
     if (list->is_dragging_scrollbar) {
@@ -203,12 +200,11 @@ static bool list_on_mouse_up(ui_component_t *component, event_t *event) {
             SceneManager_ReleaseMouse(list->scene_manager);
         }
     }
-    return true;
 }
 
-static bool list_on_mouse_down(ui_component_t *component, event_t *event) {
+static void list_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
-    if (!list || !UIComponent_IsEnabled(component)) return false;
+    if (!list || !UIComponent_IsEnabled(component)) return;
 
     // 检查是否点击滚动条
     if (list->show_scrollbar && list->item_count > list->visible_count) {
@@ -231,7 +227,6 @@ static bool list_on_mouse_down(ui_component_t *component, event_t *event) {
                 if (list->scene_manager) {
                     SceneManager_CaptureMouse(list->scene_manager, component);
                 }
-                return true;
             } else {
                 // 点击了滚动槽，跳转到点击位置
                 float click_ratio = (event->mouse.y - component->y) / track_height;
@@ -246,7 +241,6 @@ static bool list_on_mouse_down(ui_component_t *component, event_t *event) {
                 if (list->scene_manager) {
                     SceneManager_CaptureMouse(list->scene_manager, component);
                 }
-                return true;
             }
         }
     }
@@ -260,18 +254,15 @@ static bool list_on_mouse_down(ui_component_t *component, event_t *event) {
         ui_list_item_t *item = list->items[item_index];
         if (event->mouse.y >= item_y && event->mouse.y < item_y + list->item_height) {
             list->pending_selected_index = item_index;
-            return true;
         }
 
         item_y += list->item_height + list->item_spacing;
     }
-
-    return false;
 }
 
-static bool list_on_mouse_wheel(ui_component_t *component, event_t *event) {
+static void list_on_mouse_wheel(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
-    if (!list || !UIComponent_IsEnabled(component)) return false;
+    if (!list || !UIComponent_IsEnabled(component)) return;
 
     int max_offset = list->item_count - list->visible_count;
     int scroll_delta = -event->wheel.delta; // 标准化滚轮值
@@ -279,25 +270,21 @@ static bool list_on_mouse_wheel(ui_component_t *component, event_t *event) {
     list->scroll_offset += scroll_delta;
     if (list->scroll_offset < 0) list->scroll_offset = 0;
     if (list->scroll_offset > max_offset) list->scroll_offset = max_offset;
-
-    return true;
 }
 
-static bool list_on_key_down(ui_component_t *component, event_t *event) {
+static void list_on_key_down(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
-    if (!list || !UIComponent_IsEnabled(component)) return false;
+    if (!list || !UIComponent_IsEnabled(component)) return;
 
     switch (event->key.key) {
         case SDLK_UP: // 上箭头
             if (list->selected_index > 0) {
                 list->pending_selected_index = list->selected_index - 1;
-                return true;
             }
             break;
         case SDLK_DOWN: // 下箭头
             if (list->selected_index < list->item_count - 1) {
                 list->pending_selected_index = list->selected_index + 1;
-                return true;
             }
             break;
         case SDLK_PAGEUP: // Page Up
@@ -306,7 +293,7 @@ static bool list_on_key_down(ui_component_t *component, event_t *event) {
                 if (new_offset < 0) new_offset = 0;
                 list->pending_selected_index = new_offset;
             }
-            return true;
+            break;
         case SDLK_PAGEDOWN: // Page Down
             if (list->item_count > 0) {
                 int max_offset = list->item_count - list->visible_count;
@@ -317,20 +304,18 @@ static bool list_on_key_down(ui_component_t *component, event_t *event) {
                 if (new_index >= list->item_count) new_index = list->item_count - 1;
                 list->pending_selected_index = new_index;
             }
-            return true;
+            break;
         case SDLK_HOME: // Home
             if (list->item_count > 0) {
                 list->pending_selected_index = 0;
             }
-            return true;
+            break;
         case SDLK_END: // End
             if (list->item_count > 0) {
                 list->pending_selected_index = list->item_count - 1;
             }
-            return true;
+            break;
     }
-
-    return false;
 }
 
 // ==================== 虚函数表定义 ====================

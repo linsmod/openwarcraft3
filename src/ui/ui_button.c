@@ -124,69 +124,65 @@ static bool button_hit_test(ui_component_t *component, float x, float y) {
            y >= component->y && y < component->y + component->height;
 }
 
-static bool button_on_mouse_enter(ui_component_t *component, event_t *event) {
+static void button_on_mouse_enter(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
-    if (!button || !UIComponent_IsEnabled(component)) return false;
+    if (!button || !UIComponent_IsEnabled(component)) return;
 
     if (button->state != UI_BUTTON_STATE_PRESSED) {
         button->state = UI_BUTTON_STATE_HOVER;
     }
-    return true;
 }
 
-static bool button_on_mouse_leave(ui_component_t *component, event_t *event) {
+static void button_on_mouse_leave(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
-    if (!button) return false;
+    if (!button) return;
 
 
     // Set state to normal when mouse leave whatever pressed or not.
     if (UIComponent_IsEnabled(component)) {
         button->state = UI_BUTTON_STATE_NORMAL;
     }
-    return true;
 }
 
-static bool button_on_mouse_down(ui_component_t *component, event_t *event) {
+static void button_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
-    if (!button || !UIComponent_IsEnabled(component)) return false;
+    if (!button || !UIComponent_IsEnabled(component)) return;
 
     button->state = UI_BUTTON_STATE_PRESSED;
-    return true;
 }
 
-static bool button_on_mouse_up(ui_component_t *component, event_t *event) {
+static void button_on_mouse_up(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
-    if (!button || !UIComponent_IsEnabled(component)) return false;
+    if (!button || !UIComponent_IsEnabled(component)) return;
 
     if (button->state == UI_BUTTON_STATE_PRESSED) {
         button->state = UI_BUTTON_STATE_HOVER;
     }
-    return true;
 }
 
-static bool button_on_click(ui_component_t *component, event_t *event) {
+static void button_on_click(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
-    if (!button || !UIComponent_IsEnabled(component)) return false;
+    if (!button || !UIComponent_IsEnabled(component)) return;
 
     if (button->state != UI_BUTTON_STATE_DISABLED) {
-        return true;
+        // 触发点击事件
+        UIComponent_TriggerEvent(&button->base, event);
     }
-    return false;
 }
 
-static bool button_on_double_click(ui_component_t *component, event_t *event) {
+static void button_on_double_click(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
-    if (!button || !UIComponent_IsEnabled(component)) return false;
+    if (!button || !UIComponent_IsEnabled(component)) return;
 
     if (button->config.double_click_enabled) {
-        return true;
+        // 触发双击事件
+        UIComponent_TriggerEvent(&button->base, event);
     }
-    return false;
 }
 
-static bool button_on_mouse_move(ui_component_t *component, event_t *event) {
+static void button_on_mouse_move(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
-    if (!button || !UIComponent_IsEnabled(component)) return false;
+    if (!button || !UIComponent_IsEnabled(component)) return;
 
     bool is_hovered = button_hit_test(component, event->mouse.x, event->mouse.y);
 
@@ -195,8 +191,6 @@ static bool button_on_mouse_move(ui_component_t *component, event_t *event) {
     } else if (!is_hovered && button->state != UI_BUTTON_STATE_PRESSED) {
         button->state = UI_BUTTON_STATE_NORMAL;
     }
-
-    return false;
 }
 
 // ==================== 虚函数表定义 ====================

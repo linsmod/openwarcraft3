@@ -10,7 +10,7 @@ static void html_viewer_init(ui_component_t *component, canvas2d_context_t *ctx)
 static void html_viewer_shutdown(ui_component_t *component);
 static void html_viewer_update(ui_component_t *component, int msec);
 static void html_viewer_render(ui_component_t *component);
-static bool html_viewer_on_click(ui_component_t *component, event_t *event);
+static void html_viewer_on_click(ui_component_t *component, event_t *event);
 
 static const ui_component_vtable_t html_viewer_vtable = {
     .init = html_viewer_init,
@@ -83,11 +83,12 @@ static void html_viewer_render(ui_component_t *component) {
     canvas2d_restore(component->ctx);
 }
 
-static bool html_viewer_on_click(ui_component_t *component, event_t *event) {
+static void html_viewer_on_click(ui_component_t *component, event_t *event) {
     ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
 
+    // 如果没有设置点击回调，让事件继续传播
     if (!viewer->html_ctx || !viewer->on_element_clicked) {
-        return false;
+        return;
     }
 
     float local_x = event->mouse.x - component->x - viewer->scroll_x;
@@ -98,13 +99,11 @@ static bool html_viewer_on_click(ui_component_t *component, event_t *event) {
         local_y /= viewer->zoom;
     }
 
+    // 查找被点击的元素
     xmlNode *elem = html_context_find_by_id(viewer->html_ctx, "clicked");
     if (elem && viewer->on_element_clicked) {
         viewer->on_element_clicked(viewer, elem, viewer->callback_user_data);
-        return true;
     }
-
-    return false;
 }
 
 ui_html_viewer_t* UIHTMLViewer_Create(float x, float y, float width, float height,

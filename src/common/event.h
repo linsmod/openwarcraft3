@@ -68,7 +68,6 @@ typedef struct event_t {
     // 传播控制
     bool propagation_stopped;
     bool default_prevented;
-    bool handled;  // 向后兼容
     
     // 用户数据
     void *user_data;
@@ -147,6 +146,6 @@ void Event_PreventDefault(event_t *event);
 
 // ==================== 事件处理器类型 ====================
 
-typedef bool (*event_handler_t)(ui_component_t *component, event_t *event, void *user_data);
+typedef void (*event_handler_t)(ui_component_t *component, event_t *event, void *user_data);
 
 #endif // __EVENT_H__
