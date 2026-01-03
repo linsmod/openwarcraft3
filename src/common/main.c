@@ -149,11 +149,9 @@ int main(int argc, LPSTR argv[]) {
                 continue;
             }
             input_event.handled = false;
-
-            
             
             // 分发输入事件给当前场景
-            SceneManager_OnInput(scene_mgr, &input_event);
+            SceneManager_ProcessEvent(scene_mgr, &input_event);
         }
         // 更新当前场景（如果有transition会自动设置到pending）
         SceneManager_Update(scene_mgr, dt);
