@@ -386,7 +386,7 @@ ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y);
 void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event);
 
 // 递归处理事件冒泡
-bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event);
+void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event);
 
 // ============= 焦点管理API =============
 void SceneManager_SetFocus(scene_manager_t *mgr, ui_component_t *component);

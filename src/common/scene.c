@@ -710,104 +710,102 @@ ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
     return component_hit_test(mgr->current_scene->root_component, x, y);
 }
 
-bool static ProcessUIHandlessEvent(scene_t *scene, event_t *event){
-    bool handled = false;
+void static ProcessUIHandlessEvent(scene_t *scene, event_t *event){
         switch (event->type) {
             // 鼠标事件
             case EVENT_MOUSE_DOWN:
                 if (scene->on_mouse_down) {
-                    handled = scene->on_mouse_down(scene, event);
+                    scene->on_mouse_down(scene, event);
                 }
                 break;
             case EVENT_MOUSE_UP:
                 if (scene->on_mouse_up) {
-                    handled = scene->on_mouse_up(scene, event);
+                    scene->on_mouse_up(scene, event);
                 }
                 break;
             case EVENT_MOUSE_MOTION:
                 if (scene->on_mouse_move) {
-                    handled = scene->on_mouse_move(scene, event);
+                    scene->on_mouse_move(scene, event);
                 }
                 break;
             case EVENT_MOUSE_WHEEL:
                 if (scene->on_mouse_wheel) {
-                    handled = scene->on_mouse_wheel(scene, event);
+                    scene->on_mouse_wheel(scene, event);
                 }
                 break;
             case EVENT_CLICK:
                 if (scene->on_click) {
-                    handled = scene->on_click(scene, event);
+                    scene->on_click(scene, event);
                 }
                 break;
             case EVENT_DOUBLE_CLICK:
                 if (scene->on_double_click) {
-                    handled = scene->on_double_click(scene, event);
+                    scene->on_double_click(scene, event);
                 }
                 break;
             case EVENT_DRAG_START:
                 if (scene->on_drag_start) {
-                    handled = scene->on_drag_start(scene, event);
+                    scene->on_drag_start(scene, event);
                 }
                 break;
             case EVENT_DRAG:
                 if (scene->on_drag) {
-                    handled = scene->on_drag(scene, event);
+                    scene->on_drag(scene, event);
                 }
                 break;
             case EVENT_DRAG_END:
                 if (scene->on_drag_end) {
-                    handled = scene->on_drag_end(scene, event);
+                    scene->on_drag_end(scene, event);
                 }
                 break;
             case EVENT_MOUSE_ENTER:
                 if (scene->on_mouse_enter) {
-                    handled = scene->on_mouse_enter(scene, event);
+                    scene->on_mouse_enter(scene, event);
                 }
                 break;
             case EVENT_MOUSE_LEAVE:
                 if (scene->on_mouse_leave) {
-                    handled = scene->on_mouse_leave(scene, event);
+                    scene->on_mouse_leave(scene, event);
                 }
                 break;
             case EVENT_CONTEXT_MENU:
                 if (scene->on_context_menu) {
-                    handled = scene->on_context_menu(scene, event);
+                    scene->on_context_menu(scene, event);
                 }
                 break;
                 
             // 键盘事件
             case EVENT_KEY_DOWN:
                 if (scene->on_key_down) {
-                    handled = scene->on_key_down(scene, event);
+                    scene->on_key_down(scene, event);
                 }
                 break;
             case EVENT_KEY_UP:
                 if (scene->on_key_up) {
-                    handled = scene->on_key_up(scene, event);
+                    scene->on_key_up(scene, event);
                 }
                 break;
             case EVENT_TEXT_INPUT:
                 if (scene->on_text_input) {
-                    handled = scene->on_text_input(scene, event);
+                    scene->on_text_input(scene, event);
                 }
                 break;
                 
             // 焦点事件
             case EVENT_FOCUS:
                 if (scene->on_focus) {
-                    handled = scene->on_focus(scene, event);
+                    scene->on_focus(scene, event);
                 }
                 break;
             case EVENT_BLUR:
                 if (scene->on_blur) {
-                    handled = scene->on_blur(scene, event);
+                    scene->on_blur(scene, event);
                 }
                 break;
                 
             default:
                 break;
         }
-    return handled;
 }
 // ========================================
 // 事件冒泡处理
@@ -818,10 +816,11 @@ bool static ProcessUIHandlessEvent(scene_t *scene, event_t *event){
 // 2. event_handlers 数组中注册的用户自定义事件处理器
 // 3. 场景的 on_* 函数指针（用于没有子元素的场景处理事件的需要）
 
-bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, event_t *event) {
-    if (!mgr || !event) return false;
+void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, event_t *event) {
+    if (!mgr || !event) return;
     if(!target){
-        return ProcessUIHandlessEvent(mgr->current_scene, event);
+        ProcessUIHandlessEvent(mgr->current_scene, event);
+        return;
     }
     // 从目标组件开始，向上遍历到根组件（事件冒泡）
     ui_component_t *current = target;
@@ -946,7 +945,7 @@ bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
 
         // 如果事件被标记为停止传播，则停止冒泡
         if (event->propagation_stopped) {
-            return true;
+            return;
         }
         
         // 移动到父组件（继续冒泡）
@@ -958,10 +957,8 @@ bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
     // 阶段三， 发送给scene的事件函数处理
     // ========================================
     if(!handled){
-        handled = ProcessUIHandlessEvent(scene, event);
+        ProcessUIHandlessEvent(scene, event);
     }
-    
-    return handled;
 }
 
 void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event) {
