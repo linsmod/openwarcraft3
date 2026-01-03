@@ -13,7 +13,7 @@ static void html_viewer_init(ui_component_t *component, canvas2d_context_t *ctx)
 static void html_viewer_shutdown(ui_component_t *component);
 static void html_viewer_update(ui_component_t *component, int msec);
 static void html_viewer_render(ui_component_t *component);
-static bool html_viewer_on_click(ui_component_t *component, ui_mouse_event_t *event);
+static bool html_viewer_on_click(ui_component_t *component, event_t *event);
 
 static const ui_component_vtable_t html_viewer_vtable = {
     .init = html_viewer_init,
@@ -86,15 +86,15 @@ static void html_viewer_render(ui_component_t *component) {
     canvas2d_restore(component->ctx);
 }
 
-static bool html_viewer_on_click(ui_component_t *component, ui_mouse_event_t *event) {
+static bool html_viewer_on_click(ui_component_t *component, event_t *event) {
     ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
 
     if (!viewer->html_ctx || !viewer->on_element_clicked) {
         return false;
     }
 
-    float local_x = event->x - component->x - viewer->scroll_x;
-    float local_y = event->y - component->y - viewer->scroll_y;
+    float local_x = event->mouse.x - component->x - viewer->scroll_x;
+    float local_y = event->mouse.y - component->y - viewer->scroll_y;
 
     if (viewer->zoom != 1.0f) {
         local_x /= viewer->zoom;

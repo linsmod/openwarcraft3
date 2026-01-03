@@ -2,6 +2,7 @@
 #include "../client/client.h"
 #include "../ui/ui_html_viewer.h"
 #include "../ui/ui_container.h"
+#include "common/scene.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +34,7 @@ static scene_t g_splash_scene = {
     .init = SplashScene_Init,
     .shutdown = SplashScene_Shutdown,
     .update = SplashScene_Update,
-    .render = SplashScene_Render,
+    .render = NULL,
     .on_input = SplashScene_OnInput,
     .pause = NULL,
     .resume = NULL
@@ -146,14 +147,29 @@ scene_transition_t* SplashScene_Update(scene_t *scene, int msec) {
     
     return NULL;
 }
-
-// Scene 渲染
-void SplashScene_Render(scene_t *scene) {
-    // 使用场景管线渲染所有UI组件（包括HTML viewer）
-    Scene_RenderUI(scene);
+void splash_on_mouse_down(scene_t* scene, void *user_data) {
+    // 创建跳转到下一个场景的请求
+    scene_params_t *params = NULL;
+    const char* target_scene_name = "MapSelect";
     
-    // 注意：不再直接调用 html_render()
-    // HTML渲染由ui_html_viewer的vtable->render自动处理
+    if (scene->launch_params) {
+        char map_path[MAX_PATHLEN];
+        if (SceneParams_GetString(scene->launch_params, "map_path", map_path, sizeof(map_path)) && strlen(map_path) > 0) {
+            params = SceneParams_Create();
+            SceneParams_SetString(params, "map_path", map_path);
+            SceneParams_SetString(params, "start_folder", "");
+            target_scene_name = "Game";
+        }
+    }
+    
+    scene_transition_t *transition = SceneTransition_CreateByName(
+        TRANSITION_SWITCH,
+        target_scene_name,
+        params,
+        NULL
+    );
+    
+    scene->manager->pending_transition = transition;
 }
 
 // Scene 输入处理
@@ -170,30 +186,7 @@ void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
         case INPUT_EVENT_MOUSE_DOWN: {
             // 任意键或鼠标点击跳过
             printf("SplashScene: Skipped by user input\n");
-            data->is_finished = true;
             
-            // 创建跳转到下一个场景的请求
-            scene_params_t *params = NULL;
-            const char* target_scene_name = "MapSelect";
-            
-            if (scene->launch_params) {
-                char map_path[MAX_PATHLEN];
-                if (SceneParams_GetString(scene->launch_params, "map_path", map_path, sizeof(map_path)) && strlen(map_path) > 0) {
-                    params = SceneParams_Create();
-                    SceneParams_SetString(params, "map_path", map_path);
-                    SceneParams_SetString(params, "start_folder", "");
-                    target_scene_name = "Game";
-                }
-            }
-            
-            scene_transition_t *transition = SceneTransition_CreateByName(
-                TRANSITION_SWITCH,
-                target_scene_name,
-                params,
-                NULL
-            );
-            
-            scene->manager->pending_transition = transition;
         }
         
         default:

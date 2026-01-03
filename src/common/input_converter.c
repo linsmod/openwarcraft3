@@ -1,12 +1,12 @@
 #include "input_converter.h"
 #include <string.h>
 
-bool ConvertSDLEvent(SDL_Event *sdl_event, input_event_t *output) {
+bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
     if (!sdl_event || !output) {
         return false;
     }
     
-    memset(output, 0, sizeof(input_event_t));
+    memset(output, 0, sizeof(event_t));
     
     switch (sdl_event->type) {
         case SDL_QUIT:

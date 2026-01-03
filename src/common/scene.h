@@ -3,6 +3,7 @@
 
 #include "../common/shared.h"
 #include "canvas2d/canvas2d.h"
+#include "../common/event.h"
 #include "ui/ui_component.h"
 
 // 前向声明
@@ -107,83 +108,31 @@ typedef enum {
 } scene_state_t;
 
 // ========================================
-// 输入事件
+// 输入事件 - 现在使用统一的 event_t
+// 定义在 src/common/event.h 中
 // ========================================
-typedef enum {
-    // 基础事件（来自主循环）
-    INPUT_EVENT_KEY_DOWN,
-    INPUT_EVENT_KEY_UP,
-    INPUT_EVENT_MOUSE_DOWN,
-    INPUT_EVENT_MOUSE_UP,
-    INPUT_EVENT_MOUSE_MOTION,
-INPUT_EVENT_MOUSE_WHEEL,
-    INPUT_EVENT_TEXT_INPUT,    // 文本输入（用于中文输入法等）
-    INPUT_EVENT_TEXT_EDITING,
-    INPUT_EVENT_QUIT,
-    
-    // 细化的事件（由场景管理器生成）
-    INPUT_EVENT_CLICK,           // 单击
-    INPUT_EVENT_DOUBLE_CLICK,    // 双击
-    INPUT_EVENT_DRAG_START,      // 拖拽开始
-    INPUT_EVENT_DRAG,            // 拖拽中
-    INPUT_EVENT_DRAG_END,        // 拖拽结束
-    INPUT_EVENT_MOUSE_ENTER,     // 鼠标进入组件
-    INPUT_EVENT_MOUSE_LEAVE      // 鼠标离开组件
-} input_event_type_t;
 
-typedef struct {
-    input_event_type_t type;
-    
-    // 目标组件（由场景管理器的hitTest填充）
-    ui_component_t *target;
-    
-    // 当前目标（用于事件冒泡）
-    ui_component_t *current_target;
-    
-    // 时间戳（毫秒）
-    int timestamp;
-    
-    // 是否停止传播
-    bool propagation_stopped;
-    
-    union {
-        struct {
-            int key;
-            bool down;
-        } key;
-        struct {
-            int button;
-            float x;
-            float y;
-            float start_x;      // 拖拽起始位置（用于拖拽事件）
-            float start_y;
-            bool down;
-            int click_count;    // 点击次数（用于单击/双击）
-        } mouse;
-        struct {
-            float x;
-            float y;
-            float dx;
-            float dy;
-        } motion;
-        struct {
-            float delta;      // 滚轮滚动值
-            float x;          // 鼠标X位置（滚轮事件时同时记录鼠标位置）
-            float y;          // 鼠标Y位置
-        } wheel;
-        struct {
-            char text[32];     // 输入的文本（最多32个UTF-8字符）
-        } text;
-        struct {
-            char text[32];     // 编辑中的文本（最多32个UTF-8字符）
-            int start;         // 编辑起始位置
-            int length;        // 编辑长度
-        } editing;
-    };
-    
-    // 向后兼容字段
-    bool handled;
-} input_event_t;
+// 向后兼容的类型别名
+typedef event_t input_event_t;
+typedef event_type_t input_event_type_t;
+
+// 向后兼容的宏定义
+#define INPUT_EVENT_KEY_DOWN       EVENT_KEY_DOWN
+#define INPUT_EVENT_KEY_UP         EVENT_KEY_UP
+#define INPUT_EVENT_MOUSE_DOWN     EVENT_MOUSE_DOWN
+#define INPUT_EVENT_MOUSE_UP       EVENT_MOUSE_UP
+#define INPUT_EVENT_MOUSE_MOTION   EVENT_MOUSE_MOTION
+#define INPUT_EVENT_MOUSE_WHEEL    EVENT_MOUSE_WHEEL
+#define INPUT_EVENT_TEXT_INPUT     EVENT_TEXT_INPUT
+#define INPUT_EVENT_TEXT_EDITING   EVENT_TEXT_EDITING
+#define INPUT_EVENT_QUIT           EVENT_QUIT
+#define INPUT_EVENT_CLICK          EVENT_CLICK
+#define INPUT_EVENT_DOUBLE_CLICK   EVENT_DOUBLE_CLICK
+#define INPUT_EVENT_DRAG_START     EVENT_DRAG_START
+#define INPUT_EVENT_DRAG           EVENT_DRAG
+#define INPUT_EVENT_DRAG_END       EVENT_DRAG_END
+#define INPUT_EVENT_MOUSE_ENTER    EVENT_MOUSE_ENTER
+#define INPUT_EVENT_MOUSE_LEAVE    EVENT_MOUSE_LEAVE
 
 // ========================================
 // 场景接口函数指针类型
@@ -220,7 +169,6 @@ struct scene_t {
     scene_shutdown_fn shutdown;
     scene_update_fn update;      // 可返回跳转请求
     scene_layout_fn layout;
-    scene_render_background_fn render_background;
     scene_render_fn render;
     scene_pause_fn pause;        // 暂停时接收返回值
     scene_resume_fn resume;
@@ -254,7 +202,7 @@ struct scene_manager_t {
     scene_transition_t *pending_transition;
     
     // 当前输入事件
-    input_event_t current_input_event;
+    event_t current_input_event;
     bool input_event_valid;
     
     // 鼠标状态追踪（用于生成细化的事件）
@@ -356,7 +304,7 @@ void SceneManager_InitSceneWithDefaults(scene_manager_t *mgr, scene_t *scene);
 // 主循环接口
 void SceneManager_Update(scene_manager_t *mgr, int msec);
 void SceneManager_Render(scene_manager_t *mgr);
-void SceneManager_OnInput(scene_manager_t *mgr, input_event_t *event);
+void SceneManager_OnInput(scene_manager_t *mgr, event_t *event);
 
 // ========================================
 // 场景跳转请求API
@@ -414,7 +362,7 @@ void SceneManager_InitMouseState(scene_manager_t *mgr);
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y);
 
 // 处理事件细化
-void SceneManager_ProcessEvent(scene_manager_t *mgr, input_event_t *event);
+void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event);
 
 // 递归处理事件冒泡
 bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event);

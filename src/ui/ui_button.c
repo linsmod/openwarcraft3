@@ -124,7 +124,7 @@ static bool button_hit_test(ui_component_t *component, float x, float y) {
            y >= component->y && y < component->y + component->height;
 }
 
-static bool button_on_mouse_enter(ui_component_t *component, ui_mouse_event_t *event) {
+static bool button_on_mouse_enter(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return false;
 
@@ -134,7 +134,7 @@ static bool button_on_mouse_enter(ui_component_t *component, ui_mouse_event_t *e
     return true;
 }
 
-static bool button_on_mouse_leave(ui_component_t *component, ui_mouse_event_t *event) {
+static bool button_on_mouse_leave(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button) return false;
 
@@ -146,7 +146,7 @@ static bool button_on_mouse_leave(ui_component_t *component, ui_mouse_event_t *e
     return true;
 }
 
-static bool button_on_mouse_down(ui_component_t *component, ui_mouse_event_t *event) {
+static bool button_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return false;
 
@@ -154,7 +154,7 @@ static bool button_on_mouse_down(ui_component_t *component, ui_mouse_event_t *ev
     return true;
 }
 
-static bool button_on_mouse_up(ui_component_t *component, ui_mouse_event_t *event) {
+static bool button_on_mouse_up(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return false;
 
@@ -164,7 +164,7 @@ static bool button_on_mouse_up(ui_component_t *component, ui_mouse_event_t *even
     return true;
 }
 
-static bool button_on_click(ui_component_t *component, ui_mouse_event_t *event) {
+static bool button_on_click(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return false;
 
@@ -174,7 +174,7 @@ static bool button_on_click(ui_component_t *component, ui_mouse_event_t *event) 
     return false;
 }
 
-static bool button_on_double_click(ui_component_t *component, ui_mouse_event_t *event) {
+static bool button_on_double_click(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return false;
 
@@ -184,11 +184,11 @@ static bool button_on_double_click(ui_component_t *component, ui_mouse_event_t *
     return false;
 }
 
-static bool button_on_mouse_move(ui_component_t *component, ui_mouse_event_t *event) {
+static bool button_on_mouse_move(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return false;
 
-    bool is_hovered = button_hit_test(component, event->x, event->y);
+    bool is_hovered = button_hit_test(component, event->mouse.x, event->mouse.y);
 
     if (is_hovered && button->state != UI_BUTTON_STATE_PRESSED) {
         button->state = UI_BUTTON_STATE_HOVER;
@@ -384,19 +384,19 @@ ui_button_state_t UIButton_GetState(ui_button_t *button) {
 }
 
 bool UIButton_AddOnClick(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
-    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_CLICK, handler, user_data) : false;
+    return button ? UIComponent_AddEventHandler(&button->base, EVENT_CLICK, handler, user_data) : false;
 }
 
 bool UIButton_AddOnDoubleClick(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
-    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_DOUBLE_CLICK, handler, user_data) : false;
+    return button ? UIComponent_AddEventHandler(&button->base, EVENT_DOUBLE_CLICK, handler, user_data) : false;
 }
 
 bool UIButton_AddOnMouseEnter(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
-    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_MOUSE_ENTER, handler, user_data) : false;
+    return button ? UIComponent_AddEventHandler(&button->base, EVENT_MOUSE_ENTER, handler, user_data) : false;
 }
 
 bool UIButton_AddOnMouseLeave(ui_button_t *button, ui_event_handler_t handler, void *user_data) {
-    return button ? UIComponent_AddEventHandler(&button->base, UI_EVENT_MOUSE_LEAVE, handler, user_data) : false;
+    return button ? UIComponent_AddEventHandler(&button->base, EVENT_MOUSE_LEAVE, handler, user_data) : false;
 }
 
 void UIButton_Update(ui_button_t *button, int msec) {

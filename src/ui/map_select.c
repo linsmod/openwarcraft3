@@ -1335,7 +1335,6 @@ static scene_t g_map_select_scene = {
     .shutdown = MapSelectScene_Shutdown,
     .update = MapSelectScene_Update,
     .render = NULL,
-    .render_background = MapSelectScene_RenderBackground,
     .layout = NULL,
     .on_input = MapSelectScene_OnInput,
     .pause = NULL,

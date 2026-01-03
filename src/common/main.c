@@ -143,7 +143,7 @@ int main(int argc, LPSTR argv[]) {
             }
             
             // 使用 ConvertSDLEvent 转换 SDL 事件
-            input_event_t input_event;
+            event_t input_event;
             if (!ConvertSDLEvent(&event, &input_event)) {
                 // 事件转换失败，跳过此事件
                 continue;

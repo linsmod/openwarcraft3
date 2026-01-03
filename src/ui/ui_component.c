@@ -1,5 +1,6 @@
 #include "ui_component.h"
-#include "html/layout.h"
+#include "../common/event.h"
+#include "../html/layout.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,13 +10,13 @@
 
 // ==================== 事件操作 ====================
 
-void UIEvent_StopPropagation(ui_event_t *event) {
+void UIEvent_StopPropagation(event_t *event) {
     if (event) {
         event->propagation_stopped = true;
     }
 }
 
-void UIEvent_PreventDefault(ui_event_t *event) {
+void UIEvent_PreventDefault(event_t *event) {
     if (event) {
         event->default_prevented = true;
     }
@@ -103,7 +104,7 @@ void UIComponent_SetFocused(ui_component_t *component, bool focused) {
 
 // ==================== 事件处理 ====================
 
-bool UIComponent_AddEventHandler(ui_component_t *component, ui_event_type_t event_type, ui_event_handler_t handler, void *user_data) {
+bool UIComponent_AddEventHandler(ui_component_t *component, ui_event_type_t event_type, event_handler_t handler, void *user_data) {
     if (!component || event_type < 0 || event_type >= 32) {
         return false;
     }
@@ -123,7 +124,7 @@ bool UIComponent_RemoveEventHandler(ui_component_t *component, ui_event_type_t e
     return true;
 }
 
-bool UIComponent_TriggerEvent(ui_component_t *component, ui_event_t *event) {
+bool UIComponent_TriggerEvent(ui_component_t *component, event_t *event) {
     if (!component || !event) {
         return false;
     }
@@ -237,6 +238,28 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->drag_offset_y = 0.0f;
     component->lay_ctx = ctx->lay_ctx;
     component->lay_item_id = lay_item(ctx->lay_ctx);
+
+    // 初始化 input_event_t 类型的事件处理函数指针
+    component->on_mouse_down = NULL;
+    component->on_mouse_up = NULL;
+    component->on_mouse_motion = NULL;
+    component->on_mouse_wheel = NULL;
+    component->on_key_down = NULL;
+    component->on_key_up = NULL;
+    component->on_text_input = NULL;
+    component->on_double_click = NULL;
+    component->on_mouse_leave = NULL;
+    component->on_click = NULL;
+    component->on_drag = NULL;
+    component->on_drag_start = NULL;
+    component->on_drag_end = NULL;
+    component->on_mouse_enter = NULL;
+    component->on_quit = NULL;
+    component->on_screen_resize = NULL;
+    component->on_focus = NULL;
+    component->on_blur = NULL;
+    component->on_context_menu = NULL;
+    component->on_mouse_move = NULL;
 
     // 初始化事件处理器数组
     memset(component->event_handlers, 0, sizeof(component->event_handlers));

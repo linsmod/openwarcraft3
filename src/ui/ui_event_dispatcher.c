@@ -114,110 +114,104 @@ bool UIEventDispatcher_BubbleEvent(ui_event_dispatcher_t *dispatcher, ui_compone
         // 根据事件类型调用相应的虚函数
         bool vtable_result = false;
         switch (event->type) {
-            case UI_EVENT_MOUSE_ENTER:
+            case EVENT_MOUSE_ENTER:
                 if (current->vtable && current->vtable->on_mouse_enter) {
-                    vtable_result = current->vtable->on_mouse_enter(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_mouse_enter(current, event);
                 }
                 break;
-            case UI_EVENT_MOUSE_LEAVE:
+            case EVENT_MOUSE_LEAVE:
                 if (current->vtable && current->vtable->on_mouse_leave) {
-                    vtable_result = current->vtable->on_mouse_leave(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_mouse_leave(current, event);
                 }
                 break;
-            case UI_EVENT_MOUSE_DOWN:
+            case EVENT_MOUSE_DOWN:
                 if (current->vtable && current->vtable->on_mouse_down) {
-                    vtable_result = current->vtable->on_mouse_down(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_mouse_down(current, event);
                 }
                 break;
-            case UI_EVENT_MOUSE_UP:
+            case EVENT_MOUSE_UP:
                 if (current->vtable && current->vtable->on_mouse_up) {
-                    vtable_result = current->vtable->on_mouse_up(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_mouse_up(current, event);
                 }
                 break;
-            case UI_EVENT_CLICK:
+            case EVENT_CLICK:
                 if (current->vtable && current->vtable->on_click) {
-                    vtable_result = current->vtable->on_click(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_click(current, event);
                 }
                 break;
-            case UI_EVENT_DOUBLE_CLICK:
+            case EVENT_DOUBLE_CLICK:
                 if (current->vtable && current->vtable->on_double_click) {
-                    vtable_result = current->vtable->on_double_click(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_double_click(current, event);
                 }
                 break;
-            case UI_EVENT_MOUSE_MOVE:
+            case EVENT_MOUSE_MOVE:
                 if (current->vtable && current->vtable->on_mouse_move) {
-                    vtable_result = current->vtable->on_mouse_move(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_mouse_move(current, event);
                 }
                 break;
-            case UI_EVENT_MOUSE_WHEEL:
+            case EVENT_MOUSE_WHEEL:
                 if (current->vtable && current->vtable->on_mouse_wheel) {
-                    vtable_result = current->vtable->on_mouse_wheel(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_mouse_wheel(current, event);
                 }
                 break;
-            case UI_EVENT_DRAG_START:
+            case EVENT_DRAG_START:
                 if (current->vtable && current->vtable->on_drag_start) {
-                    vtable_result = current->vtable->on_drag_start(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_drag_start(current, event);
                 }
                 break;
-            case UI_EVENT_DRAG:
+            case EVENT_DRAG:
                 if (current->vtable && current->vtable->on_drag) {
-                    vtable_result = current->vtable->on_drag(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_drag(current, event);
                 }
                 break;
-            case UI_EVENT_DRAG_END:
+            case EVENT_DRAG_END:
                 if (current->vtable && current->vtable->on_drag_end) {
-                    vtable_result = current->vtable->on_drag_end(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_drag_end(current, event);
                 }
                 break;
-            case UI_EVENT_CONTEXT_MENU:
+            case EVENT_CONTEXT_MENU:
                 if (current->vtable && current->vtable->on_context_menu) {
-                    vtable_result = current->vtable->on_context_menu(current, (ui_mouse_event_t *)event);
+                    vtable_result = current->vtable->on_context_menu(current, event);
                 }
                 break;
-            case UI_EVENT_KEY_DOWN:
+            case EVENT_KEY_DOWN:
                 if (current->vtable && current->vtable->on_key_down) {
-                    vtable_result = current->vtable->on_key_down(current, (ui_keyboard_event_t *)event);
+                    vtable_result = current->vtable->on_key_down(current, event);
                 }
                 break;
-            case UI_EVENT_KEY_UP:
+            case EVENT_KEY_UP:
                 if (current->vtable && current->vtable->on_key_up) {
-                    vtable_result = current->vtable->on_key_up(current, (ui_keyboard_event_t *)event);
+                    vtable_result = current->vtable->on_key_up(current, event);
                 }
                 break;
-            case UI_EVENT_KEY_PRESS:
+            case EVENT_KEY_PRESS:
                 if (current->vtable && current->vtable->on_key_press) {
-                    vtable_result = current->vtable->on_key_press(current, (ui_keyboard_event_t *)event);
+                    vtable_result = current->vtable->on_key_press(current, event);
                 }
                 break;
-            case UI_EVENT_TEXT_INPUT:
+            case EVENT_TEXT_INPUT:
                 if (current->vtable && current->vtable->on_text_input) {
-                    // 从event.user_data字段中获取文本数据
-                    const char *text = (const char *)event->user_data;
-                    if (!text) {
-                        break;
-                    }
-                    const char *copied_text = strdup(text); // 复制文本，防止悬空指针
-                    vtable_result = current->vtable->on_text_input(current, copied_text);
+                    vtable_result = current->vtable->on_text_input(current, event);
                 }
                 break;
-            case UI_EVENT_FOCUS:
+            case EVENT_FOCUS:
                 if (current->vtable && current->vtable->on_focus) {
-                    vtable_result = current->vtable->on_focus(current, (ui_focus_event_t *)event);
+                    vtable_result = current->vtable->on_focus(current, event);
                 }
                 break;
-            case UI_EVENT_BLUR:
+            case EVENT_BLUR:
                 if (current->vtable && current->vtable->on_blur) {
-                    vtable_result = current->vtable->on_blur(current, (ui_focus_event_t *)event);
+                    vtable_result = current->vtable->on_blur(current, event);
                 }
                 break;
-            case UI_EVENT_RESIZE:
+            case EVENT_RESIZE:
                 if (current->vtable && current->vtable->on_resize) {
-                    vtable_result = current->vtable->on_resize(current, (ui_resize_event_t *)event);
+                    vtable_result = current->vtable->on_resize(current, event);
                 }
                 break;
-            case UI_EVENT_SCROLL:
+            case EVENT_SCROLL:
                 if (current->vtable && current->vtable->on_scroll) {
-                    vtable_result = current->vtable->on_scroll(current, (ui_scroll_event_t *)event);
+                    vtable_result = current->vtable->on_scroll(current, event);
                 }
                 break;
             default:
@@ -250,35 +244,26 @@ bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, floa
         dispatcher->mouse_buttons[button] = true;
     }
 
-    ui_mouse_event_t event = {
-        .base = {
-            .type = UI_EVENT_MOUSE_DOWN,
-            .timestamp = timestamp,
-            .propagation_stopped = false,
-            .default_prevented = false
-        },
-        .x = x,
-        .y = y,
-        .screen_x = x,
-        .screen_y = y,
-        .button = button,
-        .click_count = 0,
-        .delta_x = 0,
-        .delta_y = 0,
-        .buttons = 0
+    event_t event = {
+        .type = EVENT_MOUSE_DOWN,
+        .timestamp = timestamp,
+        .propagation_stopped = false,
+        .default_prevented = false,
+        .mouse = {
+            .button = button,
+            .x = x,
+            .y = y,
+            .start_x = 0,
+            .start_y = 0,
+            .down = true,
+            .click_count = 0
+        }
     };
 
-    // 计算按钮状态掩码
-    for (int i = 0; i < 5; i++) {
-        if (dispatcher->mouse_buttons[i]) {
-            event.buttons |= (1 << i);
-        }
-    }
-
-    bool handled = UIEventDispatcher_BubbleEvent(dispatcher, target, &event.base);
+    bool handled = UIEventDispatcher_BubbleEvent(dispatcher, target, &event);
     
     // 检查是否开始拖拽
-    if (target && !event.base.propagation_stopped && !event.base.default_prevented &&
+    if (target && !event.propagation_stopped && !event.default_prevented &&
         (target->flags & UI_FLAG_DRAGGABLE) &&
         button == UI_MOUSE_BUTTON_LEFT) {
         if (target->vtable && target->vtable->on_drag_start) {
@@ -289,9 +274,9 @@ bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, floa
             target->drag_offset_x = 0;
             target->drag_offset_y = 0;
 
-            ui_mouse_event_t drag_event = event;
-            drag_event.base.type = UI_EVENT_DRAG_START;
-            UIEventDispatcher_BubbleEvent(dispatcher, target, &drag_event.base);
+            event_t drag_event = event;
+            drag_event.type = EVENT_DRAG_START;
+            UIEventDispatcher_BubbleEvent(dispatcher, target, &drag_event);
         }
     }
 
@@ -303,25 +288,19 @@ bool UIEventDispatcher_DispatchMouseDown(ui_event_dispatcher_t *dispatcher, floa
         }
         if (target != old_focus) {
             if (old_focus && (old_focus->flags & UI_FLAG_ACCEPT_FOCUS)) {
-                ui_focus_event_t blur_event = {
-                    .base = {
-                        .type = UI_EVENT_BLUR,
-                        .timestamp = timestamp
-                    },
-                    .related_target = target
+                event_t blur_event = {
+                    .type = EVENT_BLUR,
+                    .timestamp = timestamp
                 };
-                UIEventDispatcher_BubbleEvent(dispatcher, old_focus, &blur_event.base);
+                UIEventDispatcher_BubbleEvent(dispatcher, old_focus, &blur_event);
             }
 
             if (target->flags & UI_FLAG_ACCEPT_FOCUS) {
-                ui_focus_event_t focus_event = {
-                    .base = {
-                        .type = UI_EVENT_FOCUS,
-                        .timestamp = timestamp
-                    },
-                    .related_target = old_focus
+                event_t focus_event = {
+                    .type = EVENT_FOCUS,
+                    .timestamp = timestamp
                 };
-                UIEventDispatcher_BubbleEvent(dispatcher, target, &focus_event.base);
+                UIEventDispatcher_BubbleEvent(dispatcher, target, &focus_event);
                 dispatcher->focused = target;
             }
         }
@@ -341,32 +320,23 @@ bool UIEventDispatcher_DispatchMouseUp(ui_event_dispatcher_t *dispatcher, float 
         dispatcher->mouse_buttons[button] = false;
     }
 
-    ui_mouse_event_t event = {
-        .base = {
-            .type = UI_EVENT_MOUSE_UP,
-            .timestamp = timestamp,
-            .propagation_stopped = false,
-            .default_prevented = false
-        },
-        .x = x,
-        .y = y,
-        .screen_x = x,
-        .screen_y = y,
-        .button = button,
-        .click_count = 0,
-        .delta_x = 0,
-        .delta_y = 0,
-        .buttons = 0
+    event_t event = {
+        .type = EVENT_MOUSE_UP,
+        .timestamp = timestamp,
+        .propagation_stopped = false,
+        .default_prevented = false,
+        .mouse = {
+            .button = button,
+            .x = x,
+            .y = y,
+            .start_x = 0,
+            .start_y = 0,
+            .down = false,
+            .click_count = 0
+        }
     };
 
-    // 计算按钮状态掩码
-    for (int i = 0; i < 5; i++) {
-        if (dispatcher->mouse_buttons[i]) {
-            event.buttons |= (1 << i);
-        }
-    }
-
-    bool handled = UIEventDispatcher_BubbleEvent(dispatcher, target, &event.base);
+    bool handled = UIEventDispatcher_BubbleEvent(dispatcher, target, &event);
     if(handled) {
         //printf("MouseUp handled by component %p\n", target);
         return true;
@@ -392,16 +362,16 @@ bool UIEventDispatcher_DispatchMouseUp(ui_event_dispatcher_t *dispatcher, float 
 
         if (is_double_click) {
             // 双击事件
-            ui_mouse_event_t double_click_event = event;
-            double_click_event.base.type = UI_EVENT_DOUBLE_CLICK;
-            double_click_event.click_count = 2;
-            UIEventDispatcher_BubbleEvent(dispatcher, target, &double_click_event.base);
+            event_t double_click_event = event;
+            double_click_event.type = EVENT_DOUBLE_CLICK;
+            double_click_event.mouse.click_count = 2;
+            UIEventDispatcher_BubbleEvent(dispatcher, target, &double_click_event);
         } else {
             // 单击事件
-            ui_mouse_event_t click_event = event;
-            click_event.base.type = UI_EVENT_CLICK;
-            click_event.click_count = 1;
-            UIEventDispatcher_BubbleEvent(dispatcher, target, &click_event.base);
+            event_t click_event = event;
+            click_event.type = EVENT_CLICK;
+            click_event.mouse.click_count = 1;
+            UIEventDispatcher_BubbleEvent(dispatcher, target, &click_event);
         }
 
         // 更新点击信息
@@ -413,11 +383,11 @@ bool UIEventDispatcher_DispatchMouseUp(ui_event_dispatcher_t *dispatcher, float 
 
     // 结束拖拽
     if (dispatcher->dragging) {
-        ui_mouse_event_t drag_end_event = event;
-        drag_end_event.base.type = UI_EVENT_DRAG_END;
-        drag_end_event.delta_x = x - dispatcher->dragging->drag_start_x;
-        drag_end_event.delta_y = y - dispatcher->dragging->drag_start_y;
-        UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->dragging, &drag_end_event.base);
+        event_t drag_end_event = event;
+        drag_end_event.type = EVENT_DRAG_END;
+        drag_end_event.mouse.start_x = x - dispatcher->dragging->drag_start_x;
+        drag_end_event.mouse.start_y = y - dispatcher->dragging->drag_start_y;
+        UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->dragging, &drag_end_event);
 
         dispatcher->dragging->flags &= ~UI_FLAG_DRAGGING;
         dispatcher->dragging = NULL;
@@ -444,32 +414,22 @@ bool UIEventDispatcher_DispatchMouseMove(ui_event_dispatcher_t *dispatcher, floa
         if (old_hovered != target) {
             // 触发离开事件
             if (old_hovered) {
-                ui_mouse_event_t leave_event = {
-                    .base = {
-                        .type = UI_EVENT_MOUSE_LEAVE,
-                        .timestamp = timestamp
-                    },
-                    .x = x,
-                    .y = y,
-                    .screen_x = x,
-                    .screen_y = y
+                event_t leave_event = {
+                    .type = EVENT_MOUSE_LEAVE,
+                    .timestamp = timestamp,
+                    .mouse = { .x = x, .y = y }
                 };
-                UIEventDispatcher_BubbleEvent(dispatcher, old_hovered, &leave_event.base);
+                UIEventDispatcher_BubbleEvent(dispatcher, old_hovered, &leave_event);
             }
 
             // 触发进入事件
             if (target) {
-                ui_mouse_event_t enter_event = {
-                    .base = {
-                        .type = UI_EVENT_MOUSE_ENTER,
-                        .timestamp = timestamp
-                    },
-                    .x = x,
-                    .y = y,
-                    .screen_x = x,
-                    .screen_y = y
+                event_t enter_event = {
+                    .type = EVENT_MOUSE_ENTER,
+                    .timestamp = timestamp,
+                    .mouse = { .x = x, .y = y }
                 };
-                UIEventDispatcher_BubbleEvent(dispatcher, target, &enter_event.base);
+                UIEventDispatcher_BubbleEvent(dispatcher, target, &enter_event);
             }
         }
     }
@@ -481,34 +441,27 @@ bool UIEventDispatcher_DispatchMouseMove(ui_event_dispatcher_t *dispatcher, floa
         dispatcher->dragging->drag_offset_x = dx;
         dispatcher->dragging->drag_offset_y = dy;
 
-        ui_mouse_event_t drag_event = {
-            .base = {
-                .type = UI_EVENT_DRAG,
-                .timestamp = timestamp
-            },
-            .x = x,
-            .y = y,
-            .screen_x = x,
-            .screen_y = y,
-            .delta_x = dx,
-            .delta_y = dy
+        event_t drag_event = {
+            .type = EVENT_DRAG,
+            .timestamp = timestamp,
+            .mouse = {
+                .x = x,
+                .y = y,
+                .start_x = dx,
+                .start_y = dy
+            }
         };
-        UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->dragging, &drag_event.base);
+        UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->dragging, &drag_event);
     }
 
     // 处理鼠标移动事件
-    ui_mouse_event_t move_event = {
-        .base = {
-            .type = UI_EVENT_MOUSE_MOVE,
-            .timestamp = timestamp
-        },
-        .x = x,
-        .y = y,
-        .screen_x = x,
-        .screen_y = y
+    event_t move_event = {
+        .type = EVENT_MOUSE_MOVE,
+        .timestamp = timestamp,
+        .mouse = { .x = x, .y = y }
     };
 
-    return UIEventDispatcher_BubbleEvent(dispatcher, target, &move_event.base);
+    return UIEventDispatcher_BubbleEvent(dispatcher, target, &move_event);
 }
 
 bool UIEventDispatcher_DispatchMouseWheel(ui_event_dispatcher_t *dispatcher, float x, float y, int delta, int timestamp) {
@@ -516,24 +469,19 @@ bool UIEventDispatcher_DispatchMouseWheel(ui_event_dispatcher_t *dispatcher, flo
 
     ui_component_t *target = UIEventDispatcher_Capture(dispatcher, x, y);
 
-    ui_mouse_event_t event = {
-        .base = {
-            .type = UI_EVENT_MOUSE_WHEEL,
-            .timestamp = timestamp,
-            .propagation_stopped = false,
-            .default_prevented = false
-        },
-        .x = x,
-        .y = y,
-        .screen_x = x,
-        .screen_y = y,
-        .button = -1,
-        .click_count = 0,
-        .delta = delta,
-        .buttons = 0
+    event_t event = {
+        .type = EVENT_MOUSE_WHEEL,
+        .timestamp = timestamp,
+        .propagation_stopped = false,
+        .default_prevented = false,
+        .wheel = {
+            .delta = (float)delta,
+            .x = x,
+            .y = y
+        }
     };
 
-    return UIEventDispatcher_BubbleEvent(dispatcher, target, &event.base);
+    return UIEventDispatcher_BubbleEvent(dispatcher, target, &event);
 }
 
 bool UIEventDispatcher_DispatchContextMenu(ui_event_dispatcher_t *dispatcher, float x, float y, int timestamp) {
@@ -541,100 +489,101 @@ bool UIEventDispatcher_DispatchContextMenu(ui_event_dispatcher_t *dispatcher, fl
 
     ui_component_t *target = UIEventDispatcher_Capture(dispatcher, x, y);
 
-    ui_mouse_event_t event = {
-        .base = {
-            .type = UI_EVENT_CONTEXT_MENU,
-            .timestamp = timestamp,
-            .propagation_stopped = false,
-            .default_prevented = false
-        },
-        .x = x,
-        .y = y,
-        .screen_x = x,
-        .screen_y = y,
-        .button = UI_MOUSE_BUTTON_RIGHT,
-        .click_count = 0,
-        .buttons = 0
+    event_t event = {
+        .type = EVENT_CONTEXT_MENU,
+        .timestamp = timestamp,
+        .propagation_stopped = false,
+        .default_prevented = false,
+        .mouse = {
+            .button = UI_MOUSE_BUTTON_RIGHT,
+            .x = x,
+            .y = y,
+            .down = true,
+            .click_count = 0
+        }
     };
 
-    return UIEventDispatcher_BubbleEvent(dispatcher, target, &event.base);
+    return UIEventDispatcher_BubbleEvent(dispatcher, target, &event);
 }
 
 bool UIEventDispatcher_DispatchKeyDown(ui_event_dispatcher_t *dispatcher, int key, int scancode, int modifiers, bool repeat, int timestamp) {
     if (!dispatcher) return false;
 
-    ui_keyboard_event_t event = {
-        .base = {
-            .type = UI_EVENT_KEY_DOWN,
-            .timestamp = timestamp,
-            .propagation_stopped = false,
-            .default_prevented = false
-        },
-        .key = key,
-        .scancode = scancode,
-        .modifiers = modifiers,
-        .repeat = repeat
+    event_t event = {
+        .type = EVENT_KEY_DOWN,
+        .timestamp = timestamp,
+        .propagation_stopped = false,
+        .default_prevented = false,
+        .key = {
+            .key = key,
+            .scancode = scancode,
+            .modifiers = modifiers,
+            .repeat = repeat,
+            .down = true
+        }
     };
 
     // 首先发送给有焦点的组件
     if (dispatcher->focused) {
-        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event.base)) {
+        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event)) {
             return true;
         }
     }
 
     // 然后发送给根组件
-    return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event.base);
+    return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event);
 }
 
 bool UIEventDispatcher_DispatchKeyUp(ui_event_dispatcher_t *dispatcher, int key, int scancode, int modifiers, int timestamp) {
     if (!dispatcher) return false;
 
-    ui_keyboard_event_t event = {
-        .base = {
-            .type = UI_EVENT_KEY_UP,
-            .timestamp = timestamp,
-            .propagation_stopped = false,
-            .default_prevented = false
-        },
-        .key = key,
-        .scancode = scancode,
-        .modifiers = modifiers,
-        .repeat = false
+    event_t event = {
+        .type = EVENT_KEY_UP,
+        .timestamp = timestamp,
+        .propagation_stopped = false,
+        .default_prevented = false,
+        .key = {
+            .key = key,
+            .scancode = scancode,
+            .modifiers = modifiers,
+            .repeat = false,
+            .down = false
+        }
     };
 
     if (dispatcher->focused) {
-        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event.base)) {
+        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event)) {
             return true;
         }
     }
 
-    return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event.base);
+    return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event);
 }
 
 bool UIEventDispatcher_DispatchKeyPress(ui_event_dispatcher_t *dispatcher, int key, int scancode, int modifiers, int timestamp) {
     if (!dispatcher) return false;
 
-    ui_keyboard_event_t event = {
-        .base = {
-            .type = UI_EVENT_KEY_PRESS,
-            .timestamp = timestamp,
-            .propagation_stopped = false,
-            .default_prevented = false
-        },
-        .key = key,
-        .scancode = scancode,
-        .modifiers = modifiers,
-        .repeat = false
+    event_t event = {
+        .type = EVENT_KEY_PRESS,
+        .timestamp = timestamp,
+        .propagation_stopped = false,
+        .default_prevented = false,
+        .key = {
+            .key = key,
+            .scancode = scancode,
+            .modifiers = modifiers,
+            .repeat = false,
+            .down = true
+        }
     };
 
     if (dispatcher->focused) {
-        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event.base)) {
+        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event)) {
             return true;
         }
     }
 
-    return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event.base);
+    return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event);
 }
 
 bool UIEventDispatcher_DispatchTextInput(ui_event_dispatcher_t *dispatcher, const char *text, int timestamp) {
@@ -642,17 +591,16 @@ bool UIEventDispatcher_DispatchTextInput(ui_event_dispatcher_t *dispatcher, cons
 
     // 首先发送给有焦点的组件
     if (dispatcher->focused) {
-        // 创建一个文本输入事件，将文本作为事件数据传递
-        ui_event_t event = {
-            .type = UI_EVENT_TEXT_INPUT,
+        event_t event = {
+            .type = EVENT_TEXT_INPUT,
             .timestamp = timestamp,
             .propagation_stopped = false,
             .default_prevented = false
         };
         
-        // 将文本数据存储在事件的target字段中（临时使用）
-        // 这是一个变通方法，因为ui_event_t没有直接的文本字段
-        event.user_data = (void *)text;
+        // 复制文本到事件中
+        strncpy(event.text.text, text, sizeof(event.text.text) - 1);
+        event.text.text[sizeof(event.text.text) - 1] = '\0';
         
         if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event)) {
             return true;
@@ -673,26 +621,20 @@ void UIEventDispatcher_SetFocus(ui_event_dispatcher_t *dispatcher, ui_component_
     ui_component_t *old_focus = dispatcher->focused;
     if (old_focus != component) {
         if (old_focus) {
-            ui_focus_event_t blur_event = {
-                .base = {
-                    .type = UI_EVENT_BLUR,
-                    .timestamp = 0
-                },
-                .related_target = component
+            event_t blur_event = {
+                .type = EVENT_BLUR,
+                .timestamp = 0
             };
-            UIEventDispatcher_BubbleEvent(dispatcher, old_focus, &blur_event.base);
+            UIEventDispatcher_BubbleEvent(dispatcher, old_focus, &blur_event);
             old_focus->flags &= ~UI_FLAG_FOCUSED;
         }
 
         if (component && (component->flags & UI_FLAG_ACCEPT_FOCUS)) {
-            ui_focus_event_t focus_event = {
-                .base = {
-                    .type = UI_EVENT_FOCUS,
-                    .timestamp = 0
-                },
-                .related_target = old_focus
+            event_t focus_event = {
+                .type = EVENT_FOCUS,
+                .timestamp = 0
             };
-            UIEventDispatcher_BubbleEvent(dispatcher, component, &focus_event.base);
+            UIEventDispatcher_BubbleEvent(dispatcher, component, &focus_event);
             component->flags |= UI_FLAG_FOCUSED;
         }
 

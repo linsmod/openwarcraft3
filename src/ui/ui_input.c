@@ -154,7 +154,7 @@ static bool input_hit_test(ui_component_t *component, float x, float y) {
 }
 
 // 鼠标按下事件
-static bool input_on_mouse_down(ui_component_t *component, ui_mouse_event_t *event) {
+static bool input_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
     if (!input) return false;
     
@@ -172,20 +172,20 @@ static bool input_on_mouse_down(ui_component_t *component, ui_mouse_event_t *eve
     return true;
 }
 // 鼠标释放事件
-static bool input_on_mouse_up(ui_component_t *component, ui_mouse_event_t *event) {
+static bool input_on_mouse_up(ui_component_t *component, event_t *event) {
     (void)component;
     (void)event;
     return false;
 }
 
 // 键盘按下事件
-static bool input_on_key_down(ui_component_t *component, ui_keyboard_event_t *event) {
+static bool input_on_key_down(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
     if (!input || !input->focused || input->readonly) return false;
 
     int text_len = strlen(input->text);
 
-    switch (event->key) {
+    switch (event->key.key) {
         case SDLK_BACKSPACE: {
             // 删除光标前的字符（正确处理多字节 UTF-8 字符）
             if (input->cursor_pos > 0) {
@@ -262,11 +262,12 @@ static bool input_on_key_down(ui_component_t *component, ui_keyboard_event_t *ev
 }
 
 // 文本输入事件（支持中文输入法）
-static bool input_on_text_input(ui_component_t *component, const char *text) {
+static bool input_on_text_input(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
-    if (!input || !input->focused || input->readonly || !text) return false;
+    if (!input || !input->focused || input->readonly || !event) return false;
     
     int text_len = strlen(input->text);
+    const char *text = event->text.text;
     size_t new_text_len = strlen(text);
     
     // 检查最大长度限制
@@ -292,7 +293,7 @@ static bool input_on_text_input(ui_component_t *component, const char *text) {
 }
 
 // 焦点失去事件
-static bool input_on_blur(ui_component_t *component, ui_focus_event_t *event) {
+static bool input_on_blur(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
     if (!input) return false;
     
@@ -308,12 +309,12 @@ static bool input_on_blur(ui_component_t *component, ui_focus_event_t *event) {
 }
 
 // 键盘按键事件
-static bool input_on_key_press(ui_component_t *component, ui_keyboard_event_t *event) {
+static bool input_on_key_press(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
-    if (!input || !input->focused || input->readonly || event->repeat) return false;
+    if (!input || !input->focused || input->readonly || event->key.repeat) return false;
 
     // 处理可打印字符
-    if (event->key >= 32 && event->key <= 126) {
+    if (event->key.key >= 32 && event->key.key <= 126) {
         int text_len = strlen(input->text);
         
         // 检查最大长度限制
@@ -323,7 +324,7 @@ static bool input_on_key_press(ui_component_t *component, ui_keyboard_event_t *e
         
         // 插入字符
         memmove(input->text + input->cursor_pos + 1, input->text + input->cursor_pos, text_len - input->cursor_pos + 1);
-        input->text[input->cursor_pos] = (char)event->key;
+        input->text[input->cursor_pos] = (char)event->key.key;
         input->cursor_pos++;
         
         // 调整滚动偏移以保持光标可见

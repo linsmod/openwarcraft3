@@ -142,7 +142,7 @@ static bool list_hit_test(ui_component_t *component, float x, float y) {
 }
 
 // 列表特定的鼠标事件处理
-static bool list_on_mouse_move(ui_component_t *component, ui_mouse_event_t *event) {
+static bool list_on_mouse_move(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
 
@@ -150,7 +150,7 @@ static bool list_on_mouse_move(ui_component_t *component, ui_mouse_event_t *even
     if (list->is_dragging_scrollbar) {
         int max_scroll = list->item_count - list->visible_count;
         float track_height = component->height;
-        float delta_y = event->y - list->scrollbar_drag_start_y;
+        float delta_y = event->mouse.y - list->scrollbar_drag_start_y;
         float thumb_height = track_height * list->visible_count / list->item_count;
         
         // 计算新的滚动偏移
@@ -175,7 +175,7 @@ static bool list_on_mouse_move(ui_component_t *component, ui_mouse_event_t *even
         if (!item) continue;
 
         bool was_hovered = UIListItem_IsHovered(item);
-        bool is_hovered = (event->y >= item_y && event->y < item_y + list->item_height);
+        bool is_hovered = (event->mouse.y >= item_y && event->mouse.y < item_y + list->item_height);
 
         if (is_hovered && !was_hovered) {
             // 鼠标进入item
@@ -191,7 +191,7 @@ static bool list_on_mouse_move(ui_component_t *component, ui_mouse_event_t *even
     return true;
 }
 
-static bool list_on_mouse_up(ui_component_t *component, ui_mouse_event_t *event) {
+static bool list_on_mouse_up(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list) return false;
     
@@ -206,7 +206,7 @@ static bool list_on_mouse_up(ui_component_t *component, ui_mouse_event_t *event)
     return true;
 }
 
-static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *event) {
+static bool list_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
 
@@ -215,17 +215,17 @@ static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *even
         float scrollbar_x = component->x + component->width - 12;
         float scrollbar_width = 10;
         
-        if (event->x >= scrollbar_x && event->x < scrollbar_x + scrollbar_width) {
+        if (event->mouse.x >= scrollbar_x && event->mouse.x < scrollbar_x + scrollbar_width) {
             // 点击了滚动条，计算滚动条拇指位置
             int max_scroll = list->item_count - list->visible_count;
             float track_height = component->height;
             float thumb_height = track_height * list->visible_count / list->item_count;
             float thumb_y = component->y + (track_height - thumb_height) * list->scroll_offset / max_scroll;
             
-            if (event->y >= thumb_y && event->y < thumb_y + thumb_height) {
+            if (event->mouse.y >= thumb_y && event->mouse.y < thumb_y + thumb_height) {
                 // 点击了拇指，开始拖动
                 list->is_dragging_scrollbar = true;
-                list->scrollbar_drag_start_y = event->y;
+                list->scrollbar_drag_start_y = event->mouse.y;
                 list->scrollbar_drag_start_offset = list->scroll_offset;
                 // 捕获鼠标，防止鼠标移出范围后丢失事件
                 if (list->dispatcher) {
@@ -234,13 +234,13 @@ static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *even
                 return true;
             } else {
                 // 点击了滚动槽，跳转到点击位置
-                float click_ratio = (event->y - component->y) / track_height;
+                float click_ratio = (event->mouse.y - component->y) / track_height;
                 int new_offset = (int)(click_ratio * max_scroll + 0.5f);
                 if (new_offset < 0) new_offset = 0;
                 if (new_offset > max_scroll) new_offset = max_scroll;
                 list->scroll_offset = new_offset;
                 list->is_dragging_scrollbar = true;
-                list->scrollbar_drag_start_y = event->y;
+                list->scrollbar_drag_start_y = event->mouse.y;
                 list->scrollbar_drag_start_offset = list->scroll_offset;
                 // 捕获鼠标，防止鼠标移出范围后丢失事件
                 if (list->dispatcher) {
@@ -258,7 +258,7 @@ static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *even
         if (item_index >= list->item_count) break;
 
         ui_list_item_t *item = list->items[item_index];
-        if (event->y >= item_y && event->y < item_y + list->item_height) {
+        if (event->mouse.y >= item_y && event->mouse.y < item_y + list->item_height) {
             list->pending_selected_index = item_index;
             return true;
         }
@@ -269,12 +269,12 @@ static bool list_on_mouse_down(ui_component_t *component, ui_mouse_event_t *even
     return false;
 }
 
-static bool list_on_mouse_wheel(ui_component_t *component, ui_mouse_event_t *event) {
+static bool list_on_mouse_wheel(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
 
     int max_offset = list->item_count - list->visible_count;
-    int scroll_delta = -event->delta; // 标准化滚轮值
+    int scroll_delta = -event->wheel.delta; // 标准化滚轮值
 
     list->scroll_offset += scroll_delta;
     if (list->scroll_offset < 0) list->scroll_offset = 0;
@@ -283,11 +283,11 @@ static bool list_on_mouse_wheel(ui_component_t *component, ui_mouse_event_t *eve
     return true;
 }
 
-static bool list_on_key_down(ui_component_t *component, ui_keyboard_event_t *event) {
+static bool list_on_key_down(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return false;
 
-    switch (event->key) {
+    switch (event->key.key) {
         case SDLK_UP: // 上箭头
             if (list->selected_index > 0) {
                 list->pending_selected_index = list->selected_index - 1;
