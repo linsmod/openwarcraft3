@@ -31,7 +31,7 @@ else
     echo "No build type specified, using default..."
     echo "Building Debug version..."
     rm build -rf
-    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=ON -B build --fresh
+    cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DENABLE_ASAN=ON -B build
 fi
 
 # 执行构建命令

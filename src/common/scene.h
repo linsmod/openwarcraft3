@@ -175,26 +175,26 @@ struct scene_t {
     // 场景管理器指针
     scene_manager_t *manager;
 
-    bool (*on_mouse_down)(scene_t *this, event_t *event);
-    bool (*on_mouse_up)(scene_t *this, event_t *event);
-    bool (*on_mouse_motion)(scene_t *this, event_t *event);
-    bool (*on_mouse_wheel)(scene_t *this, event_t *event);
-    bool (*on_key_down)(scene_t *this, event_t *event);
-    bool (*on_key_up)(scene_t *this, event_t *event);
-    bool (*on_text_input)(scene_t *this, event_t *event);
-    bool (*on_double_click)(scene_t *this, event_t *event);
-    bool (*on_mouse_leave)(scene_t *this, event_t *event);
-    bool (*on_click)(scene_t *this, event_t *event);
-    bool (*on_drag)(scene_t *this, event_t *event);
-    bool (*on_drag_start)(scene_t *this, event_t *event);
-    bool (*on_drag_end)(scene_t *this, event_t *event);
-    bool (*on_mouse_enter)(scene_t *this, event_t *event);
-    bool (*on_quit)(scene_t *this, event_t *event);
-    bool (*on_screen_resize)(scene_t *this, event_t *event);
-    bool (*on_focus)(scene_t *this, event_t *event);
-    bool (*on_blur)(scene_t *this, event_t *event);
-    bool (*on_context_menu)(scene_t *this, event_t *event);
-    bool (*on_mouse_move)(scene_t *this, event_t *event);
+    void (*on_mouse_down)(scene_t *this, event_t *event);
+    void (*on_mouse_up)(scene_t *this, event_t *event);
+    void (*on_mouse_motion)(scene_t *this, event_t *event);
+    void (*on_mouse_wheel)(scene_t *this, event_t *event);
+    void (*on_key_down)(scene_t *this, event_t *event);
+    void (*on_key_up)(scene_t *this, event_t *event);
+    void (*on_text_input)(scene_t *this, event_t *event);
+    void (*on_double_click)(scene_t *this, event_t *event);
+    void (*on_mouse_leave)(scene_t *this, event_t *event);
+    void (*on_click)(scene_t *this, event_t *event);
+    void (*on_drag)(scene_t *this, event_t *event);
+    void (*on_drag_start)(scene_t *this, event_t *event);
+    void (*on_drag_end)(scene_t *this, event_t *event);
+    void (*on_mouse_enter)(scene_t *this, event_t *event);
+    void (*on_quit)(scene_t *this, event_t *event);
+    void (*on_screen_resize)(scene_t *this, event_t *event);
+    void (*on_focus)(scene_t *this, event_t *event);
+    void (*on_blur)(scene_t *this, event_t *event);
+    void (*on_context_menu)(scene_t *this, event_t *event);
+    void (*on_mouse_move)(scene_t *this, event_t *event);
 };
 
 // ========================================
@@ -210,8 +210,7 @@ struct scene_manager_t {
     void *default_canvas;              // 默认 canvas (void* 避免循环依赖)
     void *default_canvas_ctx;          // 默认 canvas 上下文
     void *default_lay_ctx;             // 默认 lay 布局上下文
-    void *default_event_dispatcher;     // 默认事件分发器
-    ui_component_t *default_root;     // 默认根容器
+    ui_component_t *default_root;      // 默认根容器
     
     // 场景注册表（用于通过名称查找场景）
     scene_t *registered_scenes[32];  // 最多支持32个场景
@@ -237,6 +236,12 @@ struct scene_manager_t {
     float last_click_y;                 // 上次点击Y
     int double_click_time;               // 双击检测时间间隔（毫秒）
     float drag_threshold;               // 拖拽阈值（像素）
+    
+    // ============= 焦点管理 =============
+    ui_component_t *focused;            // 当前获得焦点的组件
+    
+    // ============= 鼠标捕获管理 =============
+    ui_component_t *captured;           // 当前捕获鼠标的组件（优先接收所有鼠标事件）
 };
 
 // ========================================
@@ -309,9 +314,6 @@ void* SceneManager_GetDefaultCanvasContext(scene_manager_t *mgr);
 
 // 获取默认布局上下文
 void* SceneManager_GetDefaultLayoutContext(scene_manager_t *mgr);
-
-// 获取默认事件分发器
-void* SceneManager_GetDefaultEventDispatcher(scene_manager_t *mgr);
 
 // 获取默认根容器
 ui_component_t* SceneManager_GetDefaultRoot(scene_manager_t *mgr);
@@ -386,6 +388,15 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event);
 // 递归处理事件冒泡
 bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event);
 
+// ============= 焦点管理API =============
+void SceneManager_SetFocus(scene_manager_t *mgr, ui_component_t *component);
+ui_component_t* SceneManager_GetFocus(scene_manager_t *mgr);
+void SceneManager_ClearFocus(scene_manager_t *mgr);
+
+// ============= 鼠标捕获管理API =============
+void SceneManager_CaptureMouse(scene_manager_t *mgr, ui_component_t *component);
+ui_component_t* SceneManager_GetCaptured(scene_manager_t *mgr);
+void SceneManager_ReleaseMouse(scene_manager_t *mgr);
 
 // 更新场景的所有UI组件
 void Scene_UpdateUI(scene_t *scene, int msec);

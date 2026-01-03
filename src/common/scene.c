@@ -2,7 +2,6 @@
 #include "scene.h"
 #include "../ui/ui_component.h"
 #include "../ui/ui_container.h"
-#include "../ui/ui_event_dispatcher.h"
 
 #include "../html/layout.h"
 #include "../canvas2d/canvas2d.h"
@@ -333,25 +332,6 @@ scene_manager_t* SceneManager_Create(int width, int height) {
         }
     }
     
-    // 创建默认事件分发器
-    if (mgr->default_root && mgr->default_canvas_ctx) {
-        mgr->default_event_dispatcher = (void *)malloc(sizeof(ui_event_dispatcher_t));
-        if (mgr->default_event_dispatcher) {
-            int result = UIEventDispatcher_Init(
-                (ui_event_dispatcher_t *)mgr->default_event_dispatcher,
-                mgr->default_root,
-                (canvas2d_context_t *)mgr->default_canvas_ctx
-            );
-            if (result == 0) {
-                printf("  Created default event dispatcher\n");
-            } else {
-                printf("  Failed to create default event dispatcher: %d\n", result);
-                free(mgr->default_event_dispatcher);
-                mgr->default_event_dispatcher = NULL;
-            }
-        }
-    }
-    
     return mgr;
 }
 
@@ -398,12 +378,10 @@ void SceneManager_Destroy(scene_manager_t *mgr) {
     // ============= 销毁默认资源 =============
     printf("SceneManager: Destroying default resources\n");
     
-    // 销毁默认事件分发器（如果有）
-    if (mgr->default_event_dispatcher) {
-        UIEventDispatcher_Shutdown((ui_event_dispatcher_t *)mgr->default_event_dispatcher);
-        free(mgr->default_event_dispatcher);
-        mgr->default_event_dispatcher = NULL;
-        printf("  Destroyed default event dispatcher\n");
+    // 释放鼠标捕获
+    if (mgr->captured) {
+        SDL_CaptureMouse(SDL_FALSE);
+        mgr->captured = NULL;
     }
     
     // 销毁默认根容器（如果有）
@@ -450,6 +428,7 @@ void SceneManager_PushScene(scene_manager_t *mgr, scene_t *scene, const scene_pa
     scene->canvas_ctx = mgr->default_canvas_ctx;
     scene->lay_ctx = mgr->default_lay_ctx;
     scene->root_component = mgr->default_root;
+    
     // 初始化场景
     if (scene->state == SCENE_STATE_UNINITIALIZED) {
         if (SCENE_INIT(scene, params) == 0) {
@@ -688,6 +667,10 @@ void SceneManager_InitMouseState(scene_manager_t *mgr) {
     mgr->last_click_y = 0;
     mgr->double_click_time = 500;  // 双击时间间隔500ms
     mgr->drag_threshold = 3.0f;    // 拖拽阈值3像素
+    
+    // 初始化焦点和鼠标捕获
+    mgr->focused = NULL;
+    mgr->captured = NULL;
 }
 
 // 内部辅助函数：递归执行hitTest
@@ -1164,6 +1147,70 @@ void SceneManager_OnInput(scene_manager_t *mgr, event_t *event) {
 }
 
 // ========================================
+// 焦点管理实现
+// ========================================
+
+void SceneManager_SetFocus(scene_manager_t *mgr, ui_component_t *component) {
+    if (!mgr) return;
+
+    ui_component_t *old_focus = mgr->focused;
+    if (old_focus != component) {
+        if (old_focus) {
+            event_t blur_event = {
+                .type = EVENT_BLUR,
+                .timestamp = SDL_GetTicks()
+            };
+            SceneManager_BubbleEvent(mgr, old_focus, &blur_event);
+            old_focus->flags &= ~UI_FLAG_FOCUSED;
+        }
+
+        if (component && (component->flags & UI_FLAG_ACCEPT_FOCUS)) {
+            event_t focus_event = {
+                .type = EVENT_FOCUS,
+                .timestamp = SDL_GetTicks()
+            };
+            SceneManager_BubbleEvent(mgr, component, &focus_event);
+            component->flags |= UI_FLAG_FOCUSED;
+        }
+
+        mgr->focused = component;
+    }
+}
+
+ui_component_t* SceneManager_GetFocus(scene_manager_t *mgr) {
+    return mgr ? mgr->focused : NULL;
+}
+
+void SceneManager_ClearFocus(scene_manager_t *mgr) {
+    SceneManager_SetFocus(mgr, NULL);
+}
+
+// ========================================
+// 鼠标捕获管理实现
+// ========================================
+
+// 捕获鼠标（组件将优先接收所有鼠标事件，即使鼠标移出窗口范围）
+void SceneManager_CaptureMouse(scene_manager_t *mgr, ui_component_t *component) {
+    if (!mgr) return;
+    mgr->captured = component;
+    // 启用 SDL 鼠标捕获，即使鼠标移出窗口也能接收事件
+    SDL_CaptureMouse(SDL_TRUE);
+}
+
+// 获取当前捕获鼠标的组件
+ui_component_t* SceneManager_GetCaptured(scene_manager_t *mgr) {
+    return mgr ? mgr->captured : NULL;
+}
+
+// 释放鼠标捕获
+void SceneManager_ReleaseMouse(scene_manager_t *mgr) {
+    if (!mgr) return;
+    mgr->captured = NULL;
+    // 禁用 SDL 鼠标捕获
+    SDL_CaptureMouse(SDL_FALSE);
+}
+
+// ========================================
 // 默认资源API实现
 // ========================================
 
@@ -1177,10 +1224,6 @@ void* SceneManager_GetDefaultCanvasContext(scene_manager_t *mgr) {
 
 void* SceneManager_GetDefaultLayoutContext(scene_manager_t *mgr) {
     return mgr ? mgr->default_lay_ctx : NULL;
-}
-
-void* SceneManager_GetDefaultEventDispatcher(scene_manager_t *mgr) {
-    return mgr ? mgr->default_event_dispatcher : NULL;
 }
 
 ui_component_t* SceneManager_GetDefaultRoot(scene_manager_t *mgr) {

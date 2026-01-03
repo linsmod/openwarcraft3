@@ -6,7 +6,6 @@
 #include "ui_input.h"
 #include "ui_label.h"
 #include "ui_container.h"
-#include "ui_event_dispatcher.h"
 #include "../canvas2d/canvas2d.h"
 #include "../client/client.h"
 #include "../client/cl_game_scene.h"
@@ -493,7 +492,7 @@ int MapSelect_Init(scene_t *scene) {
     g_canvas = SceneManager_GetDefaultCanvas(mgr);
     g_ctx = SceneManager_GetDefaultCanvasContext(mgr);
     g_lay_ctx = SceneManager_GetDefaultLayoutContext(mgr);
-    g_event_dispatcher = SceneManager_GetDefaultEventDispatcher(mgr);
+    // 注意：不再使用UIEventDispatcher，直接使用SceneManager的事件处理
     
     printf("Using default resources from SceneManager\n");
     
@@ -653,7 +652,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_filter_input, 10.0f, 0.0f, 5.0f, 0.0f);
 
     // 将筛选输入框设置为焦点组件
-    UIEventDispatcher_SetFocus(g_event_dispatcher, g_filter_input);
+    SceneManager_SetFocus(scene->manager, g_filter_input);
 
     // 创建 UI 列表
     g_ui_list = (ui_component_t *)UIList_Create(0.0f, 0.0f, 360.0f, 650.0f, 50.0f, 14.0f, g_ctx);
@@ -663,7 +662,7 @@ int MapSelect_Init(scene_t *scene) {
     }
 
     // 设置事件分发器（用于鼠标捕获功能）
-    UIList_SetDispatcher((ui_list_t *)g_ui_list, g_event_dispatcher);
+    UIList_SetDispatcher((ui_list_t *)g_ui_list, (ui_event_dispatcher_t*)scene->manager);
 
     // 设置列表选中项改变回调
     UIList_SetSelectedChangedCallback((ui_list_t *)g_ui_list, OnListSelectedChanged, NULL);
