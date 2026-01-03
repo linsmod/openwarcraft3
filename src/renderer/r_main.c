@@ -452,6 +452,12 @@ VECTOR2 R_GetDisplayScale(void) {
 size2_t R_GetViewPortSize(void) {
     return tr.initialSize;
 }
+FLOAT NormX(FLOAT value){
+    return value / tr.initialSize.width;
+}
+FLOAT NormY(FLOAT value){
+    return value / tr.initialSize.height;
+}
 size2_t R_GetWindowSize(void) {
     int width, height;
     SDL_GetWindowSize(window, &width, &height);

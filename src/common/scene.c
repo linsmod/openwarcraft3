@@ -690,14 +690,41 @@ void SceneManager_InitMouseState(scene_manager_t *mgr) {
     mgr->drag_threshold = 3.0f;    // 拖拽阈值3像素
 }
 
+// 内部辅助函数：递归执行hitTest
+static ui_component_t* component_hit_test(ui_component_t *component, float x, float y) {
+    if (!component || !(component->flags & UI_FLAG_VISIBLE)) {
+        return NULL;
+    }
+    
+    // 检查鼠标坐标是否在组件边界内
+    if (x >= component->x && x <= component->x + component->width &&
+        y >= component->y && y <= component->y + component->height) {
+        
+        // 如果有子组件，从后往前检查（因为后渲染的在上层）
+        if (component->children && component->child_count > 0) {
+            for (int i = component->child_count - 1; i >= 0; i--) {
+                ui_component_t *child = component->children[i];
+                ui_component_t *hit_child = component_hit_test(child, x, y);
+                if (hit_child) {
+                    return hit_child;  // 返回命中的子组件
+                }
+            }
+        }
+        
+        // 如果没有子组件命中，返回当前组件
+        return component;
+    }
+    
+    return NULL;
+}
+
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
     if (!mgr || !mgr->current_scene || !mgr->current_scene->root_component) {
         return NULL;
     }
     
-    // TODO: 递归遍历根组件及其子组件，找到命中的最深层组件
-    // 暂时返回根组件
-    return mgr->current_scene->root_component;
+    // 从根组件开始递归遍历
+    return component_hit_test(mgr->current_scene->root_component, x, y);
 }
 
 // ========================================

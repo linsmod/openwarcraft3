@@ -149,36 +149,6 @@ int main(int argc, LPSTR argv[]) {
                 continue;
             }
             input_event.handled = false;
-            
-            // 对鼠标坐标进行归一化（除以显示缩放因子）
-            switch (input_event.type) {
-                case INPUT_EVENT_MOUSE_DOWN:
-                case INPUT_EVENT_MOUSE_UP: {
-                    VECTOR2 displayScale = re.GetDisplayScale();
-                    // printf("[Main] Mouse button: raw=(%.2f,%.2f), scale=(%.2f,%.2f), normalized=(%.2f,%.2f)\n",
-                        //    input_event.mouse.x, input_event.mouse.y, displayScale.x, displayScale.y,
-                        //    input_event.mouse.x / displayScale.x, input_event.mouse.y / displayScale.y);
-                    input_event.mouse.x /= displayScale.x;
-                    input_event.mouse.y /= displayScale.y;
-                    break;
-                }
-                case INPUT_EVENT_MOUSE_MOTION: {
-                    VECTOR2 displayScale = re.GetDisplayScale();
-                    input_event.motion.x /= displayScale.x;
-                    input_event.motion.y /= displayScale.y;
-                    input_event.motion.dx /= displayScale.x;
-                    input_event.motion.dy /= displayScale.y;
-                    break;
-                }
-                case INPUT_EVENT_MOUSE_WHEEL: {
-                    VECTOR2 displayScale = re.GetDisplayScale();
-                    input_event.wheel.x /= displayScale.x;
-                    input_event.wheel.y /= displayScale.y;
-                    break;
-                }
-                default:
-                    break;
-            }
 
             
             

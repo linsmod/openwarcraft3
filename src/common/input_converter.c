@@ -1,4 +1,6 @@
 #include "input_converter.h"
+#include "common/shared.h"
+#include "r_local.h"
 #include <string.h>
 
 bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
@@ -7,7 +9,7 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
     }
     
     memset(output, 0, sizeof(event_t));
-    
+    VECTOR2 scale = R_GetDisplayScale();
     switch (sdl_event->type) {
         case SDL_QUIT:
             output->type = INPUT_EVENT_QUIT;
@@ -28,25 +30,25 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
         case SDL_MOUSEBUTTONDOWN:
             output->type = INPUT_EVENT_MOUSE_DOWN;
             output->mouse.button = sdl_event->button.button;
-            output->mouse.x = (float)sdl_event->button.x;
-            output->mouse.y = (float)sdl_event->button.y;
+            output->mouse.x = sdl_event->button.x * 1.0 / scale.x;
+            output->mouse.y =  sdl_event->button.y * 1.0 / scale.y;
             output->mouse.down = true;
             return true;
             
         case SDL_MOUSEBUTTONUP:
             output->type = INPUT_EVENT_MOUSE_UP;
             output->mouse.button = sdl_event->button.button;
-            output->mouse.x = (float)sdl_event->button.x;
-            output->mouse.y = (float)sdl_event->button.y;
+            output->mouse.x = sdl_event->button.x * 1.0 / scale.x;
+            output->mouse.y = sdl_event->button.y * 1.0 / scale.y;
             output->mouse.down = false;
             return true;
             
         case SDL_MOUSEMOTION:
             output->type = INPUT_EVENT_MOUSE_MOTION;
-            output->motion.x = (float)sdl_event->motion.x;
-            output->motion.y = (float)sdl_event->motion.y;
-            output->motion.dx = (float)sdl_event->motion.xrel;
-            output->motion.dy = (float)sdl_event->motion.yrel;
+            output->motion.x = sdl_event->motion.x* 1.0 / scale.x;
+            output->motion.y =  sdl_event->motion.y * 1.0 / scale.y;
+            output->motion.dx = sdl_event->motion.xrel * 1.0 / scale.x;
+            output->motion.dy = sdl_event->motion.yrel * 1.0 / scale.y;
             return true;
             
         case SDL_MOUSEWHEEL:
@@ -55,9 +57,9 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
             // 滚轮事件本身不包含鼠标位置，需要单独获取
             int mouse_x, mouse_y;
             SDL_GetMouseState(&mouse_x, &mouse_y);
-            output->wheel.x = (float)mouse_x;
-            output->wheel.y = (float)mouse_y;
-return true;
+            output->wheel.x = mouse_x * 1.0 / scale.x;
+            output->wheel.y =  mouse_y * 1.0 / scale.y;
+            return true;
             
         case SDL_TEXTINPUT:
             output->type = INPUT_EVENT_TEXT_INPUT;

@@ -209,6 +209,9 @@ LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
 
 size2_t R_GetViewPortSize(void);
+FLOAT DisplayToScreen(FLOAT value);
+FLOAT NormX(FLOAT value);
+FLOAT NormY(FLOAT value);
 size2_t R_GetWindowSize(void);
 FLOAT R_GetDisplayScaleFactor(void);
 VECTOR2 R_GetDisplayScale(void);
