@@ -191,28 +191,6 @@ struct ui_component_t {
     float drag_start_y;
     float drag_offset_x;
     float drag_offset_y;
-
-    // event_t 类型的事件处理函数指针（用于 SceneManager_BubbleEvent）
-    void (*on_mouse_down)(ui_component_t *component, event_t *event);
-    void (*on_mouse_up)(ui_component_t *component, event_t *event);
-    void (*on_mouse_motion)(ui_component_t *component, event_t *event);
-    void (*on_mouse_wheel)(ui_component_t *component, event_t *event);
-    void (*on_key_down)(ui_component_t *component, event_t *event);
-    void (*on_key_up)(ui_component_t *component, event_t *event);
-    void (*on_text_input)(ui_component_t *component, event_t *event);
-    void (*on_double_click)(ui_component_t *component, event_t *event);
-    void (*on_mouse_leave)(ui_component_t *component, event_t *event);
-    void (*on_click)(ui_component_t *component, event_t *event);
-    void (*on_drag)(ui_component_t *component, event_t *event);
-    void (*on_drag_start)(ui_component_t *component, event_t *event);
-    void (*on_drag_end)(ui_component_t *component, event_t *event);
-    void (*on_mouse_enter)(ui_component_t *component, event_t *event);
-    void (*on_quit)(ui_component_t *component, event_t *event);
-    void (*on_screen_resize)(ui_component_t *component, event_t *event);
-    void (*on_focus)(ui_component_t *component, event_t *event);
-    void (*on_blur)(ui_component_t *component, event_t *event);
-    void (*on_context_menu)(ui_component_t *component, event_t *event);
-    void (*on_mouse_move)(ui_component_t *component, event_t *event);
 };
 
 // ==================== 事件操作 ====================

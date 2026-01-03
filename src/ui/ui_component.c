@@ -239,28 +239,6 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->lay_ctx = ctx->lay_ctx;
     component->lay_item_id = lay_item(ctx->lay_ctx);
 
-    // 初始化 input_event_t 类型的事件处理函数指针
-    component->on_mouse_down = NULL;
-    component->on_mouse_up = NULL;
-    component->on_mouse_motion = NULL;
-    component->on_mouse_wheel = NULL;
-    component->on_key_down = NULL;
-    component->on_key_up = NULL;
-    component->on_text_input = NULL;
-    component->on_double_click = NULL;
-    component->on_mouse_leave = NULL;
-    component->on_click = NULL;
-    component->on_drag = NULL;
-    component->on_drag_start = NULL;
-    component->on_drag_end = NULL;
-    component->on_mouse_enter = NULL;
-    component->on_quit = NULL;
-    component->on_screen_resize = NULL;
-    component->on_focus = NULL;
-    component->on_blur = NULL;
-    component->on_context_menu = NULL;
-    component->on_mouse_move = NULL;
-
     // 初始化事件处理器数组
     memset(component->event_handlers, 0, sizeof(component->event_handlers));
     memset(component->event_handler_user_data, 0, sizeof(component->event_handler_user_data));

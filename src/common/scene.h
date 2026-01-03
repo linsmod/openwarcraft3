@@ -152,14 +152,13 @@ typedef void (*scene_on_input_fn)(scene_t *scene, input_event_t *event);
 // ========================================
 #include "html/layout.h"
 struct scene_t {
+    ui_component_t *root_component;
     const char *name;
     scene_state_t state;
     void *user_data;
     
     // 启动参数（由SceneManager管理）
     const scene_params_t *launch_params;
-    
-    ui_component_t *root_component;
     canvas2d_t *canvas;
     canvas2d_context_t *canvas_ctx;
     lay_context *lay_ctx;

@@ -44,13 +44,6 @@ static scene_t g_splash_scene = {
 int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
     printf("SplashScene: Initializing...\n");
     
-    // 获取场景根容器
-    ui_component_t *root = scene->root_component;
-    if (!root) {
-        printf("SplashScene: Root component not found\n");
-        return -1;
-    }
-    
     // 分配场景数据
     splash_scene_data_t *data = (splash_scene_data_t*)malloc(sizeof(splash_scene_data_t));
     if (!data) {
@@ -86,8 +79,8 @@ int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
     }
     
     // 创建HTML Viewer组件，填满整个场景
-    float scene_width = root->width;
-    float scene_height = root->height;
+    float scene_width = scene->root_component->width;
+    float scene_height = scene->root_component->height;
     
     canvas2d_context_t *canvas_ctx = scene->canvas_ctx;
     ui_html_viewer_t *viewer = UIHTMLViewer_Create(0.0f, 0.0f, scene_width, scene_height, canvas_ctx);
@@ -106,7 +99,7 @@ int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
     }
     
     // 将HTML Viewer添加到根容器
-    UIContainer_AddChild((ui_container_t *)root, (ui_component_t *)viewer);
+    UIContainer_AddChild((ui_container_t *)scene->root_component, (ui_component_t *)viewer);
     
     // 保存viewer和数据
     scene->user_data = data;
