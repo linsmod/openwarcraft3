@@ -46,7 +46,6 @@ typedef enum {
     EVENT_VALUE_CHANGED,
     EVENT_SCROLL,
     EVENT_CHAR,
-    EVENT_KEY_PRESS,
     EVENT_MOUSE_MOVE,
     EVENT_RESIZE,
     

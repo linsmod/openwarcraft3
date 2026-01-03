@@ -1,6 +1,7 @@
 #include "input_converter.h"
 #include "common/shared.h"
 #include "r_local.h"
+#include <SDL2/SDL_video.h>
 #include <string.h>
 
 bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
@@ -77,7 +78,9 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
             printf("ConvertSDLEvent: TEXTEDITING text='%s', start=%d, length=%d\n",
                    output->editing.text, output->editing.start, output->editing.length);
             return true;
-        
+        case SDL_WINDOWEVENT:
+        case SDL_KEYMAPCHANGED:
+            break;
         // 可以添加更多SDL事件类型的转换
         default:
             // 忽略其他事件

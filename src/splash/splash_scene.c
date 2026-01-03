@@ -3,6 +3,7 @@
 #include "../ui/ui_html_viewer.h"
 #include "../ui/ui_container.h"
 #include "common/scene.h"
+#include "common/shared.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,8 +28,8 @@ typedef struct {
 // ========================================
 // 前置声明
 // ========================================
-static void SplashScene_OnMouseDown(scene_t *scene, event_t *event);
-static void SplashScene_OnKeyDown(scene_t *scene, event_t *event);
+static bool SplashScene_OnMouseDown(scene_t *scene, event_t *event);
+static bool SplashScene_OnKeyDown(scene_t *scene, event_t *event);
 
 // Scene实例
 static scene_t g_splash_scene = {
@@ -149,7 +150,7 @@ scene_transition_t* SplashScene_Update(scene_t *scene, int msec) {
     return NULL;
 }
 // 处理鼠标按下事件
-static void SplashScene_OnMouseDown(scene_t *scene, event_t *event) {
+static bool SplashScene_OnMouseDown(scene_t *scene, event_t *event) {
     splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
     if (!data || data->is_finished) return;
     
@@ -185,7 +186,7 @@ static void SplashScene_OnMouseDown(scene_t *scene, event_t *event) {
 }
 
 // 处理键盘按下事件
-static void SplashScene_OnKeyDown(scene_t *scene, event_t *event) {
+static bool SplashScene_OnKeyDown(scene_t *scene, event_t *event) {
     splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
     if (!data || data->is_finished) return;
     

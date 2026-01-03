@@ -121,7 +121,6 @@ typedef struct ui_component_vtable {
     // 键盘事件处理
     bool (*on_key_down)(ui_component_t *component, event_t *event);
     bool (*on_key_up)(ui_component_t *component, event_t *event);
-    bool (*on_key_press)(ui_component_t *component, event_t *event);
     bool (*on_text_input)(ui_component_t *component, event_t *event);
     
     // 焦点事件处理

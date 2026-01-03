@@ -308,40 +308,6 @@ static bool input_on_blur(ui_component_t *component, event_t *event) {
     return false;
 }
 
-// 键盘按键事件
-static bool input_on_key_press(ui_component_t *component, event_t *event) {
-    ui_input_t *input = (ui_input_t *)component;
-    if (!input || !input->focused || input->readonly || event->key.repeat) return false;
-
-    // 处理可打印字符
-    if (event->key.key >= 32 && event->key.key <= 126) {
-        int text_len = strlen(input->text);
-        
-        // 检查最大长度限制
-        if (input->max_length > 0 && text_len >= input->max_length) {
-            return false;
-        }
-        
-        // 插入字符
-        memmove(input->text + input->cursor_pos + 1, input->text + input->cursor_pos, text_len - input->cursor_pos + 1);
-        input->text[input->cursor_pos] = (char)event->key.key;
-        input->cursor_pos++;
-        
-        // 调整滚动偏移以保持光标可见
-        float char_width = canvas2d_measure_text(component->ctx, "M");
-        float visible_width = component->width - component->padding[1] - component->padding[3];
-        int max_visible_chars = (int)(visible_width / char_width);
-        
-        if (input->cursor_pos - input->scroll_offset > max_visible_chars) {
-            input->scroll_offset = input->cursor_pos - max_visible_chars;
-        }
-        
-        return true;
-    }
-    
-    return false;
-}
-
 // ==================== 虚函数表定义 ====================
 
 static const ui_component_vtable_t g_input_vtable = {
@@ -367,7 +333,6 @@ static const ui_component_vtable_t g_input_vtable = {
     .on_drag_end = NULL,
     .on_key_down = input_on_key_down,
     .on_key_up = NULL,
-    .on_key_press = input_on_key_press,
     .on_text_input = input_on_text_input,
     .on_focus = NULL,
     .on_blur = input_on_blur,

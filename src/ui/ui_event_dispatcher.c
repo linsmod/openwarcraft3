@@ -184,11 +184,6 @@ bool UIEventDispatcher_BubbleEvent(ui_event_dispatcher_t *dispatcher, ui_compone
                     vtable_result = current->vtable->on_key_up(current, event);
                 }
                 break;
-            case EVENT_KEY_PRESS:
-                if (current->vtable && current->vtable->on_key_press) {
-                    vtable_result = current->vtable->on_key_press(current, event);
-                }
-                break;
             case EVENT_TEXT_INPUT:
                 if (current->vtable && current->vtable->on_text_input) {
                     vtable_result = current->vtable->on_text_input(current, event);
@@ -548,32 +543,6 @@ bool UIEventDispatcher_DispatchKeyUp(ui_event_dispatcher_t *dispatcher, int key,
             .modifiers = modifiers,
             .repeat = false,
             .down = false
-        }
-    };
-
-    if (dispatcher->focused) {
-        if (UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->focused, &event)) {
-            return true;
-        }
-    }
-
-    return UIEventDispatcher_BubbleEvent(dispatcher, dispatcher->root, &event);
-}
-
-bool UIEventDispatcher_DispatchKeyPress(ui_event_dispatcher_t *dispatcher, int key, int scancode, int modifiers, int timestamp) {
-    if (!dispatcher) return false;
-
-    event_t event = {
-        .type = EVENT_KEY_PRESS,
-        .timestamp = timestamp,
-        .propagation_stopped = false,
-        .default_prevented = false,
-        .key = {
-            .key = key,
-            .scancode = scancode,
-            .modifiers = modifiers,
-            .repeat = false,
-            .down = true
         }
     };
 

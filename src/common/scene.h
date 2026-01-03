@@ -175,26 +175,26 @@ struct scene_t {
     // 场景管理器指针
     scene_manager_t *manager;
 
-    void (*on_mouse_down)(scene_t *this, event_t *event);
-    void (*on_mouse_up)(scene_t *this, event_t *event);
-    void (*on_mouse_motion)(scene_t *this, event_t *event);
-    void (*on_mouse_wheel)(scene_t *this, event_t *event);
-    void (*on_key_down)(scene_t *this, event_t *event);
-    void (*on_key_up)(scene_t *this, event_t *event);
-    void (*on_text_input)(scene_t *this, event_t *event);
-    void (*on_double_click)(scene_t *this, event_t *event);
-    void (*on_mouse_leave)(scene_t *this, event_t *event);
-    void (*on_click)(scene_t *this, event_t *event);
-    void (*on_drag)(scene_t *this, event_t *event);
-    void (*on_drag_start)(scene_t *this, event_t *event);
-    void (*on_drag_end)(scene_t *this, event_t *event);
-    void (*on_mouse_enter)(scene_t *this, event_t *event);
-    void (*on_quit)(scene_t *this, event_t *event);
-    void (*on_screen_resize)(scene_t *this, event_t *event);
-    void (*on_focus)(scene_t *this, event_t *event);
-    void (*on_blur)(scene_t *this, event_t *event);
-    void (*on_context_menu)(scene_t *this, event_t *event);
-    void (*on_mouse_move)(scene_t *this, event_t *event);
+    bool (*on_mouse_down)(scene_t *this, event_t *event);
+    bool (*on_mouse_up)(scene_t *this, event_t *event);
+    bool (*on_mouse_motion)(scene_t *this, event_t *event);
+    bool (*on_mouse_wheel)(scene_t *this, event_t *event);
+    bool (*on_key_down)(scene_t *this, event_t *event);
+    bool (*on_key_up)(scene_t *this, event_t *event);
+    bool (*on_text_input)(scene_t *this, event_t *event);
+    bool (*on_double_click)(scene_t *this, event_t *event);
+    bool (*on_mouse_leave)(scene_t *this, event_t *event);
+    bool (*on_click)(scene_t *this, event_t *event);
+    bool (*on_drag)(scene_t *this, event_t *event);
+    bool (*on_drag_start)(scene_t *this, event_t *event);
+    bool (*on_drag_end)(scene_t *this, event_t *event);
+    bool (*on_mouse_enter)(scene_t *this, event_t *event);
+    bool (*on_quit)(scene_t *this, event_t *event);
+    bool (*on_screen_resize)(scene_t *this, event_t *event);
+    bool (*on_focus)(scene_t *this, event_t *event);
+    bool (*on_blur)(scene_t *this, event_t *event);
+    bool (*on_context_menu)(scene_t *this, event_t *event);
+    bool (*on_mouse_move)(scene_t *this, event_t *event);
 };
 
 // ========================================
