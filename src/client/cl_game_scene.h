@@ -22,9 +22,6 @@ scene_transition_t* GameScene_Update(scene_t *scene, int msec);
 // Scene 渲染
 void GameScene_Render(scene_t *scene);
 
-// Scene 输入处理
-void GameScene_OnInput(scene_t *scene, input_event_t *event);
-
 // Scene 暂停（例如按ESC打开暂停菜单时）
 void GameScene_Pause(scene_t *scene, const scene_params_t *result);
 

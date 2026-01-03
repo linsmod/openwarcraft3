@@ -1336,7 +1336,6 @@ static scene_t g_map_select_scene = {
     .update = MapSelectScene_Update,
     .render = NULL,
     .layout = NULL,
-    .on_input = MapSelectScene_OnInput,
     .pause = NULL,
     .resume = NULL
 };
@@ -1360,9 +1359,6 @@ int MapSelectScene_Init(scene_t *scene, const scene_params_t *params) {
         printf("MapSelectScene: MapSelect_Init failed with code %d\n", result);
         return -1;
     }
-    
-    // 设置场景的根组件
-    Scene_SetRootComponent(scene, g_root_container);
     
     printf("MapSelectScene: Initialized successfully\n");
     return 0;

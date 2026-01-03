@@ -386,32 +386,6 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event);
 // 递归处理事件冒泡
 bool SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event);
 
-// 场景构造宏（新版）
-#define DEFINE_SCENE(name, init_fn, shutdown_fn, update_fn, render_fn, on_input_fn) \
-    scene_t name = { \
-        .name = #name, \
-        .state = SCENE_STATE_UNINITIALIZED, \
-        .user_data = NULL, \
-        .launch_params = NULL, \
-        .root_component = NULL, \
-        .manager = NULL, \
-        .init = init_fn, \
-        .shutdown = shutdown_fn, \
-        .update = update_fn, \
-        .render = render_fn, \
-        .on_input = on_input_fn, \
-        .pause = NULL, \
-        .resume = NULL \
-    }
-
-// ========================================
-// 场景UI辅助函数
-// ========================================
-// 设置场景的根容器组件
-void Scene_SetRootComponent(scene_t *scene, ui_component_t *root);
-
-// 获取场景的根容器组件
-ui_component_t* Scene_GetRootComponent(scene_t *scene);
 
 // 更新场景的所有UI组件
 void Scene_UpdateUI(scene_t *scene, int msec);

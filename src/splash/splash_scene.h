@@ -19,9 +19,6 @@ scene_transition_t* SplashScene_Update(scene_t *scene, int msec);
 // Scene 渲染
 void SplashScene_Render(scene_t *scene);
 
-// Scene 输入处理
-void SplashScene_OnInput(scene_t *scene, input_event_t *event);
-
 // 获取场景实例
 scene_t* SplashScene_GetInstance(void);
 

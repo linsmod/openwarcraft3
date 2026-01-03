@@ -21,6 +21,16 @@ typedef struct {
 // Scene 接口实现
 // ========================================
 
+// ========================================
+// 前置声明
+// ========================================
+static void GameScene_OnKeyDown(scene_t *scene, event_t *event);
+static void GameScene_OnKeyUp(scene_t *scene, event_t *event);
+static void GameScene_OnMouseDown(scene_t *scene, event_t *event);
+static void GameScene_OnMouseUp(scene_t *scene, event_t *event);
+static void GameScene_OnMouseMotion(scene_t *scene, event_t *event);
+static void GameScene_OnMouseWheel(scene_t *scene, event_t *event);
+
 // Scene实例
 static scene_t g_game_scene = {
     .name = "Game",
@@ -32,9 +42,29 @@ static scene_t g_game_scene = {
     .shutdown = GameScene_Shutdown,
     .update = GameScene_Update,
     .render = GameScene_Render,
-    .on_input = GameScene_OnInput,
     .pause = GameScene_Pause,
-    .resume = GameScene_Resume
+    .resume = GameScene_Resume,
+    // 细化的事件处理函数
+    .on_key_down = GameScene_OnKeyDown,
+    .on_key_up = GameScene_OnKeyUp,
+    .on_mouse_down = GameScene_OnMouseDown,
+    .on_mouse_up = GameScene_OnMouseUp,
+    .on_mouse_motion = GameScene_OnMouseMotion,
+    .on_mouse_wheel = GameScene_OnMouseWheel,
+    .on_text_input = NULL,
+    .on_double_click = NULL,
+    .on_mouse_leave = NULL,
+    .on_click = NULL,
+    .on_drag = NULL,
+    .on_drag_start = NULL,
+    .on_drag_end = NULL,
+    .on_mouse_enter = NULL,
+    .on_quit = NULL,
+    .on_screen_resize = NULL,
+    .on_focus = NULL,
+    .on_blur = NULL,
+    .on_context_menu = NULL,
+    .on_mouse_move = NULL
 };
 
 // Scene 初始化
@@ -142,192 +172,203 @@ void GameScene_Render(scene_t *scene) {
     SCR_DrawOverlays();
 }
 
-// Scene 输入处理
-void GameScene_OnInput(scene_t *scene, input_event_t *event) {
+// ========================================
+// 独立的事件处理函数
+// ========================================
+
+// 处理键盘按下事件
+static void GameScene_OnKeyDown(scene_t *scene, event_t *event) {
     game_scene_data_t *data = (game_scene_data_t*)scene->user_data;
     if (!data) return;
     
-    switch (event->type) {
-        case INPUT_EVENT_KEY_DOWN: {
-            // 暂停状态下只处理暂停菜单的输入
-            if (data->paused) {
-                // 暂停菜单的输入由暂停场景处理，这里忽略
-                break;
-            }
+    // 暂停状态下只处理暂停菜单的输入
+    if (data->paused) {
+        // 暂停菜单的输入由暂停场景处理，这里忽略
+        return;
+    }
+    
+    // 正常游戏状态下的输入
+    switch (event->key.key) {
+        case K_ESCAPE: {
+            // ESC键：打开暂停菜单（叠加场景）
+            printf("GameScene: Pausing game\n");
+            data->paused = true;
             
-            // 正常游戏状态下的输入
-            switch (event->key.key) {
-                case K_ESCAPE: {
-                    // ESC键：打开暂停菜单（叠加场景）
-                    printf("GameScene: Pausing game\n");
-                    data->paused = true;
-                    
-                    // 暂时返回NULL，等待外部处理暂停菜单
-                    // 或者可以在这里创建暂停场景的请求
-                    break;
+            // 暂时返回NULL，等待外部处理暂停菜单
+            // 或者可以在这里创建暂停场景的请求
+            break;
+        }
+        
+        case K_F1: {
+            // F1: 返回地图选择界面
+            printf("GameScene: Returning to map select\n");
+            
+            // 创建返回参数（传递当前文件夹位置）
+            scene_params_t *params = SceneParams_Create();
+            if (params) {
+                if (strlen(data->start_folder) > 0) {
+                    SceneParams_SetString(params, "start_folder", data->start_folder);
                 }
                 
-                case K_F1: {
-                    // F1: 返回地图选择界面
-                    printf("GameScene: Returning to map select\n");
-                    
-                    // 创建返回参数（传递当前文件夹位置）
-                    scene_params_t *params = SceneParams_Create();
-                    if (params) {
-                        if (strlen(data->start_folder) > 0) {
-                            SceneParams_SetString(params, "start_folder", data->start_folder);
-                        }
-                        
-                        // 切换回MapSelect场景
-                        scene_transition_t *transition = SceneTransition_CreateByName(
-                            TRANSITION_SWITCH,
-                            "MapSelect",
-                            params,
-                            NULL
-                        );
-                        
-                        scene->manager->pending_transition = transition;
-                    }
-                    break;
-                }
+                // 切换回MapSelect场景
+                scene_transition_t *transition = SceneTransition_CreateByName(
+                    TRANSITION_SWITCH,
+                    "MapSelect",
+                    params,
+                    NULL
+                );
                 
-                default: {
-                    // 其他键盘按键 - 转换为Key_Event
-                    Key_Event(event->key.key, true, event->key.key);
-                    break;
+                scene->manager->pending_transition = transition;
+            }
+            break;
+        }
+        
+        default: {
+            // 其他键盘按键 - 转换为Key_Event
+            Key_Event(event->key.key, true, event->key.key);
+            break;
+        }
+    }
+}
+
+// 处理键盘释放事件
+static void GameScene_OnKeyUp(scene_t *scene, event_t *event) {
+    game_scene_data_t *data = (game_scene_data_t*)scene->user_data;
+    if (!data) return;
+    
+    // 暂停状态下忽略键盘释放
+    if (data->paused) {
+        return;
+    }
+    
+    Key_Event(event->key.key, false, event->key.key);
+}
+
+// 处理鼠标按下事件
+static void GameScene_OnMouseDown(scene_t *scene, event_t *event) {
+    game_scene_data_t *data = (game_scene_data_t*)scene->user_data;
+    if (!data) return;
+    
+    // 暂停状态下忽略鼠标输入
+    if (data->paused) {
+        return;
+    }
+    
+    // 更新全局mouse状态
+    mouse.origin.x = event->mouse.x;
+    mouse.origin.y = event->mouse.y;
+    mouse.button = event->mouse.button;
+    
+    switch (event->mouse.button) {
+        case 1:
+            mouse.event = UI_LEFT_MOUSE_DOWN;
+            cl.selection.in_progress = true;
+            cl.selection.rect.x = mouse.origin.x;
+            cl.selection.rect.y = mouse.origin.y;
+            cl.selection.rect.w = 0;
+            cl.selection.rect.h = 0;
+            break;
+        case 2:
+            mouse.event = UI_MIDDLE_MOUSE_DOWN;
+            break;
+        case 3:
+            mouse.event = UI_RIGHT_MOUSE_DOWN;
+            break;
+    }
+}
+
+// 处理鼠标释放事件
+static void GameScene_OnMouseUp(scene_t *scene, event_t *event) {
+    game_scene_data_t *data = (game_scene_data_t*)scene->user_data;
+    if (!data) return;
+    
+    if (data->paused) {
+        return;
+    }
+    
+    mouse.origin.x = event->mouse.x;
+    mouse.origin.y = event->mouse.y;
+    mouse.button = 0;
+    
+    switch (event->mouse.button) {
+        case 1: {
+            mouse.event = UI_LEFT_MOUSE_UP;
+            RECT const r = cl.selection.rect;
+            cl.selection.in_progress = false;
+            
+            // 判断是点击还是框选
+            if (fabs(r.w) + fabs(r.h) < 10) {
+                // 单个实体选择
+                DWORD entnum;
+                VECTOR3 point;
+                if (re.TraceEntity(&cl.viewDef, event->mouse.x, event->mouse.y, &entnum)) {
+                    CL_SendNetworkCommand("select %d", entnum);
+                } else if (re.TraceLocation(&cl.viewDef, event->mouse.x, event->mouse.y, &point)) {
+                    CL_SendNetworkCommand("point %d %d", (int)point.x, (int)point.y);
                 }
-            }
-            break;
-        }
-        
-        case INPUT_EVENT_KEY_UP: {
-            // 暂停状态下忽略键盘释放
-            if (data->paused) {
-                break;
-            }
-            
-            Key_Event(event->key.key, false, event->key.key);
-            break;
-        }
-        
-        case INPUT_EVENT_MOUSE_DOWN: {
-            // 暂停状态下忽略鼠标输入
-            if (data->paused) {
-                break;
-            }
-            
-            // 更新全局mouse状态
-            mouse.origin.x = event->mouse.x;
-            mouse.origin.y = event->mouse.y;
-            mouse.button = event->mouse.button;
-            
-            switch (event->mouse.button) {
-                case 1:
-                    mouse.event = UI_LEFT_MOUSE_DOWN;
-                    cl.selection.in_progress = true;
-                    cl.selection.rect.x = mouse.origin.x;
-                    cl.selection.rect.y = mouse.origin.y;
-                    cl.selection.rect.w = 0;
-                    cl.selection.rect.h = 0;
-                    break;
-                case 2:
-                    mouse.event = UI_MIDDLE_MOUSE_DOWN;
-                    break;
-                case 3:
-                    mouse.event = UI_RIGHT_MOUSE_DOWN;
-                    break;
-            }
-            break;
-        }
-        
-        case INPUT_EVENT_MOUSE_UP: {
-            if (data->paused) {
-                break;
-            }
-            
-            mouse.origin.x = event->mouse.x;
-            mouse.origin.y = event->mouse.y;
-            mouse.button = 0;
-            
-            switch (event->mouse.button) {
-                case 1: {
-                    mouse.event = UI_LEFT_MOUSE_UP;
-                    RECT const r = cl.selection.rect;
-                    cl.selection.in_progress = false;
-                    
-                    // 判断是点击还是框选
-                    if (fabs(r.w) + fabs(r.h) < 10) {
-                        // 单个实体选择
-                        DWORD entnum;
-                        VECTOR3 point;
-                        if (re.TraceEntity(&cl.viewDef, event->mouse.x, event->mouse.y, &entnum)) {
-                            CL_SendNetworkCommand("select %d", entnum);
-                        } else if (re.TraceLocation(&cl.viewDef, event->mouse.x, event->mouse.y, &point)) {
-                            CL_SendNetworkCommand("point %d %d", (int)point.x, (int)point.y);
-                        }
-                    } else {
-                        // 区域选择
-                        DWORD selected[64] = { 0 };
-                        DWORD num = re.EntitiesInRect(&cl.viewDef, &r, 64, selected);
-                        if (num > 0) {
-                            char buffer[1024] = { 0 };
-                            strcpy(buffer, "select");
-                            for (int i = 0; i < num; i++) {
-                                sprintf(buffer + strlen(buffer), " %d", selected[i]);
-                            }
-                            CL_SendNetworkCommand("%s", buffer);
-                        }
-                    }
-                    break;
-                }
-                case 2:
-                    mouse.event = UI_MIDDLE_MOUSE_UP;
-                    break;
-                case 3: {
-                    mouse.event = UI_RIGHT_MOUSE_UP;
-                    // War3风格攻击/移动
-                    DWORD entnum;
-                    VECTOR3 point;
-                    if (re.TraceEntity(&cl.viewDef, event->mouse.x, event->mouse.y, &entnum)) {
-                        CL_SendNetworkCommand("attack %d", entnum);
-                    } else if (re.TraceLocation(&cl.viewDef, event->mouse.x, event->mouse.y, &point)) {
-                        VECTOR2 location = { (float)point.x, (float)point.y };
-                        CL_SendNetworkCommand("move %f %f", location.x, location.y);
-                    }
-                    break;
-                }
-            }
-            break;
-        }
-        
-        case INPUT_EVENT_MOUSE_MOTION: {
-            if (data->paused) {
-                break;
-            }
-            
-            mouse.origin.x = event->motion.x;
-            mouse.origin.y = event->motion.y;
-            break;
-        }
-        
-        case INPUT_EVENT_MOUSE_WHEEL: {
-            if (data->paused) {
-                break;
-            }
-            
-            // 处理鼠标滚轮（缩放等）
-            if (event->wheel.delta > 0) {
-                Key_Event(K_MWHEELUP, true, 0);
-                Key_Event(K_MWHEELUP, false, 0);
             } else {
-                Key_Event(K_MWHEELDOWN, true, 0);
-                Key_Event(K_MWHEELDOWN, false, 0);
+                // 区域选择
+                DWORD selected[64] = { 0 };
+                DWORD num = re.EntitiesInRect(&cl.viewDef, &r, 64, selected);
+                if (num > 0) {
+                    char buffer[1024] = { 0 };
+                    strcpy(buffer, "select");
+                    for (int i = 0; i < num; i++) {
+                        sprintf(buffer + strlen(buffer), " %d", selected[i]);
+                    }
+                    CL_SendNetworkCommand("%s", buffer);
+                }
             }
             break;
         }
-        
-        default:
+        case 2:
+            mouse.event = UI_MIDDLE_MOUSE_UP;
             break;
+        case 3: {
+            mouse.event = UI_RIGHT_MOUSE_UP;
+            // War3风格攻击/移动
+            DWORD entnum;
+            VECTOR3 point;
+            if (re.TraceEntity(&cl.viewDef, event->mouse.x, event->mouse.y, &entnum)) {
+                CL_SendNetworkCommand("attack %d", entnum);
+            } else if (re.TraceLocation(&cl.viewDef, event->mouse.x, event->mouse.y, &point)) {
+                VECTOR2 location = { (float)point.x, (float)point.y };
+                CL_SendNetworkCommand("move %f %f", location.x, location.y);
+            }
+            break;
+        }
+    }
+}
+
+// 处理鼠标移动事件
+static void GameScene_OnMouseMotion(scene_t *scene, event_t *event) {
+    game_scene_data_t *data = (game_scene_data_t*)scene->user_data;
+    if (!data) return;
+    
+    if (data->paused) {
+        return;
+    }
+    
+    mouse.origin.x = event->motion.x;
+    mouse.origin.y = event->motion.y;
+}
+
+// 处理鼠标滚轮事件
+static void GameScene_OnMouseWheel(scene_t *scene, event_t *event) {
+    game_scene_data_t *data = (game_scene_data_t*)scene->user_data;
+    if (!data) return;
+    
+    if (data->paused) {
+        return;
+    }
+    
+    // 处理鼠标滚轮（缩放等）
+    if (event->wheel.delta > 0) {
+        Key_Event(K_MWHEELUP, true, 0);
+        Key_Event(K_MWHEELUP, false, 0);
+    } else {
+        Key_Event(K_MWHEELDOWN, true, 0);
+        Key_Event(K_MWHEELDOWN, false, 0);
     }
 }
 

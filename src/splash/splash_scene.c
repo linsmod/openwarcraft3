@@ -24,6 +24,12 @@ typedef struct {
 // Scene 接口实现
 // ========================================
 
+// ========================================
+// 前置声明
+// ========================================
+static void SplashScene_OnMouseDown(scene_t *scene, event_t *event);
+static void SplashScene_OnKeyDown(scene_t *scene, event_t *event);
+
 // Scene实例
 static scene_t g_splash_scene = {
     .name = "Splash",
@@ -35,9 +41,11 @@ static scene_t g_splash_scene = {
     .shutdown = SplashScene_Shutdown,
     .update = SplashScene_Update,
     .render = NULL,
-    .on_input = SplashScene_OnInput,
     .pause = NULL,
-    .resume = NULL
+    .resume = NULL,
+    // 细化的事件处理函数
+    .on_mouse_down = SplashScene_OnMouseDown,
+    .on_key_down = SplashScene_OnKeyDown
 };
 
 // Scene 初始化
@@ -140,7 +148,18 @@ scene_transition_t* SplashScene_Update(scene_t *scene, int msec) {
     
     return NULL;
 }
-void splash_on_mouse_down(scene_t* scene, void *user_data) {
+// 处理鼠标按下事件
+static void SplashScene_OnMouseDown(scene_t *scene, event_t *event) {
+    splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
+    if (!data || data->is_finished) return;
+    
+    // 如果不允许跳过，不处理输入
+    if (!data->can_skip) {
+        return;
+    }
+    
+    printf("SplashScene: Mouse down, skipping splash\n");
+    
     // 创建跳转到下一个场景的请求
     scene_params_t *params = NULL;
     const char* target_scene_name = "MapSelect";
@@ -165,8 +184,8 @@ void splash_on_mouse_down(scene_t* scene, void *user_data) {
     scene->manager->pending_transition = transition;
 }
 
-// Scene 输入处理
-void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
+// 处理键盘按下事件
+static void SplashScene_OnKeyDown(scene_t *scene, event_t *event) {
     splash_scene_data_t *data = (splash_scene_data_t*)scene->user_data;
     if (!data || data->is_finished) return;
     
@@ -175,16 +194,30 @@ void SplashScene_OnInput(scene_t *scene, input_event_t *event) {
         return;
     }
     
-    switch (event->type) {
-        case INPUT_EVENT_MOUSE_DOWN: {
-            // 任意键或鼠标点击跳过
-            printf("SplashScene: Skipped by user input\n");
-            
+    printf("SplashScene: Key down, skipping splash\n");
+    
+    // 创建跳转到下一个场景的请求
+    scene_params_t *params = NULL;
+    const char* target_scene_name = "MapSelect";
+    
+    if (scene->launch_params) {
+        char map_path[MAX_PATHLEN];
+        if (SceneParams_GetString(scene->launch_params, "map_path", map_path, sizeof(map_path)) && strlen(map_path) > 0) {
+            params = SceneParams_Create();
+            SceneParams_SetString(params, "map_path", map_path);
+            SceneParams_SetString(params, "start_folder", "");
+            target_scene_name = "Game";
         }
-        
-        default:
-            break;
     }
+    
+    scene_transition_t *transition = SceneTransition_CreateByName(
+        TRANSITION_SWITCH,
+        target_scene_name,
+        params,
+        NULL
+    );
+    
+    scene->manager->pending_transition = transition;
 }
 
 // 获取场景实例
