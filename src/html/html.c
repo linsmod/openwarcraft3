@@ -229,7 +229,7 @@ int html_render_init(context *ctx);
 static int extract_number(const char *css, const char *property);
 static color32_t parse_css_color(const char *color_str);
 void apply_css_to_layout(context *c, xmlNode *node, const char *css);
-void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c);
+void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c,int depth);
 static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c);
 static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_select_results *results);
 
@@ -1877,10 +1877,70 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 		}
 	}
 }
-void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c)
+void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c, int depth)
 {
 	xmlNode *root = xmlDocGetRootElement(document);
-	print_node_layout(layout_ctx, root, 0, c);
+	print_node_layout(layout_ctx, root, depth, c);
+}
+
+#include <stdlib.h>
+#include <string.h>
+
+static char* escape_string(const char *input)
+{
+    if (!input) {
+        char *s = malloc(1);
+        if (s) s[0] = '\0';
+        return s;
+    }
+
+    size_t len = strlen(input);
+    // 最坏情况：每个字符都需转义（如全是 \n），则长度翻倍 + 1
+    char *escaped = (char*)malloc(len * 2 + 1);
+    if (!escaped) return NULL;
+
+    char *p = escaped;
+    const char *s = input;
+
+    while (*s) {
+        switch (*s) {
+            case '\n':
+                *p++ = '\\'; *p++ = 'n';
+                break;
+            case '\r':
+                *p++ = '\\'; *p++ = 'r';
+                break;
+            case '\t':
+                *p++ = '\\'; *p++ = 't';
+                break;
+            case '\\':
+                *p++ = '\\'; *p++ = '\\';
+                break;
+            case '"':
+                *p++ = '\\'; *p++ = '"';
+                break;
+            default:
+                *p++ = *s;
+                break;
+        }
+        s++;
+    }
+    *p = '\0';
+
+    // 可选：缩小内存（非必须）
+    // size_t final_len = p - escaped;
+    // escaped = realloc(escaped, final_len + 1);
+
+    return escaped;
+}
+
+// 你的函数：先获取 content，再转义
+static char* content_to_string(const char*content)
+{
+    if (!content) {
+        return strdup(""); // 或手动分配空串
+    }
+    return escape_string((const char*)content);
 }
 
 void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c)
@@ -1892,13 +1952,23 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 			return;
 		}
 	}
+	if(strcmp((char*)node->name, "head") == 0){
+		return;
+	}
 	for (int i = 0; i < depth; i++) printf("  ");
 	
 		lay_scalar x, y, width, height;
 		lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
 		
-		printf("%s: xy=(%d, %d) w=%d, h=%d [id:%d]\n",
+		if(node->content && strlen((char*)node->content)){
+			printf("%s @ (%d, %d) [%d x %d] id=%d \"%s\"\n",
+		       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id,
+			   content_to_string((char*)node->content));
+		}
+		else{
+			printf("%s @ (%d, %d) [%d x %d] id=%d\n",
 		       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id);
+		}
 		
 	xmlNode *child = node->children;
 	while (child != NULL) {
@@ -3642,4 +3712,19 @@ int html_init_wrapper(const char *filename) {
     g_html_render_context[g_html_pages_count++] = ctx;
     
     return 0;
+}
+
+/**
+ * @brief 打印布局信息（调试用）
+ * @param ctx HTML上下文
+ */
+void html_context_print_layout_info(context *ctx,int depth) {
+    if (!ctx || !ctx->document) {
+        printf("HTML Context is NULL or document not loaded\n");
+        return;
+    }
+    
+    // printf("=== HTML Layout Tree ===\n");
+    print_layout_info(ctx->layout_ctx, ctx->document, ctx,depth);
+    // printf("========================\n");
 }

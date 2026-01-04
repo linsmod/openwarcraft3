@@ -252,7 +252,7 @@ void* html_context_get_css_stylesheet(context *ctx);
  * @brief 打印布局信息（调试用）
  * @param ctx HTML上下文
  */
-void html_context_print_layout_info(context *ctx);
+void html_context_print_layout_info(context *ctx,int depth);
 
 /**
  * @brief 处理样式和脚本

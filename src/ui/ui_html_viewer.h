@@ -104,4 +104,8 @@ void UIHTMLViewer_Update(ui_html_viewer_t *viewer, int msec);
 
 void UIHTMLViewer_Render(ui_html_viewer_t *viewer);
 
+// ==================== 调试功能 ====================
+
+void UIHTMLViewer_PrintLayoutTree(ui_html_viewer_t *viewer);
+
 #endif // __UI_HTML_VIEWER_H__

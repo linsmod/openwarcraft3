@@ -11,13 +11,15 @@ static void html_viewer_shutdown(ui_component_t *component);
 static void html_viewer_update(ui_component_t *component, int msec);
 static void html_viewer_render(ui_component_t *component);
 static void html_viewer_on_click(ui_component_t *component, event_t *event);
+static void html_viewer_print_tree(const ui_component_t *component, int indent, const char *common);
 
 static const ui_component_vtable_t html_viewer_vtable = {
     .init = html_viewer_init,
     .shutdown = html_viewer_shutdown,
     .update = html_viewer_update,
     .render = html_viewer_render,
-    .on_click = html_viewer_on_click
+    .on_click = html_viewer_on_click,
+    .print_tree = html_viewer_print_tree
 };
 
 static void html_viewer_init(ui_component_t *component, canvas2d_context_t *ctx) {
@@ -103,6 +105,27 @@ static void html_viewer_on_click(ui_component_t *component, event_t *event) {
     xmlNode *elem = html_context_find_by_id(viewer->html_ctx, "clicked");
     if (elem && viewer->on_element_clicked) {
         viewer->on_element_clicked(viewer, elem, viewer->callback_user_data);
+    }
+}
+
+static void html_viewer_print_tree(const ui_component_t *component, int indent, const char *common) {
+    const ui_html_viewer_t *viewer = (const ui_html_viewer_t *)component;
+    
+    // 打印自身的 common 信息（由 UIComponent_PrintTree 提供）
+    printf("%s\n", common);
+    
+    // 如果已加载 HTML，打印内部布局树
+    if (viewer && viewer->loaded && viewer->html_ctx) {
+        // 增加缩进，打印 HTML 布局树
+        // printf("  [HTML Layout]\n");
+        
+        // 临时保存 stdout 并重定向，以便添加前缀
+        // 由于 html_context_print_layout_info 直接使用 printf，
+        // 我们需要直接调用它
+        
+        // 注意：这里我们直接调用 html_context_print_layout_info
+        // 它会打印整个 HTML 布局树
+        html_context_print_layout_info(viewer->html_ctx, indent + 1);
     }
 }
 
@@ -282,4 +305,24 @@ void UIHTMLViewer_Update(ui_html_viewer_t *viewer, int msec) {
 void UIHTMLViewer_Render(ui_html_viewer_t *viewer) {
     if (!viewer) return;
     html_viewer_render((ui_component_t *)viewer);
+}
+
+void UIHTMLViewer_PrintLayoutTree(ui_html_viewer_t *viewer) {
+    if (!viewer) {
+        printf("HTML Viewer is NULL\n");
+        return;
+    }
+    
+    if (!viewer->loaded || !viewer->html_ctx) {
+        printf("HTML Viewer: No HTML loaded\n");
+        return;
+    }
+    
+    printf("=== HTML Viewer Layout Tree ===\n");
+    printf("File: %s\n", viewer->html_filename);
+    printf("Zoom: %.2f, Scroll: (%.2f, %.2f)\n", 
+           viewer->zoom, viewer->scroll_x, viewer->scroll_y);
+    printf("-----------------------------\n");
+    
+    html_context_print_layout_info(viewer->html_ctx,0);
 }
