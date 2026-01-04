@@ -774,7 +774,17 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 
 	return HUBBUB_OK;
 }
-
+// 辅助函数：判断 hubbub_string 是否全为空白
+static bool is_whitespace_hubbub_string(const hubbub_string *str)
+{
+    if (str == NULL || str->len == 0) return true;
+    for (size_t i = 0; i < str->len; i++) {
+        if (!isspace((unsigned char)str->ptr[i])) {
+            return false;
+        }
+    }
+    return true;
+}
 /**
  * Create a text node
  *
@@ -1945,6 +1955,8 @@ static char* content_to_string(const char*content)
 
 void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c)
 {
+	if(xmlIsBlankNode(node)) 
+		return;
 	lay_id layout_id;
 	if (c != NULL) {
 		layout_id = GETLAYID(node);
@@ -1957,18 +1969,18 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 	}
 	for (int i = 0; i < depth; i++) printf("  ");
 	
-		lay_scalar x, y, width, height;
-		lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
-		
-		if(node->content && strlen((char*)node->content)){
-			printf("%s @ (%d, %d) [%d x %d] id=%d \"%s\"\n",
-		       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id,
-			   content_to_string((char*)node->content));
-		}
-		else{
-			printf("%s @ (%d, %d) [%d x %d] id=%d\n",
-		       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id);
-		}
+	lay_scalar x, y, width, height;
+	lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
+	
+	if(node->content && strlen((char*)node->content)){
+		printf("%s @ (%d, %d) [%d x %d] id=%d \"%s\"\n",
+	       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id,
+		   content_to_string((char*)node->content));
+	}
+	else{
+		printf("%s @ (%d, %d) [%d x %d] id=%d\n",
+	       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id);
+	}
 		
 	xmlNode *child = node->children;
 	while (child != NULL) {
