@@ -1,5 +1,6 @@
 #include "ui_list_item.h"
 #include "common/shared.h"
+#include "ui/ui_list.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -108,11 +109,13 @@ static void list_item_set_bounds(ui_component_t *component, float x, float y, fl
     component->height = height;
 }
 
-static bool list_item_hit_test(ui_component_t *component, float x, float y) {
-    return x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height;
+static ui_component_t * list_item_hit_test(ui_component_t *component, float x, float y) {
+     if(x >= component->x && x < component->x + component->width &&
+           y >= component->y && y < component->y + component->height){
+            return component;
+        }
+    return NULL;
 }
-
 static void list_item_on_mouse_enter(ui_component_t *component, event_t *event) {
     ui_list_item_t *item = (ui_list_item_t *)component;
     if (!item || !UIComponent_IsEnabled(component)) return;
@@ -123,6 +126,31 @@ static void list_item_on_mouse_leave(ui_component_t *component, event_t *event) 
     ui_list_item_t *item = (ui_list_item_t *)component;
     if (!item) return;
     item->hovered = false;
+}
+
+// list_item的print_tree实现：显示文本和选中状态
+static void list_item_print_tree(const ui_component_t *component, int indent, const char* common) {
+    (void)indent;
+    const ui_list_item_t *item = (const ui_list_item_t *)component;
+    if (!item) return;
+    
+    printf("%s", common);
+    
+    // 打印文本（限制长度避免过长）
+    char display_text[64];
+    int len = strlen(item->text);
+    if (len > 30) {
+        strncpy(display_text, item->text, 27);
+        display_text[27] = '.';
+        display_text[28] = '.';
+        display_text[29] = '.';
+        display_text[30] = '\0';
+    } else {
+        strcpy(display_text, item->text);
+    }
+    
+    const char *state = item->selected ? " [SELECTED]" : (item->hovered ? " [HOVERED]" : " [NORMAL]");
+    printf(" \"%s\"%s\n", display_text, state);
 }
 
 // ==================== 虚函数表定义 ====================
@@ -161,6 +189,7 @@ static const ui_component_vtable_t g_list_item_vtable = {
     .get_child = NULL,
     .get_custom_data = NULL,
     .set_custom_data = NULL,
+    .print_tree = list_item_print_tree,
 };
 
 // ==================== 公共API实现 ====================

@@ -39,8 +39,14 @@ bool UIComponent_IsFocused(const ui_component_t *component) {
 bool UIComponent_IsHovered(const ui_component_t *component) {
     return component ? (component->flags & UI_FLAG_HOVERED) != 0 : false;
 }
-
-
+void UIComponent_GetComputedRectXywh(ui_component_t *component, float *x, float *y, float *width, float *height){
+    lay_scalar x_,y_,width_,height_;
+    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x_, &y_, &width_, &height_);
+    *x = (float)x_;
+    *y = (float)y_;
+    *width = (float)width_;
+    *height = (float)height_;
+}
 const char* UIComponent_GetTypeName(int typeid){
     switch(typeid){
         case UI_COMPONENT_TYPE_BUTTON:
@@ -150,6 +156,38 @@ void UIComponent_TriggerEvent(ui_component_t *component, event_t *event) {
     }
 
     return;
+}
+
+// 内部辅助函数：递归执行hitTest
+ui_component_t* UIComponent_HitTest(ui_component_t *component, float x, float y) {
+    if (!component || !(component->flags & UI_FLAG_VISIBLE)) {
+        return NULL;
+    }
+    
+    // 检查鼠标坐标是否在组件边界内
+    if (x >= component->x && x <= component->x + component->width &&
+        y >= component->y && y <= component->y + component->height) {
+        
+        // 如果有hit_test函数，执行hit_test函数
+        if(component->vtable->hit_test){
+            return component->vtable->hit_test(component,x,y);
+        }
+        // 如果有子组件，从后往前检查（因为后渲染的在上层）
+        else if (component->children && component->child_count > 0) {
+            for (int i = component->child_count - 1; i >= 0; i--) {
+                ui_component_t *child = component->children[i];
+                ui_component_t *hit_child = UIComponent_HitTest(child, x, y);
+                if (hit_child) {
+                    return hit_child;  // 返回命中的子组件
+                }
+            }
+        }
+        
+        // 如果没有子组件命中，返回当前组件
+        return component;
+    }
+    
+    return NULL;
 }
 
 // ==================== 坐标转换 ====================
@@ -415,14 +453,23 @@ void UIComponent_PrintTree(const ui_component_t *component, int indent) {
     lay_scalar x,y,w,h;
     lay_get_rect_xywh(component->lay_ctx, component->lay_item_id,&x,&y,&w,&h);
 
-    printf("[%s%s%s] %s @ (%.1d, %.1d) [%.1d x %.1d]\n",
+    char common[128];
+    sprintf(common,"[%s%s%s] %s @ (%.f, %.f) [%.f x %.f]",
            visible, enabled, focused, type_name,
            x,y,w,h);
 
     // 递归打印子组件
-    for (int i = 0; i < component->child_count; i++) {
-        UIComponent_PrintTree(component->children[i], indent + 1);
+    if(component->vtable->print_tree){
+        // print self and its children
+        component->vtable->print_tree(component, indent + 1,common);
     }
+    else{
+        printf(common,"");
+        for (int i = 0; i < component->child_count; i++) {
+            UIComponent_PrintTree(component->children[i], indent + 1);
+        }
+    }
+    
 }
 
 // ==================== 布局API实现 - 对使用者隐藏lay细节 ====================
@@ -504,6 +551,13 @@ void UIComponent_SetContain(ui_component_t *component, uint32_t flags) {
     lay_set_contain(component->lay_ctx, component->lay_item_id, flags);
 }
 
+uint32_t UIComponent_GetContain(ui_component_t* component){
+    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
+        return 0;
+    }
+    return lay_get_contain(component->lay_ctx, component->lay_item_id);
+}
+
 void UIComponent_SetLayoutContain(ui_component_t *component, uint32_t flags) {
     UIComponent_SetContain(component, flags);
 }
@@ -512,38 +566,6 @@ void UIComponent_SetPosition(ui_component_t *component, float x, float y) {
     if (!component) return;
     component->x = x;
     component->y = y;
-}
-
-// 内部辅助函数：创建layout item
-static void EnsureLayoutItem(ui_component_t *component) {
-    if (!component || !component->lay_ctx) {
-        return;
-    }
-    if (component->lay_item_id == LAY_INVALID_ID) {
-        component->lay_item_id = lay_item(component->lay_ctx);
-    }
-}
-
-// 内部辅助函数：将布局应用到组件
-static void ApplyLayoutToComponent(ui_component_t *component) {
-    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
-        return;
-    }
-
-    lay_vec4 rect = lay_get_rect(component->lay_ctx, component->lay_item_id);
-    component->width = rect[2];
-    component->height = rect[3];
-    
-    // 如果是根组件，直接使用布局坐标
-    if (!component->parent) {
-        component->x = rect[0];
-        component->y = rect[1];
-    } else {
-        // 对于子组件，布局坐标已经是相对于父容器的，不需要额外计算
-        // 但是我们需要确保父容器的位置已经正确设置
-        component->x = rect[0];
-        component->y = rect[1];
-    }
 }
 
 void UIComponent_Layout(ui_component_t *root) {

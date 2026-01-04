@@ -1,10 +1,12 @@
 #include "ui_container.h"
+#include "common/event.h"
 #include "common/scene.h"
 #include "html/layout.h"
 #include "ui/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 // 子组件数组初始容量
 #define CONTAINER_INITIAL_CAPACITY 8
@@ -89,9 +91,26 @@ static void container_set_bounds(ui_component_t *component, float x, float y, fl
     component->height = height;
 }
 
-static bool container_hit_test(ui_component_t *component, float x, float y) {
-    return x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height;
+static ui_component_t *container_hit_test(ui_component_t *component, float x, float y) {
+  // 1. 先判断点击是否在容器 bounds 内
+  if (x >= component->x && x < component->x + component->width &&
+      y >= component->y && y < component->y + component->height) {
+
+    // 2. 如果有子组件，从后往前遍历（即“绘制顺序”的逆序：后绘制的在上层）
+    if (component->children && component->child_count > 0) {
+      for (int i = component->child_count - 1; i >= 0; i--) {
+        ui_component_t *child = component->children[i];
+        ui_component_t *hit_child = UIComponent_HitTest(child, x, y);
+        if (hit_child) {
+            return hit_child;  // 3. 一旦命中，立即返回（最上层命中的子）
+        }
+      }
+    }
+
+    // 4. 如果没有子组件命中，则容器自己响应（说明它是可交互的）
+    return component;
+  }
+  return NULL; // 5. 点击不在容器区域内
 }
 
 // 容器特定的虚函数
@@ -179,6 +198,18 @@ static ui_component_t* container_get_child(ui_component_t *component, int index)
     return component->children[index];
 }
 
+// container的print_tree实现：递归打印所有子组件
+static void container_print_tree(const ui_component_t *component, int indent, const char* common) {
+    if (!component) return;
+    
+    printf("%s\n", common);
+    
+    // 递归打印所有子组件
+    for (int i = 0; i < component->child_count; i++) {
+        UIComponent_PrintTree(component->children[i], indent + 1);
+    }
+}
+
 // ==================== 虚函数表定义 ====================
 
 static const ui_component_vtable_t g_container_vtable = {
@@ -215,6 +246,7 @@ static const ui_component_vtable_t g_container_vtable = {
     .get_child = container_get_child,
     .get_custom_data = NULL,
     .set_custom_data = NULL,
+    .print_tree = container_print_tree,
 };
 
 // ==================== 公共API实现 ====================

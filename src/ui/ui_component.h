@@ -100,7 +100,7 @@ typedef struct ui_component_vtable {
     void (*set_bounds)(ui_component_t *component, float x, float y, float width, float height);
     
     // 命中测试
-    bool (*hit_test)(ui_component_t *component, float x, float y);
+    ui_component_t* (*hit_test)(ui_component_t *component, float x, float y);
     
     // 鼠标事件处理
     void (*on_mouse_enter)(ui_component_t *component, event_t *event);
@@ -142,6 +142,9 @@ typedef struct ui_component_vtable {
     // 自定义数据
     void* (*get_custom_data)(ui_component_t *component, const char *key);
     void (*set_custom_data)(ui_component_t *component, const char *key, void *data);
+    
+    // 调试方法, print self and its children
+    void (*print_tree)(const ui_component_t *component, int indent,const char* common);
 } ui_component_vtable_t;
 // ==================== 组件结构 ====================
 
@@ -210,6 +213,8 @@ void UIComponent_SetEnabled(ui_component_t *component, bool enabled);
 void UIComponent_SetFocused(ui_component_t *component, bool focused);
 
 const char* UIComponent_GetTypeName(int typeid);
+
+void UIComponent_GetComputedRectXywh(ui_component_t *component, float *x, float *y, float *width, float *height);
 
 // ==================== 事件处理 ====================
 
@@ -300,4 +305,5 @@ void UIComponent_Layout(ui_component_t *root);
 // 打印布局树（用于调试）
 void UIComponent_PrintTree(const ui_component_t *component, int indent);
 
+ui_component_t* UIComponent_HitTest(ui_component_t*,float x, float y);
 #endif // __UI_COMPONENT_H__

@@ -78,6 +78,11 @@ property = next, next = next ? next->next : NULL)
 #define FOR_EACH(type, property, array, num) \
 for (type *property = array; property - array < num; property++)
 
+#define FOR_EACH_PTR(elem, array, count) \
+    for (typeof(*(array)) elem, *_arr = (array), *_end = _arr + (count); \
+         _arr != _end && (elem = *_arr, 1); \
+         _arr++)
+
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)

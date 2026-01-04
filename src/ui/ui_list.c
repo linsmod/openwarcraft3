@@ -1,6 +1,8 @@
 #include "ui_list.h"
+#include "common/event.h"
 #include "common/shared.h"
 #include "../common/scene.h"
+#include "ui/ui_list_item.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -136,9 +138,18 @@ static void list_set_bounds(ui_component_t *component, float x, float y, float w
     component->height = height;
 }
 
-static bool list_hit_test(ui_component_t *component, float x, float y) {
-    return x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height;
+static ui_component_t * list_hit_test(ui_component_t *component, float x, float y) {
+     if(x >= component->x && x < component->x + component->width &&
+           y >= component->y && y < component->y + component->height){
+            ui_list_t* this = (ui_list_t*)component;
+            FOR_EACH_PTR(item, this->items, this->item_count){
+                if(UIComponent_HitTest((ui_component_t*)item, x, y)){
+                    return (ui_component_t*)item;
+                }
+            }
+            return component;
+        }
+    return NULL;
 }
 
 // 列表特定的鼠标事件处理
@@ -318,6 +329,17 @@ static void list_on_key_down(ui_component_t *component, event_t *event) {
     }
 }
 
+// list的print_tree实现：显示项数和选中项
+static void list_print_tree(const ui_component_t *component, int indent, const char* common) {
+    (void)indent;
+    const ui_list_t *list = (const ui_list_t *)component;
+    if (!list) return;
+    
+    printf("%s", common);
+    printf(" items=%d selected=%d visible=%d\n", 
+           list->item_count, list->selected_index, list->visible_count);
+}
+
 // ==================== 虚函数表定义 ====================
 
 static const ui_component_vtable_t g_list_vtable = {
@@ -355,6 +377,7 @@ static const ui_component_vtable_t g_list_vtable = {
     .get_child = NULL,
     .get_custom_data = NULL,
     .set_custom_data = NULL,
+    .print_tree = list_print_tree,
 };
 
 // ==================== 公共API实现 ====================

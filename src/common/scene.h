@@ -295,7 +295,7 @@ int SceneManager_RegisterScene(scene_manager_t *mgr, scene_t *scene);
 void SceneManager_PushScene(scene_manager_t *mgr, scene_t *scene, const scene_params_t *params);
 void SceneManager_PopScene(scene_manager_t *mgr, const scene_params_t *result);
 void SceneManager_SwitchScene(scene_manager_t *mgr, scene_t *scene, const scene_params_t *params);
-void SceneManager_Transition(scene_manager_t *mgr, scene_transition_t *transition);
+void SceneManager_SetTransition(scene_manager_t *mgr, scene_transition_t *transition);
 
 // 场景查询
 scene_t* SceneManager_GetCurrentScene(scene_manager_t *mgr);
@@ -374,6 +374,8 @@ void SceneManager_InitMouseState(scene_manager_t *mgr);
 
 // 执行hitTest（返回鼠标命中的组件）
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y);
+
+
 
 // 处理事件细化
 void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event);

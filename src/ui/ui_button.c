@@ -1,9 +1,11 @@
 #include "ui_button.h"
+#include "common/event.h"
 #include "common/shared.h"
 #include "ui/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 // ==================== 虚函数实现 ====================
 
@@ -24,7 +26,17 @@ static void button_init(ui_component_t *component, canvas2d_context_t *ctx) {
     button->text_component.wrap = false;
     button->text_component.wrap_width = 0;
 }
-
+static ui_component_t* button_hit_test(ui_component_t* component, float x, float y){
+    if(x >= component->x && x < component->x + component->width && 
+       y >= component->y && y < component->y + component->height){
+        ui_button_t* button = (ui_button_t*)component;
+        ui_component_t* ret = UIComponent_HitTest((ui_component_t* )&button->text_component,x,y);
+        if(ret)
+            return ret;
+        return component;
+    }
+    return NULL;
+}
 static void button_shutdown(ui_component_t *component) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button) return;
@@ -119,11 +131,6 @@ static void button_set_bounds(ui_component_t *component, float x, float y, float
     component->height = height;
 }
 
-static bool button_hit_test(ui_component_t *component, float x, float y) {
-    return x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height;
-}
-
 static void button_on_mouse_enter(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return;
@@ -193,6 +200,29 @@ static void button_on_mouse_move(ui_component_t *component, event_t *event) {
     }
 }
 
+// button的print_tree实现：打印按钮文本
+static void button_print_tree(const ui_component_t *component, int indent, const char* common) {
+    (void)indent;
+    const ui_button_t *button = (const ui_button_t *)component;
+    if (!button) return;
+    
+    printf("%s", common);
+    
+    // 打印按钮文本（限制长度避免过长）
+    char display_text[64];
+    int len = strlen(button->config.text);
+    if (len > 30) {
+        strncpy(display_text, button->config.text, 27);
+        display_text[27] = '.';
+        display_text[28] = '.';
+        display_text[29] = '.';
+        display_text[30] = '\0';
+    } else {
+        strcpy(display_text, button->config.text);
+    }
+    printf(" \"%s\"\n", display_text);
+}
+
 // ==================== 虚函数表定义 ====================
 
 static const ui_component_vtable_t g_button_vtable = {
@@ -230,6 +260,7 @@ static const ui_component_vtable_t g_button_vtable = {
     .get_child = NULL,
     .get_custom_data = NULL,
     .set_custom_data = NULL,
+    .print_tree = button_print_tree,
 };
 
 // ==================== 公共API实现 ====================

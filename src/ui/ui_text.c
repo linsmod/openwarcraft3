@@ -92,11 +92,36 @@ static void text_set_bounds(ui_component_t *component, float x, float y, float w
     component->height = height;
 }
 
-static bool text_hit_test(ui_component_t *component, float x, float y) {
-    return x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height;
+static ui_component_t * text_hit_test(ui_component_t *component, float x, float y) {
+     if(x >= component->x && x < component->x + component->width &&
+           y >= component->y && y < component->y + component->height){
+            return component;
+        }
+    return NULL;
 }
 
+// text的print_tree实现：打印文本内容
+static void text_print_tree(const ui_component_t *component, int indent, const char* common) {
+    (void)indent;
+    const ui_text_t *text = (const ui_text_t *)component;
+    if (!text) return;
+    
+    printf("%s", common);
+    
+    // 打印文本内容（限制长度避免过长）
+    char display_text[64];
+    int len = strlen(text->text);
+    if (len > 30) {
+        strncpy(display_text, text->text, 27);
+        display_text[27] = '.';
+        display_text[28] = '.';
+        display_text[29] = '.';
+        display_text[30] = '\0';
+    } else {
+        strcpy(display_text, text->text);
+    }
+    printf(" \"%s\"\n", display_text);
+}
 // ==================== 虚函数表定义 ====================
 
 static const ui_component_vtable_t g_text_vtable = {
@@ -134,6 +159,7 @@ static const ui_component_vtable_t g_text_vtable = {
     .get_child = NULL,
     .get_custom_data = NULL,
     .set_custom_data = NULL,
+    .print_tree = text_print_tree,
 };
 
 // ==================== 公共API实现 ====================

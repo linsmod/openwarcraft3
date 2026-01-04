@@ -570,12 +570,15 @@ void SceneManager_SwitchScene(scene_manager_t *mgr, scene_t *scene, const scene_
     if (mgr->current_scene) {
         SceneManager_PopScene(mgr, NULL);
     }
-    
+    SceneManager_InitMouseState(mgr);
     // 压入新场景
     SceneManager_PushScene(mgr, scene, params);
 }
-
-void SceneManager_Transition(scene_manager_t *mgr, scene_transition_t *transition) {
+void SceneManager_SetTransition(scene_manager_t *mgr, scene_transition_t *transition){
+    if (!mgr) return;
+    mgr->pending_transition = transition;
+}
+static void SceneManager_RunTransition(scene_manager_t *mgr, scene_transition_t *transition) {
     if (!mgr || !transition || transition->executed) {
         return;
     }
@@ -683,7 +686,7 @@ void SceneManager_Update(scene_manager_t *mgr, int msec) {
     
     
     if(mgr->pending_transition) {
-        SceneManager_Transition(mgr, mgr->pending_transition);
+        SceneManager_RunTransition(mgr, mgr->pending_transition);
         SceneTransition_Destroy(mgr->pending_transition);
         mgr->pending_transition = NULL;
         return;
@@ -693,7 +696,7 @@ void SceneManager_Update(scene_manager_t *mgr, int msec) {
     scene_transition_t *transition = SCENE_UPDATE(mgr->current_scene, msec);
     if (transition) {
         mgr->pending_transition = transition;
-        SceneManager_Transition(mgr, mgr->pending_transition);
+        SceneManager_RunTransition(mgr, mgr->pending_transition);
         SceneTransition_Destroy(mgr->pending_transition);
         mgr->pending_transition = NULL;
     }
@@ -752,33 +755,6 @@ void SceneManager_InitMouseState(scene_manager_t *mgr) {
     mgr->captured = NULL;
 }
 
-// 内部辅助函数：递归执行hitTest
-static ui_component_t* component_hit_test(ui_component_t *component, float x, float y) {
-    if (!component || !(component->flags & UI_FLAG_VISIBLE)) {
-        return NULL;
-    }
-    
-    // 检查鼠标坐标是否在组件边界内
-    if (x >= component->x && x <= component->x + component->width &&
-        y >= component->y && y <= component->y + component->height) {
-        
-        // 如果有子组件，从后往前检查（因为后渲染的在上层）
-        if (component->children && component->child_count > 0) {
-            for (int i = component->child_count - 1; i >= 0; i--) {
-                ui_component_t *child = component->children[i];
-                ui_component_t *hit_child = component_hit_test(child, x, y);
-                if (hit_child) {
-                    return hit_child;  // 返回命中的子组件
-                }
-            }
-        }
-        
-        // 如果没有子组件命中，返回当前组件
-        return component;
-    }
-    
-    return NULL;
-}
 
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
     if (!mgr || !mgr->current_scene || !mgr->current_scene->root_component) {
@@ -787,11 +763,7 @@ ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
     }
     
     // 从根组件开始递归遍历
-    ui_component_t *hit = component_hit_test(mgr->current_scene->root_component, x, y);
-    
-    // 保存命中的组件到mgr（用于调试覆盖层显示）
-    mgr->mouse_target = hit;
-    
+    ui_component_t *hit = UIComponent_HitTest(mgr->current_scene->root_component, x, y);
     return hit;
 }
 
@@ -1195,14 +1167,13 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event) {
                     enter_event.target = hit_target;
                     SceneManager_BubbleEvent(mgr, hit_target, &enter_event);
                 }
-                
                 mgr->mouse_target = hit_target;
             }
             break;
         }
         
         default:
-            // 其他事件类型不需要细化
+            // 其他事件类型
             SceneManager_BubbleEvent(mgr, hit_target, event);
             break;
     }

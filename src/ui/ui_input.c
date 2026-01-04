@@ -148,11 +148,6 @@ static void input_set_bounds(ui_component_t *component, float x, float y, float 
     component->height = height;
 }
 
-static bool input_hit_test(ui_component_t *component, float x, float y) {
-    return x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height;
-}
-
 // 鼠标按下事件
 static void input_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_input_t *input = (ui_input_t *)component;
@@ -299,6 +294,34 @@ static void input_on_blur(ui_component_t *component, event_t *event) {
     input->focused = false;
 }
 
+// input的print_tree实现：显示输入框内容
+static void input_print_tree(const ui_component_t *component, int indent, const char* common) {
+    (void)indent;
+    const ui_input_t *input = (const ui_input_t *)component;
+    if (!input) return;
+    
+    printf("%s", common);
+    
+    // 打印文本内容（限制长度避免过长）
+    char display_text[64];
+    int len = strlen(input->text);
+    if (len > 30) {
+        strncpy(display_text, input->text, 27);
+        display_text[27] = '.';
+        display_text[28] = '.';
+        display_text[29] = '.';
+        display_text[30] = '\0';
+    } else {
+        strcpy(display_text, input->text);
+    }
+    
+    if (len == 0 && strlen(input->placeholder) > 0) {
+        printf(" placeholder=\"%s\"\n", input->placeholder);
+    } else {
+        printf(" \"%s\"\n", display_text);
+    }
+}
+
 // ==================== 虚函数表定义 ====================
 
 static const ui_component_vtable_t g_input_vtable = {
@@ -309,7 +332,6 @@ static const ui_component_vtable_t g_input_vtable = {
     .set_position = input_set_position,
     .set_size = input_set_size,
     .set_bounds = input_set_bounds,
-    .hit_test = input_hit_test,
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
     .on_mouse_down = input_on_mouse_down,
@@ -335,6 +357,7 @@ static const ui_component_vtable_t g_input_vtable = {
     .get_child = NULL,
     .get_custom_data = NULL,
     .set_custom_data = NULL,
+    .print_tree = input_print_tree,
 };
 
 // ==================== 公共API实现 ====================

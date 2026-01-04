@@ -91,9 +91,35 @@ static void label_set_bounds(ui_component_t *component, float x, float y, float 
     component->height = height;
 }
 
-static bool label_hit_test(ui_component_t *component, float x, float y) {
-    return x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height;
+static ui_component_t * label_hit_test(ui_component_t *component, float x, float y) {
+     if(x >= component->x && x < component->x + component->width &&
+           y >= component->y && y < component->y + component->height){
+            return component;
+        }
+    return NULL;
+}
+
+// label的print_tree实现：打印标签文本
+static void label_print_tree(const ui_component_t *component, int indent, const char* common) {
+    (void)indent;
+    const ui_label_t *label = (const ui_label_t *)component;
+    if (!label) return;
+    
+    printf("%s", common);
+    
+    // 打印标签文本（限制长度避免过长）
+    char display_text[64];
+    int len = strlen(label->text);
+    if (len > 30) {
+        strncpy(display_text, label->text, 27);
+        display_text[27] = '.';
+        display_text[28] = '.';
+        display_text[29] = '.';
+        display_text[30] = '\0';
+    } else {
+        strcpy(display_text, label->text);
+    }
+    printf(" \"%s\"\n", display_text);
 }
 
 // ==================== 虚函数表定义 ====================
@@ -132,8 +158,8 @@ static const ui_component_vtable_t g_label_vtable = {
     .get_child = NULL,
     .get_custom_data = NULL,
     .set_custom_data = NULL,
+    .print_tree = label_print_tree,
 };
-
 // ==================== 公共API实现 ====================
 
 ui_label_t* UILabel_Create(float x, float y, float width, float height, const char *text,

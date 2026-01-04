@@ -65,6 +65,8 @@ void DebugOverlayScene_Render(scene_t *scene) {
     if (mgr->current_scene && mgr->mouse_target) {
         ui_component_t *target = mgr->mouse_target;
 
+        float x, y, width, height;
+        UIComponent_GetComputedRectXywh(target, &x, &y, &width, &height);
         // 获取画布上下文
         canvas2d_context_t *ctx = mgr->current_scene->canvas_ctx;
         if (!ctx) return;
@@ -72,7 +74,7 @@ void DebugOverlayScene_Render(scene_t *scene) {
         // 绘制红色边框表示命中的组件
         canvas2d_set_stroke_style(ctx, MAKE(COLOR32, 255, 0, 0, 255)); // 红色
         canvas2d_set_line_width(ctx, 2.0f);
-        canvas2d_stroke_rect(ctx, target->x, target->y, target->width, target->height);
+        canvas2d_stroke_rect(ctx, x, y, width, height);
 
         // 绘制组件类型名称
         const char *type_name = UIComponent_GetTypeName(target->type);
@@ -80,14 +82,14 @@ void DebugOverlayScene_Render(scene_t *scene) {
             char info_text[256];
             snprintf(info_text, sizeof(info_text),
                 "[%s] (%.0f, %.0f) %.0fx%.0f",
-                type_name, target->x, target->y, target->width, target->height);
+                type_name, x, y, width, height);
 
             // 设置文字样式
             canvas2d_set_font_size(ctx, 14.0f);
             canvas2d_set_fill_style(ctx, MAKE(COLOR32, 255, 255, 0, 255)); // 黄色
             
             // 在组件上方显示信息
-            canvas2d_fill_text(ctx, info_text, target->x, target->y - 20);
+            canvas2d_fill_text(ctx, info_text, x, y - 20.0f);
         }
     }
 }

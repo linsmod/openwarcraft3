@@ -184,10 +184,8 @@ static void SplashScene_OnClick(scene_t *scene, event_t *event) {
         NULL
     );
     
-    // 直接执行场景切换，而不是设置pending_transition
     if (scene->manager) {
-        SceneManager_Transition(scene->manager, transition);
-        // 不需要销毁transition，因为它已经被处理了
+        SceneManager_SetTransition(scene->manager, transition);
     }
 }
 

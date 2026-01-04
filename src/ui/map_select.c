@@ -23,7 +23,6 @@
 #include <time.h>
 
 // 使用lay库进行布局（启用浮点坐标）
-#define LAY_FLOAT 1
 #include "../html/layout.h"
 
 // 最大地图数量
@@ -686,7 +685,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetLayoutContain(right_container, LAY_COLUMN);
 
     // 创建地图预览容器
-    g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 624.0f, 600.0f,
+    g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 624.0f, 538.0f,
                                                                (COLOR32){40, 40, 50, 230},
                                                                (COLOR32){255, 215, 0, 255}, g_ctx);
     if (!g_preview_container) {
@@ -695,7 +694,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     
     // 设置布局行为
-    UIComponent_SetSize(g_preview_container, 624.0f, 600.0f);
+    UIComponent_SetSize(g_preview_container, 624.0f, 538.0f);
     UIComponent_SetBehave(g_preview_container, LAY_HFILL);
     UIComponent_SetMargin(g_preview_container, 10.0f, 0.0f, 10.0f, 0.0f);
 
@@ -795,7 +794,7 @@ int MapSelect_Init(scene_t *scene) {
 
     // 6. 创建提示容器（底部按钮区域）
     ui_component_t *hint_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 644.0f, 50.0f,
+        0.0f, 0.0f, 644.0f, 150.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -805,8 +804,8 @@ int MapSelect_Init(scene_t *scene) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)right_container, hint_container);
-    UIComponent_SetSize(hint_container, 644.0f, 50.0f);
-    UIComponent_SetLayoutContain(hint_container, LAY_ROW);
+    UIComponent_SetSize(hint_container, 644.0f, 150.0f);
+    UIComponent_SetLayoutContain(hint_container, LAY_COLUMN);
 
     // 创建提示文本1
     g_hint_text1 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "UP/DOWN: navigate  ENTER: select  Type: filter",
@@ -817,8 +816,8 @@ int MapSelect_Init(scene_t *scene) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)hint_container, g_hint_text1);
-    UIComponent_SetSize(g_hint_text1, 394.0f, 50.0f);
-    UIComponent_SetBehave(g_hint_text1, LAY_LEFT);
+    UIComponent_SetSize(g_hint_text1, 644.0f, 50.0f);
+    UIComponent_SetBehave(g_hint_text1, LAY_HFILL);
 
     // 创建提示文本2
     g_hint_text2 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "ESC: quit",
@@ -829,8 +828,8 @@ int MapSelect_Init(scene_t *scene) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)hint_container, g_hint_text2);
-    UIComponent_SetSize(g_hint_text2, 200.0f, 50.0f);
-    UIComponent_SetBehave(g_hint_text2, LAY_RIGHT);
+    UIComponent_SetSize(g_hint_text2, 644.0f, 50.0f);
+    UIComponent_SetBehave(g_hint_text2, LAY_HFILL);
     UIComponent_SetMargin(g_hint_text2, 0.0f, 0.0f, 0.0f, 10.0f);
 
     // 7. 创建 START GAME 按钮
@@ -862,8 +861,8 @@ int MapSelect_Init(scene_t *scene) {
     
     // 将按钮添加到提示容器
     UIContainer_AddChild((ui_container_t *)hint_container, g_start_button);
-    UIComponent_SetSize(g_start_button, 250.0f, 50.0f);
-    UIComponent_SetBehave(g_start_button, LAY_HCENTER);
+    UIComponent_SetSize(g_start_button, 644.0f, 50.0f);
+    UIComponent_SetBehave(g_start_button, LAY_HFILL);
     UIComponent_SetMargin(g_start_button, 0.0f, 0.0f, 0.0f, 10.0f);
     // 从(listfile)加载地图列表
     g_map_count = 0;
