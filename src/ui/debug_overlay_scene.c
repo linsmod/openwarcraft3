@@ -1,6 +1,8 @@
 #include "debug_overlay_scene.h"
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
+#include "../html/html.h"
+#include <libxml/tree.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
 
@@ -78,11 +80,30 @@ void DebugOverlayScene_Render(scene_t *scene) {
 
         // 绘制组件类型名称
         const char *type_name = UIComponent_GetTypeName(target->type);
-        if (type_name) {
-            char info_text[256];
+        
+        // 如果是HTML节点，尝试显示标签名
+        char type_info[256];
+        if (target->type == UI_COMPONENT_TYPE_HTML_NODE || target->type == UI_COMPONENT_TYPE_HTML_DOC) {
+            // 获取XML节点
+            if (target->xml_node) {
+                xmlNode *xml_node = (xmlNode *)target->xml_node;
+                if (xml_node && xml_node->name) {
+                    snprintf(type_info, sizeof(type_info), "HTML_%s", (char*)xml_node->name);
+                } else {
+                    strncpy(type_info, type_name ? type_name : "UNKNOWN", sizeof(type_info) - 1);
+                }
+            } else {
+                strncpy(type_info, type_name ? type_name : "UNKNOWN", sizeof(type_info) - 1);
+            }
+        } else {
+            strncpy(type_info, type_name ? type_name : "UNKNOWN", sizeof(type_info) - 1);
+        }
+        
+        if (type_name || type_info[0] != '\0') {
+            char info_text[512];
             snprintf(info_text, sizeof(info_text),
                 "[%s] (%.0f, %.0f) %.0fx%.0f",
-                type_name, x, y, width, height);
+                type_info, x, y, width, height);
 
             // 设置文字样式
             canvas2d_set_font_size(ctx, 14.0f);

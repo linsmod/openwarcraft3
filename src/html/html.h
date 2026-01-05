@@ -123,3 +123,12 @@ lay_context* html_context_get_layout(context *ctx);
  * @return 元素节点
  */
 xmlNode* html_context_find_by_id(context *ctx, const char *id);
+
+/**
+ * @brief 根据坐标查找HTML元素
+ * @param ctx HTML上下文
+ * @param x X坐标
+ * @param y Y坐标
+ * @return 命中的元素节点，未找到返回NULL
+ */
+xmlNode* html_context_find_by_point(context *ctx, float x, float y);

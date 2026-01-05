@@ -3735,6 +3735,81 @@ xmlNode* html_context_find_by_id(context *ctx, const char *id) {
 }
 
 /**
+ * @brief 递归辅助函数：根据坐标查找xmlNode
+ * @param ctx HTML上下文
+ * @param node 当前节点
+ * @param x 要测试的X坐标
+ * @param y 要测试的Y坐标
+ * @param result 返回的最深层级的命中节点
+ * @param max_depth 当前最大深度
+ * @param current_depth 当前深度
+ */
+static void find_node_by_point_recursive(context *ctx, xmlNode *node, 
+                                          float x, float y, 
+                                          xmlNode **result, int *max_depth, 
+                                          int current_depth) {
+    if (!ctx || !node) return;
+    
+    // 只处理元素节点
+    if (node->type != XML_ELEMENT_NODE) {
+        // 递归处理子节点
+        xmlNode *child = node->children;
+        while (child != NULL) {
+            find_node_by_point_recursive(ctx, child, x, y, result, max_depth, current_depth + 1);
+            child = child->next;
+        }
+        return;
+    }
+    
+    // 获取节点的layout信息
+    lay_id layout_id = GETLAYID(node);
+    if (layout_id != LAY_INVALID_ID) {
+        lay_scalar elem_x, elem_y, elem_width, elem_height;
+        lay_get_rect_xywh(ctx->layout_ctx, layout_id, &elem_x, &elem_y, &elem_width, &elem_height);
+        
+        // 检查点是否在矩形内
+        if (x >= elem_x && x < elem_x + elem_width &&
+            y >= elem_y && y < elem_y + elem_height) {
+            
+            // 如果当前深度大于已找到的最大深度，更新结果
+            if (current_depth > *max_depth) {
+                *max_depth = current_depth;
+                *result = node;
+            }
+        }
+    }
+    
+    // 递归处理子节点（子节点可能在父节点上方，所以总是要检查）
+    xmlNode *child = node->children;
+    while (child != NULL) {
+        find_node_by_point_recursive(ctx, child, x, y, result, max_depth, current_depth + 1);
+        child = child->next;
+    }
+}
+
+/**
+ * @brief 根据坐标查找HTML元素
+ * @param ctx HTML上下文
+ * @param x X坐标
+ * @param y Y坐标
+ * @return 命中的元素节点，未找到返回NULL
+ */
+xmlNode* html_context_find_by_point(context *ctx, float x, float y) {
+    if (!ctx || !ctx->document) return NULL;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return NULL;
+    
+    xmlNode *result = NULL;
+    int max_depth = -1;
+    
+    // 递归查找最深层级的命中节点
+    find_node_by_point_recursive(ctx, root, x, y, &result, &max_depth, 0);
+    
+    return result;
+}
+
+/**
  * @brief 打印布局信息（调试用）
  * @param ctx HTML上下文
  */

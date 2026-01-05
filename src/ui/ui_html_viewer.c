@@ -12,6 +12,7 @@ static void html_viewer_init(ui_component_t *component, canvas2d_context_t *ctx)
 static void html_viewer_shutdown(ui_component_t *component);
 static void html_viewer_update(ui_component_t *component, int msec);
 static void html_viewer_render(ui_component_t *component);
+static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, float y);
 static void html_viewer_on_click(ui_component_t *component, event_t *event);
 static void html_viewer_print_tree(const ui_component_t *component, int indent, const char *common);
 
@@ -20,6 +21,7 @@ static const ui_component_vtable_t html_viewer_vtable = {
     .shutdown = html_viewer_shutdown,
     .update = html_viewer_update,
     .render = html_viewer_render,
+    .hit_test = html_viewer_hit_test,
     .on_click = html_viewer_on_click,
     .print_tree = html_viewer_print_tree
 };
@@ -87,26 +89,83 @@ static void html_viewer_render(ui_component_t *component) {
     canvas2d_restore(component->ctx);
 }
 
-static void html_viewer_on_click(ui_component_t *component, event_t *event) {
+static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, float y) {
     ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
 
-    // 如果没有设置点击回调，让事件继续传播
-    if (!viewer->html_ctx || !viewer->on_element_clicked) {
-        return;
+    // 首先检查是否在viewer的边界内
+    if (x < component->x || x >= component->x + component->width ||
+        y < component->y || y >= component->y + component->height) {
+        return NULL;
     }
 
-    float local_x = event->mouse.x - component->x - viewer->scroll_x;
-    float local_y = event->mouse.y - component->y - viewer->scroll_y;
+    // 如果没有加载HTML或没有context，返回viewer自身（可能需要交互）
+    if (!viewer->loaded || !viewer->html_ctx) {
+        return component;
+    }
 
+    // 将全局坐标转换为viewer的本地坐标
+    float local_x = x - component->x - viewer->scroll_x;
+    float local_y = y - component->y - viewer->scroll_y;
+
+    // 应用zoom缩放
     if (viewer->zoom != 1.0f) {
         local_x /= viewer->zoom;
         local_y /= viewer->zoom;
     }
 
-    // 查找被点击的元素
-    xmlNode *elem = html_context_find_by_id(viewer->html_ctx, "clicked");
+    // 使用hittest查找命中的HTML节点
+    xmlNode *hit_node = html_context_find_by_point(viewer->html_ctx, local_x, local_y);
+
+    if (hit_node) {
+        // 获取节点的私有数据（ui_xmlnode_t）
+        ui_component_t *node_component = (ui_component_t *)hit_node->_private;
+        
+        // 如果节点有对应的组件，返回该组件
+        if (node_component) {
+            return node_component;
+        }
+    }
+
+    // 如果没有命中任何节点，返回viewer自身（viewer也可以响应点击）
+    return component;
+}
+
+static void html_viewer_on_click(ui_component_t *component, event_t *event) {
+    ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
+
+    // 如果没有加载HTML，不处理
+    if (!viewer->html_ctx) {
+        return;
+    }
+
+    // 将全局坐标转换为viewer的本地坐标
+    float local_x = event->mouse.x - component->x - viewer->scroll_x;
+    float local_y = event->mouse.y - component->y - viewer->scroll_y;
+
+    // 应用zoom缩放
+    if (viewer->zoom != 1.0f) {
+        local_x /= viewer->zoom;
+        local_y /= viewer->zoom;
+    }
+
+    // 使用hittest查找被点击的元素
+    xmlNode *elem = html_context_find_by_point(viewer->html_ctx, local_x, local_y);
+
+    // 处理元素点击
     if (elem && viewer->on_element_clicked) {
         viewer->on_element_clicked(viewer, elem, viewer->callback_user_data);
+        return; // 处理了元素点击，不再处理链接点击
+    }
+
+    // 处理链接点击（如果元素是<a>标签且有点击链接回调）
+    if (elem && elem->name && xmlStrcmp(elem->name, BAD_CAST "a") == 0) {
+        if (viewer->on_link_clicked) {
+            xmlChar *href = xmlGetProp(elem, BAD_CAST "href");
+            if (href) {
+                viewer->on_link_clicked(viewer, (char*)href, viewer->callback_user_data);
+                xmlFree(href);
+            }
+        }
     }
 }
 

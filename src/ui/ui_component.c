@@ -73,6 +73,10 @@ const char* UIComponent_GetTypeName(int typeid){
             return "PANEL";
         case UI_COMPONENT_TYPE_HTML_VIEWER:
             return "HTML_VIEWER";
+        case UI_COMPONENT_TYPE_HTML_DOC:
+            return "HTML_DOC";
+        case UI_COMPONENT_TYPE_HTML_NODE:
+            return "HTML_NODE";
         default:
             return "UI_COMPONENT_UNKNOWN";
     }
