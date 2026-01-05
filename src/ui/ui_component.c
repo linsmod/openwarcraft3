@@ -42,8 +42,11 @@ bool UIComponent_IsHovered(const ui_component_t *component) {
 void UIComponent_GetComputedRectXywh(ui_component_t *component, float *x, float *y, float *width, float *height){
     lay_scalar x_,y_,width_,height_;
     lay_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x_, &y_, &width_, &height_);
-    *x = (float)x_;
-    *y = (float)y_;
+
+    lay_scalar l, t,r,b;
+    lay_get_margins_ltrb(component->lay_ctx, component->lay_item_id, &l,&t,&r,&b);
+    *x = (float)x_+l;
+    *y = (float)y_+t;
     *width = (float)width_;
     *height = (float)height_;
 }

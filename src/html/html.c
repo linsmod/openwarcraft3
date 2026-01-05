@@ -797,6 +797,7 @@ static bool is_whitespace_hubbub_string(const hubbub_string *str)
     }
     return true;
 }
+#include "../common/strop.h"
 /**
  * Create a text node
  *
@@ -831,8 +832,9 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
     
     // 设置文本节点的最小尺寸（基于文本内容）
 	
-    const char* text_content = data->len > 0 ? (const char*)n->content : "";
+    char* text_content = trim_dup(data->len > 0 ? (const char*)n->content : "");
     size_t text_len = strlen(text_content);
+	free(text_content);
     
     // 估算文本尺寸（这里简化估算：每个字符约10像素宽，字体高度约16像素）
     int estimated_width = (int)(text_len * 10);
