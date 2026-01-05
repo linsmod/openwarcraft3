@@ -2707,9 +2707,10 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 	// 检查节点是否已处理过（使用私有数据标记）
 	if (node->_private) {
 		ui_component_t*comp = (ui_component_t*)node->_private;
-		if (comp->refcount & 0x80000000) {  // 使用最高位标记已处理
+		if (comp->s != HANDLER_STAGE_NONE) {  // 使用最高位标记已处理
 			return;  // 已处理过，跳过
 		}
+		comp->s = HANDLER_STAGE_STYLE_PROC;
 	}
 	
 	// 获取style节点的文本内容
@@ -2760,7 +2761,7 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 						// 标记该节点已处理（使用refcount最高位）
 						if (node->_private) {
 							ui_component_t*comp = (ui_component_t*)node->_private;
-							comp->refcount |= 0x80000000;
+							comp->s = HANDLER_STAGE_STYLE_DONE;
 						}
 					} else {
 						fprintf(stderr, "Failed to append stylesheet to select context\n");
@@ -2781,17 +2782,25 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 		xmlFree(style_content);
 	}
 }
+
 void process_script_node(context *ctx, xmlNode *node, int depth) {
 	if (!ctx || !node) return;
-	
-	// 获取script节点的文本内容
-	xmlChar *script_content = xmlNodeGetContent(node);
-	if (script_content) {
-		// 这里可以集成JavaScript引擎来执行脚本
-		// 目前仅打印脚本内容作为示例
-		printf("Script content:\n%s\n", (const char *)script_content);
-		
-		xmlFree(script_content);
+	if(node->_private){
+		ui_component_t*comp = (ui_component_t*)node->_private;
+		if(comp->s != HANDLER_STAGE_NONE){
+			return;
+		}
+		comp->s = HANDLER_STAGE_SCRIPT_PROC;
+		// 获取script节点的文本内容
+		xmlChar *script_content = xmlNodeGetContent(node);
+		if (script_content) {
+			// 这里可以集成JavaScript引擎来执行脚本
+			// 目前仅打印脚本内容作为示例
+			printf("Script content:\n%s\n", (const char *)script_content);
+			
+			xmlFree(script_content);
+		}
+		comp->s = HANDLER_STAGE_SCRIPT_DONE;
 	}
 }
 

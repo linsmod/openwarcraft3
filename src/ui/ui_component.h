@@ -7,10 +7,12 @@
 #include "../html/layout.h"
 #include "libxml/tree.h"
 #include "../html/css.h"
+#include <sys/types.h>
 
 // 前向声明
 typedef struct ui_component_t ui_component_t;
 typedef struct lay_context lay_context;
+typedef struct handler_states_t handler_state_t;
 
 // ==================== 组件类型枚举 ====================
 
@@ -151,7 +153,13 @@ typedef struct ui_component_vtable {
     void (*print_tree)(const ui_component_t *component, int indent,const char* common);
 } ui_component_vtable_t;
 // ==================== 组件结构 ====================
-
+typedef enum HANDLER_STAGE{
+    HANDLER_STAGE_NONE = 0,
+    HANDLER_STAGE_STYLE_PROC = 0x01,
+    HANDLER_STAGE_STYLE_DONE = 0x04,
+    HANDLER_STAGE_SCRIPT_PROC = 0x08,
+    HANDLER_STAGE_SCRIPT_DONE = 0x10,
+} HANDLER_STAGE;
 struct ui_component_t {
     void* xml_node;
     // 基础属性
@@ -170,9 +178,11 @@ struct ui_component_t {
     lay_id lay_item_id;              // 组件的布局项ID
     
     uint refcount;
+    uint css_processed;
 	LPCSS parsedStyle;
 	LPCSS computedStyle;
 	uint32_t animation_id;  /**< Animation instance ID if this element is animated */
+    HANDLER_STAGE s;
     
     // 样式
     ui_bg_color_t bg_color;          // 背景颜色
