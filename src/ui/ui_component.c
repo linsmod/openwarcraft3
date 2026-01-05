@@ -258,6 +258,9 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->bg_color.hover = MAKE(COLOR32, 0, 0, 0, 0);
     component->bg_color.active = MAKE(COLOR32, 0, 0, 0, 0);
     component->bg_color.disabled = MAKE(COLOR32, 0, 0, 0, 0);
+    component->text_color = MAKE(COLOR32, 255, 255, 255, 255);
+    component->font_size = 0;
+    component->text_align = 0;
     component->margin[0] = 0.0f;
     component->margin[1] = 0.0f;
     component->margin[2] = 0.0f;
@@ -586,9 +589,9 @@ void UIComponent_Layout(ui_component_t *root) {
     lay_run_context(root->lay_ctx);
     
     // 调试输出：打印布局后的组件树
-    printf("\n========== UI Layout Tree (After Layout) ==========\n");
-    UIComponent_PrintTree(root, 0);
-    printf("===================================\n\n");
+    // printf("\n========== UI Layout Tree (After Layout) ==========\n");
+    // UIComponent_PrintTree(root, 0);
+    // printf("===================================\n\n");
 }
 
 // ==================== 组件渲染默认实现 ====================

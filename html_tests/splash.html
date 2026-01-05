@@ -1,134 +1,193 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>OpenWarcraft3 Splash Screen</title>
+    <title>Layout Engine Test</title>
     <meta charset="UTF-8">
     <style>
         body {
-            width: 1024px;
-            height: 768px;
+            width: 1200px;
+            height: 800px;
             background-color: #1a1a2e;
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
         }
         
-        .splash-container {
+        .test-container {
             width: 100%;
             height: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .test-row {
+            width: 100%;
+            height: 180px;
+            margin-bottom: 20px;
+            background-color: #2d3748;
+            padding: 10px;
+        }
+        
+        .test-label {
+            font-size: 14px;
+            color: #ffffff;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        /* 测试1: 水平方向 - flex-start */
+        .test-h-start {
+            width: 100%;
+            height: 120px;
+            background-color: #4a5568;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+        }
+        
+        /* 测试2: 水平方向 - center */
+        .test-h-center {
+            width: 100%;
+            height: 120px;
+            background-color: #4a5568;
+            display: flex;
+            flex-direction: row;
             align-items: center;
-            animation: fadeInOut 6s ease-in-out forwards;
         }
         
-        @keyframes fadeInOut {
-            0% { opacity: 0; }
-            8.33% { opacity: 1; }    /* 淡入：0.5秒 (0.5/6 = 8.33%) */
-            91.67% { opacity: 1; }   /* 显示：5秒 */
-            100% { opacity: 0; }     /* 淡出：0.5秒 */
+        /* 测试3: 水平方向 - flex-end */
+        .test-h-end {
+            width: 100%;
+            height: 120px;
+            background-color: #4a5568;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
         }
         
-        .logo-container {
-            width: 200px;
-            height: 200px;
-            margin-bottom: 40px;
-            background-color: #2b5876;
+        /* 测试4: 垂直方向 - flex-start */
+        .test-v-start {
+            width: 100%;
+            height: 120px;
+            background-color: #4a5568;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        /* 测试5: 垂直方向 - center */
+        .test-v-center {
+            width: 100%;
+            height: 120px;
+            background-color: #4a5568;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        /* 测试6: 垂直方向 - flex-end */
+        .test-v-end {
+            width: 100%;
+            height: 120px;
+            background-color: #4a5568;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .box {
+            width: 80px;
+            height: 80px;
+            margin: 5px;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-        
-        .logo-text {
-            font-size: 64px;
-            font-weight: bold;
-            color: #ffffff;
-        }
-        
-        .title {
-            font-size: 48px;
-            font-weight: bold;
-            color: #e0e0e0;
-            margin-bottom: 15px;
-        }
-        
-        .subtitle {
             font-size: 24px;
-            color: #a0a0a0;
-            margin-bottom: 40px;
-        }
-        
-        .version {
-            font-size: 16px;
-            color: #60a5fa;
-            margin-bottom: 30px;
-            padding: 8px 20px;
-            background-color: #60a5fa;
+            font-weight: bold;
             color: #ffffff;
         }
         
-        .loading-container {
-            width: 300px;
-            margin-top: 20px;
-        }
-        
-        .loading-bar {
-            width: 100%;
-            height: 4px;
-            background-color: #303030;
-        }
-        
-        .loading-progress {
-            width: 100%;
-            height: 100%;
-            background-color: #4e4376;
-        }
-        
-        .loading-text {
-            text-align: center;
-            margin-top: 15px;
-            font-size: 14px;
-            color: #808080;
-        }
-        
-        .footer {
-            text-align: center;
-        }
-        
-        .hint {
-            font-size: 14px;
-            color: #505050;
-        }
-        
-        .copyright {
-            font-size: 12px;
-            color: #303030;
-            margin-top: 10px;
-        }
+        .box-1 { background-color: #e53e3e; }
+        .box-2 { background-color: #dd6b20; }
+        .box-3 { background-color: #d69e2e; }
+        .box-4 { background-color: #38a169; }
+        .box-5 { background-color: #3182ce; }
     </style>
 </head>
 <body>
-    <div class="splash-container">
-        <div class="logo-container">
-            <div class="logo-text">W3</div>
-        </div>
-        
-        <div class="title">OpenWarcraft3</div>
-        <div class="subtitle">A Complete Reimplementation</div>
-        
-        <div class="version">v0.1.0 Alpha</div>
-        
-        <div class="loading-container">
-            <div class="loading-bar">
-                <div class="loading-progress"></div>
+    <div class="test-container">
+        <!-- 测试1: 水平方向 - flex-start (内容顶部对齐) -->
+        <div class="test-row">
+            <div class="test-label">Test 1: Horizontal flex-direction: row, align-items: flex-start</div>
+            <div class="test-h-start">
+                <div class="box box-1">A</div>
+                <div class="box box-2">B</div>
+                <div class="box box-3">C</div>
+                <div class="box box-4">D</div>
+                <div class="box box-5">E</div>
             </div>
-            <div class="loading-text">LOADING...</div>
         </div>
         
-        <div class="footer">
-            <div class="hint">Press any key or click to continue</div>
-            <div class="copyright">© 2024 OpenWarcraft3 Project</div>
+        <!-- 测试2: 水平方向 - center (内容垂直居中) -->
+        <div class="test-row">
+            <div class="test-label">Test 2: Horizontal flex-direction: row, align-items: center</div>
+            <div class="test-h-center">
+                <div class="box box-1">A</div>
+                <div class="box box-2">B</div>
+                <div class="box box-3">C</div>
+                <div class="box box-4">D</div>
+                <div class="box box-5">E</div>
+            </div>
+        </div>
+        
+        <!-- 测试3: 水平方向 - flex-end (内容底部对齐) -->
+        <div class="test-row">
+            <div class="test-label">Test 3: Horizontal flex-direction: row, align-items: flex-end</div>
+            <div class="test-h-end">
+                <div class="box box-1">A</div>
+                <div class="box box-2">B</div>
+                <div class="box box-3">C</div>
+                <div class="box box-4">D</div>
+                <div class="box box-5">E</div>
+            </div>
+        </div>
+        
+        <!-- 测试4: 垂直方向 - flex-start (内容左对齐) -->
+        <div class="test-row">
+            <div class="test-label">Test 4: Vertical flex-direction: column, align-items: flex-start</div>
+            <div class="test-v-start">
+                <div class="box box-1">A</div>
+                <div class="box box-2">B</div>
+                <div class="box box-3">C</div>
+                <div class="box box-4">D</div>
+                <div class="box box-5">E</div>
+            </div>
+        </div>
+        
+        <!-- 测试5: 垂直方向 - center (内容水平居中) -->
+        <div class="test-row">
+            <div class="test-label">Test 5: Vertical flex-direction: column, align-items: center</div>
+            <div class="test-v-center">
+                <div class="box box-1">A</div>
+                <div class="box box-2">B</div>
+                <div class="box box-3">C</div>
+                <div class="box box-4">D</div>
+                <div class="box box-5">E</div>
+            </div>
+        </div>
+        
+        <!-- 测试6: 垂直方向 - flex-end (内容右对齐) -->
+        <div class="test-row">
+            <div class="test-label">Test 6: Vertical flex-direction: column, align-items: flex-end</div>
+            <div class="test-v-end">
+                <div class="box box-1">A</div>
+                <div class="box box-2">B</div>
+                <div class="box box-3">C</div>
+                <div class="box box-4">D</div>
+                <div class="box box-5">E</div>
+            </div>
         </div>
     </div>
 </body>

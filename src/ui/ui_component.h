@@ -186,6 +186,9 @@ struct ui_component_t {
     
     // 样式
     ui_bg_color_t bg_color;          // 背景颜色
+    COLOR32 text_color;              // 文本颜色（CSS解析后存储）
+    int font_size;                   // 字体大小（CSS解析后存储，单位：像素）
+    int text_align;                  // 文本对齐（0=left, 1=center, 2=right, 3=justify）
     
     // 状态标志
     int flags;

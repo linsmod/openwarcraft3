@@ -2213,7 +2213,12 @@ LPCSS html_getnodestyle(context *ctx, xmlNode* node)
         /* Store computed style */
         comp->parsedStyle = results;
         comp->computedStyle = results;
-        printf("DEBUG: Computed style for element '%s'\n", node->name ? (char*)node->name : "unknown");
+        
+        /* Get class attribute for debugging */
+        xmlChar *class_attr = xmlGetProp(node, BAD_CAST "class");
+        const char *class_str = class_attr ? (const char*)class_attr : "";
+        printf("DEBUG: Computed style for element '%s' class='%s'\n", node->name ? (char*)node->name : "unknown", class_str);
+        if (class_attr) xmlFree(class_attr);
         
         /* Apply computed style to lay layout system */
         apply_computed_style_to_lay(css_ctx, node, results);
@@ -2244,21 +2249,132 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
     /* === 1. Handle Display Property === */
     uint8_t display_type = css_computed_display(style, false);
     if (display_type != CSS_DISPLAY_NONE) {
+        uint32_t container_flags = LAY_LAYOUT; // Default
+        
+        /* Get flex-direction */
+        uint8_t flex_direction = css_computed_flex_direction(style);
+        
+        /* Get justify-content */
+        uint8_t justify_content = css_computed_justify_content(style);
+        
+        /* Get align-items */
+        uint8_t align_items = css_computed_align_items(style);
+        printf("DEBUG: align_items value=%d for element '%s'\n", align_items, node->name);
+        
+        /* Get flex-wrap */
+        uint8_t flex_wrap = css_computed_flex_wrap(style);
+        
         switch(display_type) {
             case CSS_DISPLAY_FLEX:
-            case CSS_DISPLAY_BLOCK:
-                /* Default to column flex layout for flex containers */
-                lay_set_contain(ctx->layout_ctx, layout_id, LAY_COLUMN);
+                /* Set flex container flag */
+                container_flags |= LAY_FLEX;
+                
+                /* Handle flex-direction */
+                if (flex_direction == CSS_FLEX_DIRECTION_ROW || flex_direction == CSS_FLEX_DIRECTION_ROW_REVERSE) {
+                    container_flags |= LAY_ROW;
+                } else {
+                    container_flags |= LAY_COLUMN;
+                }
+                
+                /* Handle flex-wrap */
+                if (flex_wrap == CSS_FLEX_WRAP_WRAP || flex_wrap == CSS_FLEX_WRAP_WRAP_REVERSE) {
+                    container_flags |= LAY_WRAP;
+                } else {
+                    container_flags |= LAY_NOWRAP;
+                }
+                
+                /* Handle justify-content */
+                if (justify_content == CSS_JUSTIFY_CONTENT_FLEX_START) {
+                    container_flags |= LAY_START;
+                } else if (justify_content == CSS_JUSTIFY_CONTENT_FLEX_END) {
+                    container_flags |= LAY_END;
+                } else if (justify_content == CSS_JUSTIFY_CONTENT_CENTER) {
+                    container_flags |= LAY_MIDDLE;
+                } else if (justify_content == CSS_JUSTIFY_CONTENT_SPACE_BETWEEN || 
+                           justify_content == CSS_JUSTIFY_CONTENT_SPACE_AROUND) {
+                    container_flags |= LAY_JUSTIFY;
+                }
+                
+                /* Handle align-items by setting child elements' behave flags */
+                /* align-items controls cross-axis alignment */
+                /* - For flex-direction: row, cross-axis is vertical (use LAY_TOP/BOTTOM/VCENTER/VFILL) */
+                /* - For flex-direction: column, cross-axis is horizontal (use LAY_LEFT/RIGHT/HCENTER/HFILL) */
+                if (node->children) {
+                    xmlNode *child = node->children;
+                    while (child) {
+                        if (child->type == XML_ELEMENT_NODE) {
+                            lay_id child_id = GETLAYID(child);
+                            if (child_id != LAY_INVALID_ID) {
+                                uint32_t child_flags = 0;
+                                
+                                if (flex_direction == CSS_FLEX_DIRECTION_ROW || flex_direction == CSS_FLEX_DIRECTION_ROW_REVERSE) {
+                                    /* Cross-axis is vertical */
+                                    switch(align_items) {
+                                        case CSS_ALIGN_ITEMS_FLEX_START:
+                                            child_flags = LAY_TOP;
+                                            break;
+                                        case CSS_ALIGN_ITEMS_FLEX_END:
+                                            child_flags = LAY_BOTTOM;
+                                            break;
+                                        case CSS_ALIGN_ITEMS_CENTER:
+                                            child_flags = LAY_VCENTER;
+                                            break;
+                                        case CSS_ALIGN_ITEMS_STRETCH:
+                                            child_flags = LAY_VFILL;
+                                            break;
+                                        default:
+                                            child_flags = LAY_TOP;
+                                            break;
+                                    }
+                                } else {
+                                    /* Cross-axis is horizontal */
+                                    switch(align_items) {
+                                        case CSS_ALIGN_ITEMS_FLEX_START:
+                                            child_flags = LAY_LEFT;
+                                            break;
+                                        case CSS_ALIGN_ITEMS_FLEX_END:
+                                            child_flags = LAY_RIGHT;
+                                            break;
+                                        case CSS_ALIGN_ITEMS_CENTER:
+                                            child_flags = LAY_HCENTER;
+                                            break;
+                                        case CSS_ALIGN_ITEMS_STRETCH:
+                                            child_flags = LAY_HFILL;
+                                            break;
+                                        default:
+                                            child_flags = LAY_LEFT;
+                                            break;
+                                    }
+                                }
+                                lay_set_behave(ctx->layout_ctx, child_id, child_flags);
+                                printf("DEBUG:   Set child align-items flags=0x%x for element '%s' (flex_direction=%d)\n", child_flags, child->name, flex_direction);
+                            }
+                        }
+                        child = child->next;
+                    }
+                }
+                
                 break;
+                
+            case CSS_DISPLAY_BLOCK:
+                /* Block elements use column layout */
+                container_flags |= LAY_COLUMN;
+                break;
+                
             case CSS_DISPLAY_INLINE:
             case CSS_DISPLAY_INLINE_BLOCK:
                 /* Inline elements - use default stacking */
-                lay_set_contain(ctx->layout_ctx, layout_id, LAY_LAYOUT);
+                container_flags |= LAY_LAYOUT;
                 break;
+                
             default:
                 /* Default layout */
+                container_flags |= LAY_COLUMN;
                 break;
         }
+        
+        lay_set_contain(ctx->layout_ctx, layout_id, container_flags);
+        printf("DEBUG:   Set display/container_flags=0x%x\n", container_flags);
     }
     
     /* === 2. Handle Width and Height === */
@@ -2315,6 +2431,8 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
     css_color bg_color;
     uint8_t bg_color_type = css_computed_background_color(style, &bg_color);
     
+    printf("DEBUG:   bg_color_type=%d, bg_color=0x%08x\n", bg_color_type, (unsigned int)bg_color);
+    
     if (bg_color_type == CSS_COLOR_COLOR) {
         /* Convert libcss color to our COLOR32 format */
         COLOR32 color;
@@ -2323,12 +2441,82 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
         color.b = (uint8_t)(bg_color & 0xFF);
         color.a = (uint8_t)((bg_color >> 24) & 0xFF);
         
+        printf("DEBUG:   Parsed bg_color RGB=(%d,%d,%d), A=%d\n", color.r, color.g, color.b, color.a);
+        
         /* Store in ui_component_t for rendering */
         ui_component_t*comp = (ui_component_t*)node->_private;
         if (comp) {
             comp->bg_color.normal = color;
             printf("DEBUG:   Set bg_color=(%d,%d,%d,%d)\n", color.r, color.g, color.b, color.a);
         }
+    }
+    
+    /* === 5. Handle Font Size === */
+    css_fixed font_size_fixed;
+    css_unit font_size_unit;
+    uint8_t font_size_type = css_computed_font_size(style, &font_size_fixed, &font_size_unit);
+    
+    if (font_size_type == CSS_FONT_SIZE_DIMENSION && font_size_unit == CSS_UNIT_PX) {
+        int font_size_px = (int)(font_size_fixed >> 10);
+        if (font_size_px > 0) {
+            /* Store in ui_component_t for text rendering */
+            ui_component_t*comp = (ui_component_t*)node->_private;
+            if (comp) {
+                comp->font_size = font_size_px;
+                printf("DEBUG:   Set font_size=%dpx\n", font_size_px);
+            }
+        }
+    }
+    
+    /* === 6. Handle Text Color === */
+    css_color text_color;
+    uint8_t text_color_type = css_computed_color(style, &text_color);
+    
+    if (text_color_type == CSS_COLOR_COLOR) {
+        /* Convert libcss color to our COLOR32 format */
+        COLOR32 color;
+        color.r = (uint8_t)((text_color >> 16) & 0xFF);
+        color.g = (uint8_t)((text_color >> 8) & 0xFF);
+        color.b = (uint8_t)(text_color & 0xFF);
+        color.a = (uint8_t)((text_color >> 24) & 0xFF);
+        
+        /* Store in ui_component_t for text rendering */
+        ui_component_t*comp = (ui_component_t*)node->_private;
+        if (comp) {
+            comp->text_color = color;
+            printf("DEBUG:   Set text_color=(%d,%d,%d,%d)\n", color.r, color.g, color.b, color.a);
+        }
+    }
+    
+    /* === 7. Handle Text Align === */
+    uint8_t text_align = css_computed_text_align(style);
+    
+    /* Store text alignment in ui_component_t */
+    ui_component_t*comp = (ui_component_t*)node->_private;
+    if (comp) {
+        const char *align_str = "left";
+        switch(text_align) {
+            case CSS_TEXT_ALIGN_LEFT:
+                comp->text_align = 0; // Left
+                align_str = "left";
+                break;
+            case CSS_TEXT_ALIGN_RIGHT:
+                comp->text_align = 2; // Right
+                align_str = "right";
+                break;
+            case CSS_TEXT_ALIGN_CENTER:
+                comp->text_align = 1; // Center
+                align_str = "center";
+                break;
+            case CSS_TEXT_ALIGN_JUSTIFY:
+                comp->text_align = 3; // Justify
+                align_str = "justify";
+                break;
+            default:
+                comp->text_align = 0; // Left
+                break;
+        }
+        printf("DEBUG:   Set text_align=%s\n", align_str);
     }
     
     /* Note: Padding is not fully supported by lay system
@@ -2743,6 +2931,7 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 		if (code == CSS_OK) {
 			// Append CSS data
 			size_t data_len = strlen(css_data);
+			printf("DEBUG: Parsing stylesheet, data_len=%zu\n", data_len);
 			code = css_stylesheet_append_data(stylesheet, 
 											(const uint8_t *)css_data, data_len);
 			if (code == CSS_OK || code == CSS_NEEDDATA) {
@@ -2815,6 +3004,11 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
     lay_scalar x, y, width, height;
     lay_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
     
+    // 计算并应用CSS样式（重要：这会触发apply_computed_style_to_lay）
+    if (node->type == XML_ELEMENT_NODE) {
+        html_getnodestyle(ctx, node);
+    }
+    
     // 根据元素类型进行不同的渲染
     if (node->type == XML_ELEMENT_NODE) {
         const char *element_name = node->name ? (char*)node->name : "unknown";
@@ -2858,6 +3052,9 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         // printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), comp=%p, has_bg_color=%d\n", 
         //        indent, element_name, elem_id, layout_id, (int)x, (int)y, (int)width, (int)height, 
         //        comp, comp ? comp->has_bg_color : -1);
+        printf("DEBUG: Rendering bg_fill: xy=(%d,%d) size=(%dx%d), color=(%d,%d,%d,%d)\n",
+               (int)x, (int)y, (int)width, (int)height,
+               comp->bg_color.normal.r, comp->bg_color.normal.g, comp->bg_color.normal.b, comp->bg_color.normal.a);
 		render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(comp->bg_color.normal, animated_opacity));
 
         // 移除了调试边框，让渲染更美观
@@ -2897,7 +3094,7 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
 			process_script_node(ctx, node, depth);
             return;
         } else if (strcmp(element_name, "div") == 0) {
-            render_rect_border(x, y, width, height, (COLOR32){200, 200, 200, 255});
+            // div 元素 - 不渲染边框，只渲染背景色和内容
         }
         
         // 递归渲染子元素

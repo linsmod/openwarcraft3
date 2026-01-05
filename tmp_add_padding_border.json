@@ -1,0 +1,23 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "添加 padding 和 border 字段到 lay_item_t",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/html/layout.h",
+        "old_str": "typedef struct lay_item_t {\n    uint32_t flags;\n    lay_id first_child;\n    lay_id next_sibling;\n    lay_vec4 margins;\n    lay_vec2 size;\n} lay_item_t;",
+        "new_str": "typedef struct lay_item_t {\n    uint32_t flags;\n    lay_id first_child;\n    lay_id next_sibling;\n    lay_vec4 margins;\n    lay_vec4 padding;\n    lay_vec4 border;\n    lay_vec2 size;\n} lay_item_t;"
+      }
+    },
+    {
+      "call": "rewrite",
+      "title": "添加 padding 和 border 的 API 函数",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/html/layout.h",
+        "startLine": 375,
+        "endLine": -1,
+        "new_str": "// Set the margins on an item. The components of the vector are:\n// 0: left, 1: top, 2: right, 3: bottom.\nLAY_EXPORT void lay_set_margins(lay_context *ctx, lay_id item, lay_vec4 ltrb);\n\n// Same as lay_set_margins, but the components are passed as separate arguments\n// (left, top, right, bottom).\nLAY_EXPORT void lay_set_margins_ltrb(lay_context *ctx, lay_id item, lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b);\n\n// Get the padding that was set by lay_set_padding. The _ltrb version writes\n// the output values to the specified addresses instead of returning the values\n// in a lay_vec4.\n// l: left, t: top, r: right, b: bottom\nLAY_EXPORT lay_vec4 lay_get_padding(lay_context *ctx, lay_id item);\nLAY_EXPORT void lay_get_padding_ltrb(lay_context *ctx, lay_id item, lay_scalar *l, lay_scalar *t, lay_scalar *r, lay_scalar *b);\n\n// Set the padding on an item. The components of the vector are:\n// 0: left, 1: top, 2: right, 3: bottom.\nLAY_EXPORT void lay_set_padding(lay_context *ctx, lay_id item, lay_vec4 ltrb);\n\n// Same as lay_set_padding, but the components are passed as separate arguments\n// (left, top, right, bottom).\nLAY_EXPORT void lay_set_padding_ltrb(lay_context *ctx, lay_id item, lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b);\n\n// Get the border that was set by lay_set_border. The _ltrb version writes\n// the output values to the specified addresses instead of returning the values\n// in a lay_vec4.\n// l: left, t: top, r: right, b: bottom\nLAY_EXPORT lay_vec4 lay_get_border(lay_context *ctx, lay_id item);\nLAY_EXPORT void lay_get_border_ltrb(lay_context *ctx, lay_id item, lay_scalar *l, lay_scalar *t, lay_scalar *r, lay_scalar *b);\n\n// Set the border on an item. The components of the vector are:\n// 0: left, 1: top, 2: right, 3: bottom.\nLAY_EXPORT void lay_set_border(lay_context *ctx, lay_id item, lay_vec4 ltrb);\n\n// Same as lay_set_border, but the components are passed as separate arguments\n// (left, top, right, bottom).\nLAY_EXPORT void lay_set_border_ltrb(lay_context *ctx, lay_id item, lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b);\n\n// Get the pointer to an item in the buffer by its id. Don't keep this around --\n// it will become invalid as soon as any reallocation occurs. Just store the id\n// instead (it's smaller, anyway, and the lookup cost will be nothing.)\nLAY_STATIC_INLINE lay_item_t *lay_get_item(const lay_context *ctx, lay_id id)\n{\n    LAY_ASSERT(id != LAY_INVALID_ID && id < ctx->count);\n    return ctx->items + id;\n}"
+      }
+    }
+  ]
+}

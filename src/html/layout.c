@@ -632,18 +632,12 @@ void lay_arrange_overlay(lay_context *ctx, lay_id item, int dim)
         const lay_vec4 child_margins = pchild->margins;
         lay_vec4 child_rect = ctx->rects[child];
 
-        switch (b_flags & LAY_HFILL) {
-        case LAY_HCENTER:
+        if (b_flags & ((dim == 0) ? LAY_HCENTER : LAY_VCENTER)) {
             child_rect[dim] += (space - child_rect[2 + dim]) / 2 - child_margins[wdim];
-            break;
-        case LAY_RIGHT:
+        } else if (b_flags & ((dim == 0) ? LAY_RIGHT : LAY_BOTTOM)) {
             child_rect[dim] += space - child_rect[2 + dim] - child_margins[dim] - child_margins[wdim];
-            break;
-        case LAY_HFILL:
+        } else if (b_flags & ((dim == 0) ? LAY_HFILL : LAY_VFILL)) {
             child_rect[2 + dim] = lay_scalar_max(0, space - child_rect[dim] - child_margins[wdim]);
-            break;
-        default:
-            break;
         }
 
         child_rect[dim] += offset;
@@ -666,21 +660,16 @@ void lay_arrange_overlay_squeezed_range(
         const lay_vec4 margins = pitem->margins;
         lay_vec4 rect = ctx->rects[item];
         lay_scalar min_size = lay_scalar_max(0, space - rect[dim] - margins[wdim]);
-        switch (b_flags & LAY_HFILL) {
-            case LAY_HCENTER:
-                rect[2 + dim] = lay_scalar_min(rect[2 + dim], min_size);
-                rect[dim] += (space - rect[2 + dim]) / 2 - margins[wdim];
-                break;
-            case LAY_RIGHT:
-                rect[2 + dim] = lay_scalar_min(rect[2 + dim], min_size);
-                rect[dim] = space - rect[2 + dim] - margins[wdim];
-                break;
-            case LAY_HFILL:
-                rect[2 + dim] = min_size;
-                break;
-            default:
-                rect[2 + dim] = lay_scalar_min(rect[2 + dim], min_size);
-                break;
+        if (b_flags & ((dim == 0) ? LAY_HCENTER : LAY_VCENTER)) {
+            rect[2 + dim] = lay_scalar_min(rect[2 + dim], min_size);
+            rect[dim] += (space - rect[2 + dim]) / 2 - margins[wdim];
+        } else if (b_flags & ((dim == 0) ? LAY_RIGHT : LAY_BOTTOM)) {
+            rect[2 + dim] = lay_scalar_min(rect[2 + dim], min_size);
+            rect[dim] = space - rect[2 + dim] - margins[wdim];
+        } else if (b_flags & ((dim == 0) ? LAY_HFILL : LAY_VFILL)) {
+            rect[2 + dim] = min_size;
+        } else {
+            rect[2 + dim] = lay_scalar_min(rect[2 + dim], min_size);
         }
         rect[dim] += offset;
         ctx->rects[item] = rect;
