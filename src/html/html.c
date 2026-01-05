@@ -823,6 +823,24 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
 		return HUBBUB_NOMEM;
 	}
 
+    lay_id layout_id = comp->lay_item_id;
+    
+    // 文本节点默认不填充，由内容决定大小
+    // lay_set_behave(c->layout_ctx, layout_id, 0); // 清除所有填充行为
+    // lay_set_contain(c->layout_ctx, layout_id, LAY_LAYOUT); // 文本节点通常是叶节点
+    
+    // 设置文本节点的最小尺寸（基于文本内容）
+	
+    const char* text_content = data->len > 0 ? (const char*)n->content : "";
+    size_t text_len = strlen(text_content);
+    
+    // 估算文本尺寸（这里简化估算：每个字符约10像素宽，字体高度约16像素）
+    int estimated_width = (int)(text_len * 10);
+    int estimated_height = 16; // 默认字体高度
+    
+    // 设置估算的尺寸
+    lay_set_size_xy(c->layout_ctx, layout_id, estimated_width, estimated_height);
+
 	*result = (void *) n;
 
 	return HUBBUB_OK;
