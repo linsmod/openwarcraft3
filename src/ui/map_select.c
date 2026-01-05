@@ -1124,19 +1124,6 @@ static void ApplyLayoutToComponents(void) {
     printf("ApplyLayoutToComponents completed\n");
 }
 
-void MapSelect_RenderBackground(scene_t* scene){
-    // 绘制调试网格（包含半透明背景）
-    // 使用场景的实际尺寸
-    if (scene && scene->root_component) {
-        canvas2d_draw_debug_grid(g_ctx, 0, 0, 
-            scene->root_component->width, 
-            scene->root_component->height, 40, 30, true);
-    } else {
-        // 回退到固定尺寸
-        canvas2d_draw_debug_grid(g_ctx, 0, 0, 1024, 768, 40, 30, true);
-    }
-}
-
 // 进入文件夹
 static void EnterFolder(const char *folder_path) {
     if (strcmp(folder_path, "..") == 0) {

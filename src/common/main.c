@@ -11,15 +11,17 @@
 
 #define USAGE \
 "Usage:\n" \
-"  openwarcraft3 -mpq=<full path to MPQ file> [-map=<path to map inside MPQ>]\n" \
+"  openwarcraft3 -mpq=<full path to MPQ file> [-map=<path to map inside MPQ>] [-splash=<path to HTML file>]\n" \
 "\n" \
 "Examples:\n" \
 "  openwarcraft3 -mpq=/Users/John/War3.mpq -map=Maps\\Campaign\\Human02.w3m\n" \
+"  openwarcraft3 -mpq=/Users/John/War3.mpq -splash=html_tests/splash.html\n" \
 "  openwarcraft3 -mpq=/Users/John/War3.mpq  # Will show map selection screen\n" \
 "\n" \
 "Notes:\n" \
 "  - The MPQ path must be an absolute path on your filesystem.\n" \
 "  - The map path must use the internal path format from MPQ.\n" \
+"  - The -splash option loads the specified HTML file in the splash screen.\n" \
 "  - If -map is not specified, a map selection screen will be shown.\n"
 
 extern LPTEXTURE Texture;
@@ -30,6 +32,7 @@ int html_init(LPCSTR filename);
 
 int main(int argc, LPSTR argv[]) {
     char *map = NULL;
+    char *splash_html = NULL;
     BOOL mpq = 0;
     
     for (int i = 0; i < argc; i++) {
@@ -39,6 +42,9 @@ int main(int argc, LPSTR argv[]) {
         }
         if (!strncmp(argv[i], "-map=", 5)) {
             map = argv[i]+5;
+        }
+        if (!strncmp(argv[i], "-splash=", 8)) {
+            splash_html = argv[i]+8;
         }
     }
     
@@ -93,7 +99,14 @@ int main(int argc, LPSTR argv[]) {
             SceneParams_SetString(splash_params, "next_scene", "MapSelect");
         }
         
-        printf("Starting splash screen...\n");
+        // 传递 splash HTML 文件路径（如果指定了 -splash 参数）
+        if (splash_html) {
+            SceneParams_SetString(splash_params, "html_file", splash_html);
+            printf("Starting splash screen with HTML file: %s\n", splash_html);
+        } else {
+            printf("Starting splash screen...\n");
+        }
+        
         SceneManager_SwitchScene(scene_mgr, splash_scene, splash_params);
         // 不销毁共享参数，让程序退出时自动清理
     } else {

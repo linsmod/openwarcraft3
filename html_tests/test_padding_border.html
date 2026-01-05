@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            width: 1024px;
+            height: 768px;
+            background-color: #1a1a2e;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 600px;
+            margin: 50px auto;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            background-color: #2b5876;
+        }
+        
+        .section-title {
+            color: #ffffff;
+            font-size: 18px;
+            margin-bottom: 10px;
+            padding: 10px 20px;
+        }
+        
+        .test-box {
+            display: flex;
+            flex-direction: row;
+            padding: 10px; /* 内边距测试 */
+            margin: 10px; /* 外边距测试 */
+            border: 2px; /* 边框测试 */
+            background-color: #38a169;
+            width: 400px;
+        }
+        
+        .inner-box {
+            width: 80px;
+            height: 80px;
+            background-color: #e53e3e;
+            margin: 5px;
+        }
+        
+        /* 测试单独的 padding 属性 */
+        .test-individual-padding {
+            padding-top: 15px;
+            padding-right: 20px;
+            padding-bottom: 10px;
+            padding-left: 25px;
+            background-color: #3182ce;
+        }
+        
+        /* 测试单独的 border 属性 */
+        .test-individual-border {
+            border-top: 3px;
+            border-right: 2px;
+            border-bottom: 4px;
+            border-left: 1px;
+            background-color: #d69e2e;
+        }
+        
+        /* 测试简写形式的 padding */
+        .test-padding-shorthand {
+            padding: 15px 20px 10px 25px; /* 上 右 下 左 */
+            background-color: #4a5568;
+        }
+        
+        /* 测试简写形式的 border */
+        .test-border-shorthand {
+            border: 3px; /* 所有边框都是 3px */
+            background-color: #702459;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="test-section">
+            <div class="section-title">测试 1: 基本的 padding (10px)</div>
+            <div class="test-box">
+                <div class="inner-box">A</div>
+                <div class="inner-box">B</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">测试 2: 单独的 padding 属性</div>
+            <div class="test-box test-individual-padding">
+                <div class="inner-box">A</div>
+                <div class="inner-box">B</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">测试 3: 简写形式 padding (15px 20px 10px 25px)</div>
+            <div class="test-box test-padding-shorthand">
+                <div class="inner-box">A</div>
+                <div class="inner-box">B</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">测试 4: 基本的 border (2px)</div>
+            <div class="test-box">
+                <div class="inner-box">A</div>
+                <div class="inner-box">B</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">测试 5: 单独的 border 属性</div>
+            <div class="test-box test-individual-border">
+                <div class="inner-box">A</div>
+                <div class="inner-box">B</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">测试 6: 简写形式 border (3px)</div>
+            <div class="test-box test-border-shorthand">
+                <div class="inner-box">A</div>
+                <div class="inner-box">B</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="section-title">测试 7: 同时使用 padding 和 border</div>
+            <div class="test-box" style="padding: 15px; border: 4px;">
+                <div class="inner-box">A</div>
+                <div class="inner-box">B</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

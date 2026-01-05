@@ -93,6 +93,8 @@ typedef struct lay_item_t {
     lay_id first_child;
     lay_id next_sibling;
     lay_vec4 margins;
+    lay_vec4 padding;
+    lay_vec4 border;
     lay_vec2 size;
 } lay_item_t;
 
@@ -373,6 +375,36 @@ LAY_EXPORT void lay_set_margins(lay_context *ctx, lay_id item, lay_vec4 ltrb);
 // Same as lay_set_margins, but the components are passed as separate arguments
 // (left, top, right, bottom).
 LAY_EXPORT void lay_set_margins_ltrb(lay_context *ctx, lay_id item, lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b);
+
+// Get the padding that was set by lay_set_padding. The _ltrb version writes
+// the output values to the specified addresses instead of returning the values
+// in a lay_vec4.
+// l: left, t: top, r: right, b: bottom
+LAY_EXPORT lay_vec4 lay_get_padding(lay_context *ctx, lay_id item);
+LAY_EXPORT void lay_get_padding_ltrb(lay_context *ctx, lay_id item, lay_scalar *l, lay_scalar *t, lay_scalar *r, lay_scalar *b);
+
+// Set the padding on an item. The components of the vector are:
+// 0: left, 1: top, 2: right, 3: bottom.
+LAY_EXPORT void lay_set_padding(lay_context *ctx, lay_id item, lay_vec4 ltrb);
+
+// Same as lay_set_padding, but the components are passed as separate arguments
+// (left, top, right, bottom).
+LAY_EXPORT void lay_set_padding_ltrb(lay_context *ctx, lay_id item, lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b);
+
+// Get the border that was set by lay_set_border. The _ltrb version writes
+// the output values to the specified addresses instead of returning the values
+// in a lay_vec4.
+// l: left, t: top, r: right, b: bottom
+LAY_EXPORT lay_vec4 lay_get_border(lay_context *ctx, lay_id item);
+LAY_EXPORT void lay_get_border_ltrb(lay_context *ctx, lay_id item, lay_scalar *l, lay_scalar *t, lay_scalar *r, lay_scalar *b);
+
+// Set the border on an item. The components of the vector are:
+// 0: left, 1: top, 2: right, 3: bottom.
+LAY_EXPORT void lay_set_border(lay_context *ctx, lay_id item, lay_vec4 ltrb);
+
+// Same as lay_set_border, but the components are passed as separate arguments
+// (left, top, right, bottom).
+LAY_EXPORT void lay_set_border_ltrb(lay_context *ctx, lay_id item, lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b);
 
 // Get the pointer to an item in the buffer by its id. Don't keep this around --
 // it will become invalid as soon as any reallocation occurs. Just store the id

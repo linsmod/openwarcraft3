@@ -336,6 +336,95 @@ void lay_get_margins_ltrb(
     *b = margins[3];
 }
 
+void lay_set_padding(lay_context *ctx, lay_id item, lay_vec4 ltrb)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    pitem->padding = ltrb;
+}
+
+void lay_set_padding_ltrb(
+        lay_context *ctx, lay_id item,
+        lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    pitem->padding[0] = l;
+    pitem->padding[1] = t;
+    pitem->padding[2] = r;
+    pitem->padding[3] = b;
+}
+
+lay_vec4 lay_get_padding(lay_context *ctx, lay_id item)
+{ return lay_get_item(ctx, item)->padding; }
+
+void lay_get_padding_ltrb(
+        lay_context *ctx, lay_id item,
+        lay_scalar *l, lay_scalar *t, lay_scalar *r, lay_scalar *b)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    lay_vec4 padding = pitem->padding;
+    *l = padding[0];
+    *t = padding[1];
+    *r = padding[2];
+    *b = padding[3];
+}
+
+void lay_set_border(lay_context *ctx, lay_id item, lay_vec4 ltrb)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    pitem->border = ltrb;
+}
+
+void lay_set_border_ltrb(
+        lay_context *ctx, lay_id item,
+        lay_scalar l, lay_scalar t, lay_scalar r, lay_scalar b)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    pitem->border[0] = l;
+    pitem->border[1] = t;
+    pitem->border[2] = r;
+    pitem->border[3] = b;
+}
+
+lay_vec4 lay_get_border(lay_context *ctx, lay_id item)
+{ return lay_get_item(ctx, item)->border; }
+
+void lay_get_border_ltrb(
+        lay_context *ctx, lay_id item,
+        lay_scalar *l, lay_scalar *t, lay_scalar *r, lay_scalar *b)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    lay_vec4 border = pitem->border;
+    *l = border[0];
+    *t = border[1];
+    *r = border[2];
+    *b = border[3];
+}
+
+// Helper function to get the internal space available for children
+// Returns the space available after subtracting padding and border
+static LAY_FORCE_INLINE
+lay_scalar lay_get_internal_space(
+        lay_context *ctx, lay_id item, int dim)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    lay_vec4 rect = ctx->rects[item];
+    // Internal space = content_size - padding_start - border_start - padding_end - border_end
+    return rect[2 + dim] - pitem->padding[dim] - pitem->border[dim] 
+                           - pitem->padding[dim + 2] - pitem->border[dim + 2];
+}
+
+// Helper function to get the offset where children should be positioned
+// This is the starting position of the content area
+static LAY_FORCE_INLINE
+lay_scalar lay_get_content_offset(
+        lay_context *ctx, lay_id item, int dim)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    lay_vec4 rect = ctx->rects[item];
+    // Content offset = position + margin_start + padding_start + border_start
+    return rect[dim] + pitem->margins[dim] + pitem->padding[dim] + pitem->border[dim];
+}
+
 // TODO restrict item ptrs correctly
 static LAY_FORCE_INLINE
 lay_scalar lay_calc_overlayed_size(
@@ -437,6 +526,7 @@ static void lay_calc_size(lay_context *ctx, lay_id item, int dim)
 
     // If we have an explicit input size, just set our output size (which other
     // calc_size and arrange procedures will use) to it.
+    // Note: The explicit size includes padding + border + content
     if (pitem->size[dim] != 0) {
         ctx->rects[item][2 + dim] = pitem->size[dim];
         return;
@@ -476,6 +566,9 @@ static void lay_calc_size(lay_context *ctx, lay_id item, int dim)
 
     // Set our output data size. Will be used by parent calc_size procedures.,
     // and by arrange procedures.
+    // The calculated size should include padding + border + content
+    cal_size += pitem->padding[dim] + pitem->border[dim] 
+             + pitem->padding[dim + 2] + pitem->border[dim + 2];
     ctx->rects[item][2 + dim] = cal_size;
 }
 
@@ -488,9 +581,11 @@ void lay_arrange_stacked(
 
     const uint32_t item_flags = pitem->flags;
     lay_vec4 rect = ctx->rects[item];
-    lay_scalar space = rect[2 + dim];
+    // Use internal space (subtract padding and border)
+    lay_scalar space = lay_get_internal_space(ctx, item, dim);
+    lay_scalar content_offset = lay_get_content_offset(ctx, item, dim);
 
-    float max_x2 = (float)(rect[dim] + space);
+    float max_x2 = (float)(content_offset + space);
 
     lay_id start_child = pitem->first_child;
     while (start_child != LAY_INVALID_ID) {
@@ -578,7 +673,7 @@ void lay_arrange_stacked(
             eater = (float)extra_space / (float)squeezed_count;
 
         // distribute width among items
-        float x = (float)rect[dim];
+        float x = (float)content_offset;
         float x1;
         // second pass: distribute and rescale
         child = start_child;
@@ -622,8 +717,9 @@ void lay_arrange_overlay(lay_context *ctx, lay_id item, int dim)
     const int wdim = dim + 2;
     lay_item_t *pitem = lay_get_item(ctx, item);
     const lay_vec4 rect = ctx->rects[item];
-    const lay_scalar offset = rect[dim];
-    const lay_scalar space = rect[2 + dim];
+    // Use internal space (subtract padding and border)
+    const lay_scalar offset = lay_get_content_offset(ctx, item, dim);
+    const lay_scalar space = lay_get_internal_space(ctx, item, dim);
     
     lay_id child = pitem->first_child;
     while (child != LAY_INVALID_ID) {
@@ -683,7 +779,8 @@ lay_scalar lay_arrange_wrapped_overlay_squeezed(
 {
     const int wdim = dim + 2;
     lay_item_t *pitem = lay_get_item(ctx, item);
-    lay_scalar offset = ctx->rects[item][dim];
+    // Use content offset (start from padding + border)
+    lay_scalar offset = lay_get_content_offset(ctx, item, dim);
     lay_scalar need_size = 0;
     lay_id child = pitem->first_child;
     lay_id start_child = child;
@@ -731,9 +828,10 @@ static void lay_arrange(lay_context *ctx, lay_id item, int dim)
             lay_arrange_stacked(ctx, item, dim, false);
         } else {
             const lay_vec4 rect = ctx->rects[item];
+            // Use content offset and internal space
             lay_arrange_overlay_squeezed_range(
                 ctx, dim, pitem->first_child, LAY_INVALID_ID,
-                rect[dim], rect[2 + dim]);
+                lay_get_content_offset(ctx, item, dim), lay_get_internal_space(ctx, item, dim));
         }
         break;
     default:

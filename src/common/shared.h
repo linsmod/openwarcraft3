@@ -490,12 +490,11 @@ typedef enum {
     FONT_JUSTIFYBOTTOM,
 } uiFontJustificationV_t;
 
-#define NORM_HTML_RECT(rect,vpsize) { \
-        rect.x * 1.0/vpsize.width, \
-        rect.y* 1.0/vpsize.height,\
-        width* 1.0/vpsize.width,\
-        height* 1.0/vpsize.height\
-    }
+#define NORM_HTML_RECT(x,y,w,h,vpsize) \
+        MAKE(RECT,x * 1.0/vpsize.width, \
+        y* 1.0/vpsize.height,\
+        w* 1.0/vpsize.width,\
+        h* 1.0/vpsize.height)\
 
 
 #define UI_FRAMEPOINT_SCALE 32767.0

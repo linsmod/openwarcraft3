@@ -2058,7 +2058,7 @@ void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar
     
     // 归一化坐标
 	size2_t vpsize = R_GetViewPortSize();
-    RECT rect = NORM_HTML_RECT(rect, vpsize);
+    RECT rect = NORM_HTML_RECT(x,y,width,height, vpsize);
     
     R_DrawWireRect(&rect, color);
 }
@@ -2066,11 +2066,11 @@ void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar
 // 渲染填充矩形
 void render_rect_fill(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, COLOR32 color) {
     if (width <= 0 || height <= 0) return;
-    
+
 	
     // 归一化坐标
 	size2_t vpsize = R_GetViewPortSize();
-    RECT rect = NORM_HTML_RECT(rect, vpsize);
+    RECT rect = NORM_HTML_RECT(x,y,width,height, vpsize);
     
     RECT uv = {0, 0, 1, 1};
     DRAWIMAGE drawImg = {
@@ -2590,7 +2590,7 @@ void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar heigh
     
     // 归一化坐标
 	size2_t vpsize = R_GetViewPortSize();
-    RECT rect = NORM_HTML_RECT(rect, vpsize);
+    RECT rect = NORM_HTML_RECT(x, y, width, height, vpsize);
     
     RECT uv = {0, 0, 1, 1};
     DRAWIMAGE drawImg = {
@@ -3052,9 +3052,9 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         // printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), comp=%p, has_bg_color=%d\n", 
         //        indent, element_name, elem_id, layout_id, (int)x, (int)y, (int)width, (int)height, 
         //        comp, comp ? comp->has_bg_color : -1);
-        printf("DEBUG: Rendering bg_fill: xy=(%d,%d) size=(%dx%d), color=(%d,%d,%d,%d)\n",
-               (int)x, (int)y, (int)width, (int)height,
-               comp->bg_color.normal.r, comp->bg_color.normal.g, comp->bg_color.normal.b, comp->bg_color.normal.a);
+        // printf("DEBUG: Rendering bg_fill: xy=(%d,%d) size=(%dx%d), color=(%d,%d,%d,%d)\n",
+        //        (int)x, (int)y, (int)width, (int)height,
+        //        comp->bg_color.normal.r, comp->bg_color.normal.g, comp->bg_color.normal.b, comp->bg_color.normal.a);
 		render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(comp->bg_color.normal, animated_opacity));
 
         // 移除了调试边框，让渲染更美观
@@ -3182,139 +3182,6 @@ void html_process_styles_and_scripts(context *ctx, xmlNode *node, int depth) {
     }
 }
 
-// // 初始化HTML渲染
-
-// int html_init(LPCSTR filename)
-// {
-// 	error_code error;
-// 	context *c;
-// 	hubbub_parser_optparams params;
-// 	FILE *input;
-// 	uint8_t *buf;
-// 	size_t len;
-
-// 	/* Read input file into memory. If we wanted to, we could read into
-// 	 * a fixed-size buffer and pass each chunk to the parser sequentially.
-// 	 */
-// 	input = fopen(filename, "r");
-// 	if (input == NULL) {
-// 		fprintf(stderr, "Failed opening %s\n", filename);
-// 		return 1;
-// 	}
-
-// 	fseek(input, 0, SEEK_END);
-// 	len = ftell(input);
-// 	fseek(input, 0, SEEK_SET);
-
-// 	buf = malloc(len);
-// 	if (buf == NULL) {
-// 		fclose(input);
-// 		fprintf(stderr, "No memory for buf\n");
-// 		return 1;
-// 	}
-
-// 	fread(buf, 1, len, input);
-
-// 	/* Create our parsing context */
-// 	error = create_context(NULL, &c);
-// 	if (error != OK) {
-// 		free(buf);
-// 		fclose(input);
-// 		fprintf(stderr, "Failed creating parsing context\n");
-// 		return 1;
-// 	}
-
-// 	/* Attempt to parse the document */
-// 	error = parse_chunk(c, buf, len);
-// 	assert(error == OK || error == ENCODINGCHANGE);
-// 	if (error == ENCODINGCHANGE) {
-// 		/* During parsing, we detected that the charset of the 
-// 		 * input data was different from what was auto-detected
-// 		 * (see the change_encoding callback for more details).
-// 		 * Therefore, we must destroy the current parser and create
-// 		 * a new one using the newly-detected charset. Then we
-// 		 * reparse the data using the new parser. 
-// 		 *
-// 		 * change_encoding() will have put the new charset into
-// 		 * c->encoding.
-// 		 */
-// 		context *c2;
-
-// 		error = create_context(c->encoding, &c2);
-// 		if (error != OK) {
-// 			destroy_context(c2);
-// 			free(buf);
-// 			fclose(input);
-// 			fprintf(stderr, "Failed recreating context\n");
-// 			return 1;
-// 		}
-
-// 		destroy_context(c);
-
-// 		c = c2;
-
-// 		/* Retry the parse */
-// 		error = parse_chunk(c, buf, len);
-// 	}
-
-// 	if (error != OK) {
-// 		destroy_context(c);
-// 		free(buf);
-// 		fclose(input);
-// 		fprintf(stderr, "Failed parsing document\n");
-// 		return 1;
-// 	}
-
-
-// 	/* Tell hubbub that we've finished */
-// 	error = parse_completed(c);
-// 	if (error != OK) {
-// 		destroy_context(c);
-// 		free(buf);
-// 		fclose(input);
-// 		fprintf(stderr, "Failed parsing document\n");
-// 		return 1;
-// 	}
-
-// 	/* We're done with this */
-// 	free(buf);
-
-// 	/* At this point, the DOM tree can be accessed through c->document */
-// 	/* Let's dump it to stdout */
-// 	/* In a real application, we'd probably want to grab the document
-// 	 * from the parsing context, then destroy the context as it's no
-// 	 * longer of any use */
-	
-// 	/* Run layout calculations after parsing is complete */
-// 	printf("Running layout calculation...\n");
-// 	printf("Layout context count: %d\n", lay_items_count(c->layout_ctx));
-	
-
-// 	/* Find the html element's layout ID and run layout from there */
-// 	// lay_run_item(c->layout_ctx, GETLAYID(c->document)); 
-
-// 	lay_run_context(c->layout_ctx);
-	
-// 	/* Print layout information */
-// 	// printf("=== Layout Information ===\n");
-// 	// print_layout_info(c->layout_ctx, c->document, c);
-// 	// printf("=========================\n");
-
-
-//     g_html_render_context[g_html_pages_count] = c;
-// 	g_html_pages_count++;
-//     g_html_frame_count = 0;
-
-//     /* Scan and store @keyframes rules */
-//     html_scan_and_store_keyframes();
-
-//     /* Reapply animations after keyframes are loaded */
-//     html_reapply_all_animations();
-
-// 	fclose(input);
-
-// 	return 0;
-// }
 
 int html_destroy(){
 	for (int i = 0; i < g_html_pages_count; i++) {
@@ -3535,28 +3402,6 @@ void draw_html_background(context *ctx) {
             body = body->next;
         }
     }
-    
-    // 渲染背景渐变
-	int blocks = 20;
-	for(int i=blocks;i>=1;i--){
-		// 使用线性插值计算渐变颜色
-		float ratio = (float)i / blocks;
-		COLOR32 current_color = {
-			(uint8_t)(bg_color.r * ratio),
-			(uint8_t)(bg_color.g * ratio),
-			(uint8_t)(bg_color.b * ratio),
-			(uint8_t)(bg_color.a * ratio * 0.95f) // 添加alpha渐变，使末端更透明
-		};
-		render_rect_fill(0, 0, 40*i, 30*i, current_color);
-	}
-	for(int i=blocks;i>=0;i--){
-		char info[100];
-		snprintf(info, 100, "%d\n",40*i);
-		render_text(info, 40*i, 0, COLOR32_RED);
-
-		snprintf(info, 100, "%d\n",30*i);
-		render_text(info, 0, 30*i, COLOR32_RED);
-	}
 }
 
 
@@ -3795,7 +3640,7 @@ void html_context_render(context *ctx) {
     if (!ctx || !ctx->document) return;
     
     // 渲染背景
-    draw_html_background(ctx);
+    // draw_html_background(ctx);
     
     // 渲染HTML元素
     xmlNode *root = xmlDocGetRootElement(ctx->document);
