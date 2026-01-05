@@ -1,5 +1,7 @@
 #include "ui_html_viewer.h"
 #include "../html/html.h"
+#include "../html/html_context.h"
+#include "common/event.h"
 #include "common/shared.h"
 #include <stdlib.h>
 #include <string.h>
@@ -116,15 +118,6 @@ static void html_viewer_print_tree(const ui_component_t *component, int indent, 
     
     // 如果已加载 HTML，打印内部布局树
     if (viewer && viewer->loaded && viewer->html_ctx) {
-        // 增加缩进，打印 HTML 布局树
-        // printf("  [HTML Layout]\n");
-        
-        // 临时保存 stdout 并重定向，以便添加前缀
-        // 由于 html_context_print_layout_info 直接使用 printf，
-        // 我们需要直接调用它
-        
-        // 注意：这里我们直接调用 html_context_print_layout_info
-        // 它会打印整个 HTML 布局树
         html_context_print_layout_info(viewer->html_ctx, indent + 1);
     }
 }
@@ -173,7 +166,8 @@ int UIHTMLViewer_LoadFromFile(ui_html_viewer_t *viewer, const char *filename) {
     if (!viewer || !filename) return -1;
 
     if (!viewer->html_ctx) {
-        viewer->html_ctx = html_context_create();
+        ui_component_t* viewer_comp = (ui_component_t*)viewer;
+        viewer->html_ctx = html_context_create(viewer_comp->width,viewer_comp->height);
         if (!viewer->html_ctx) return -1;
     }
 
@@ -196,11 +190,11 @@ int UIHTMLViewer_LoadFromFile(ui_html_viewer_t *viewer, const char *filename) {
 
 int UIHTMLViewer_LoadFromMemory(ui_html_viewer_t *viewer,
                                const char *html_data,
-                               size_t length) {
+                               size_t length,int width,int height) {
     if (!viewer || !html_data || length == 0) return -1;
 
     if (!viewer->html_ctx) {
-        viewer->html_ctx = html_context_create();
+        viewer->html_ctx = html_context_create(width,height);
         if (!viewer->html_ctx) return -1;
     }
 

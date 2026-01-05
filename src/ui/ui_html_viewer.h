@@ -62,7 +62,7 @@ int UIHTMLViewer_LoadFromFile(ui_html_viewer_t *viewer, const char *filename);
 
 int UIHTMLViewer_LoadFromMemory(ui_html_viewer_t *viewer,
                                const char *html_data,
-                               size_t length);
+                               size_t length,int width,int height);
 
 int UIHTMLViewer_Reload(ui_html_viewer_t *viewer);
 

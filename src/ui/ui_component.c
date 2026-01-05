@@ -274,8 +274,13 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->drag_start_y = 0.0f;
     component->drag_offset_x = 0.0f;
     component->drag_offset_y = 0.0f;
-    component->lay_ctx = ctx->lay_ctx;
-    component->lay_item_id = lay_item(ctx->lay_ctx);
+    if(ctx && ctx->lay_ctx){
+        component->lay_ctx = ctx->lay_ctx;
+        component->lay_item_id = lay_item(ctx->lay_ctx);
+    }
+    else{
+        component->lay_item_id = LAY_INVALID_ID;
+    }
 
     // 初始化事件处理器数组
     memset(component->event_handlers, 0, sizeof(component->event_handlers));

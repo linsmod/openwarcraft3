@@ -5,6 +5,8 @@
 #include "../common/shared.h"
 #include "../common/event.h"
 #include "../html/layout.h"
+#include "libxml/tree.h"
+#include "../html/css.h"
 
 // 前向声明
 typedef struct ui_component_t ui_component_t;
@@ -26,6 +28,8 @@ typedef enum {
     UI_COMPONENT_TYPE_IMAGE,
     UI_COMPONENT_TYPE_PANEL,
     UI_COMPONENT_TYPE_HTML_VIEWER,
+    UI_COMPONENT_TYPE_HTML_DOC,
+    UI_COMPONENT_TYPE_HTML_NODE,
     UI_COMPONENT_TYPE_COUNT
 } ui_component_type_t;
 
@@ -149,6 +153,7 @@ typedef struct ui_component_vtable {
 // ==================== 组件结构 ====================
 
 struct ui_component_t {
+    void* xml_node;
     // 基础属性
     ui_component_type_t type;        // 组件类型
     const ui_component_vtable_t *vtable;  // 虚函数表
@@ -163,6 +168,11 @@ struct ui_component_t {
     // 布局相关（内部使用）
     lay_context *lay_ctx;            // 布局上下文指针
     lay_id lay_item_id;              // 组件的布局项ID
+    
+    uint refcount;
+	LPCSS parsedStyle;
+	LPCSS computedStyle;
+	uint32_t animation_id;  /**< Animation instance ID if this element is animated */
     
     // 样式
     ui_bg_color_t bg_color;          // 背景颜色

@@ -14,7 +14,7 @@
 #include "../common/cmodel.h"
 #include "../common/mapinfo.h"
 #include <SDL2/SDL.h>
-#include <stdbool.h>
+// #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -151,7 +151,7 @@ static void OnListSelectedChanged(ui_list_t *list, int index, void *user_data) {
 }
 
 // START GAME 按钮点击回调
-static bool OnStartGameClick(ui_component_t *component, ui_event_t *event, void *user_data) {
+static void OnStartGameClick(ui_component_t *component, ui_event_t *event, void *user_data) {
     (void)component;
     (void)event;
     (void)user_data;
@@ -169,7 +169,6 @@ static bool OnStartGameClick(ui_component_t *component, ui_event_t *event, void 
             }
         }
     }
-    return true;
 }
 
 // 自定义列表项内容绘制函数（item级别，只绘制内容区域）

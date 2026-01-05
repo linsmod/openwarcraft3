@@ -24,7 +24,7 @@ typedef struct _xmlDoc xmlDoc;
  * @brief 创建HTML上下文
  * @return 新创建的HTML上下文，失败返回NULL
  */
-context* html_context_create(void);
+context* html_context_create(int width,int height);
 
 /**
  * @brief 销毁HTML上下文

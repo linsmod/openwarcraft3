@@ -6,6 +6,8 @@
  * Copyright 2008 Andrew Sidwell <takkaria@netsurf-browser.org> 
  * Copyright 2008 John-Mark Bell <jmb@netsurf-browser.org>
  */
+#include "common/event.h"
+#include "ui/ui_component.h"
 #define LAY_IMPLEMENTATION
 #include "common/common.h"
 #include "common/shared.h"
@@ -39,10 +41,11 @@
 #include "animation/anim_state.h"
 #include "css/css_animation.h"
 #include "css.h"
+#include "../ui/ui_xmlnode.h"
 
 #define UNUSED(x) ((x)=(x))
 
-#define GETLAYID(node) ((userdata*)node->_private)->layid
+#define GETLAYID(node) ((ui_component_t*)node->_private)->lay_item_id
 
 // Macro to apply animated opacity to a color
 #define APPLY_ANIMATED_OPACITY(color, opacity) \
@@ -86,7 +89,6 @@ typedef struct context {
 	
 	// Layout integration
 	lay_context* layout_ctx;			/**< Layout context */
-	struct PZHashTable *node_to_layout_id; /**< XML node -> layout ID mapping */
 
 	// Animation integration
 	animation_manager_t* anim_mgr;	/**< Animation manager */
@@ -108,43 +110,57 @@ typedef struct context {
 } context;
 
 #include "css.h"
-typedef struct userdata{
-	uint refcount;
-	lay_id layid;
-	int __ln;
-	LPCSTR __f;
-	LPCSS parsedStyle;
-	LPCSS computedStyle;
-	uint32_t animation_id;  /**< Animation instance ID if this element is animated */
-	COLOR32 bg_color;        /**< Background color for rendering */
-	bool has_bg_color;       /**< Whether background color is set */
-} userdata;
 
-#define ALLOCUDREF(c,ud,rc) \
-	assert(c); \
-	assert(c->layout_ctx); \
-	userdata *ud = malloc(sizeof(userdata)); \
-	ud->__f = __FILE__; \
-	ud->__ln= __LINE__; \
-	ud->layid = lay_item(c->layout_ctx); \
-	ud->parsedStyle = NULL; \
-	ud->computedStyle = NULL; \
-	ud->animation_id = 0; \
-	ud->has_bg_color = false; \
-	ud->refcount = rc;
+// Helper macros for accessing xmlnode
+#define GET_XMLNODE(node) ((ui_xmlnode_t*)node->_private)
+#define GET_LAYID_FROM_NODE(node) (GET_XMLNODE(node) ? GET_XMLNODE(node)->base.lay_item_id : 0)
+#define GET_REFCOUNT_FROM_NODE(node) (GET_XMLNODE(node) ? GET_XMLNODE(node)->base.refcount : 0)
+#define GET_ANIMATION_ID_FROM_NODE(node) (GET_XMLNODE(node) ? GET_XMLNODE(node)->base.animation_id : 0)
+#define SETBASEREF(c,comp,node,rc) \
+	do { \
+		assert(c); \
+		assert(c->layout_ctx); \
+		ui_xmlnode_t *xn = (ui_xmlnode_t *)malloc(sizeof(ui_xmlnode_t)); \
+		if (!xn) { \
+			comp = NULL; \
+		} else { \
+			UIComponent_InitBase(&xn->base, UI_COMPONENT_TYPE_HTML_NODE, \
+							   &g_xmlnode_vtable, NULL); \
+			xn->base.lay_ctx = c->layout_ctx; \
+			xn->base.lay_item_id = lay_item(c->layout_ctx); \
+			xn->base.parsedStyle = NULL; \
+			xn->base.computedStyle = NULL; \
+			xn->base.animation_id = 0; \
+			xn->base.bg_color.normal = (COLOR32){0, 0, 0, 0}; \
+			xn->base.refcount = rc; \
+			xn->base.xml_node = (void*)node; \
+			comp = (ui_component_t *)xn; \
+			n->_private = xn; \
+		} \
+	} while(0)
 
-#define ALLOCUD(c,ud) \
-	assert(c); \
-	assert(c->layout_ctx); \
-	userdata *ud = malloc(sizeof(userdata)); \
-	ud->__f = __FILE__; \
-	ud->__ln= __LINE__; \
-	ud->layid = lay_item(c->layout_ctx); \
-	ud->parsedStyle = NULL; \
-	ud->computedStyle = NULL; \
-	ud->animation_id = 0; \
-	ud->has_bg_color = false; \
-	ud->refcount = 0;
+#define SETBASE(c,comp,n) \
+	do { \
+		assert(c); \
+		assert(c->layout_ctx); \
+		ui_xmlnode_t *xn = (ui_xmlnode_t *)malloc(sizeof(ui_xmlnode_t)); \
+		if (!xn) { \
+			comp = NULL; \
+		} else { \
+			UIComponent_InitBase(&xn->base, UI_COMPONENT_TYPE_HTML_DOC, \
+							   &g_xmlnode_vtable, NULL); \
+			xn->base.lay_ctx = c->layout_ctx; \
+			xn->base.lay_item_id = lay_item(c->layout_ctx); \
+			xn->base.parsedStyle = NULL; \
+			xn->base.computedStyle = NULL; \
+			xn->base.animation_id = 0; \
+			xn->base.bg_color.normal = (COLOR32){0, 0, 0, 0}; \
+			xn->base.refcount = 0; \
+			xn->base.xml_node = (void*)n; \
+			comp = (ui_component_t *)xn; \
+			n->_private = xn; \
+		} \
+	} while(0)
 
 /**
  * Mapping of namespace prefixes to URIs, indexed by hubbub_ns.
@@ -219,7 +235,7 @@ static hubbub_tree_handler tree_handler = {
 /******************************************************************************
  * Main hubbub driver code                                                    *
  ******************************************************************************/
-static error_code create_context(const char *charset, context **ctx);
+static error_code create_context(const char *charset, context **ctx,int width,int height);
 static void destroy_context(context *c);
 static error_code parse_chunk(context *c, const uint8_t *data, size_t len);
 static error_code parse_completed(context *c);
@@ -244,7 +260,7 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
  *         NOMEM on memory exhaustion, 
  *         BADENCODING if charset isn't supported
  */
-error_code create_context(const char *charset, context **ctx)
+error_code create_context(const char *charset, context **ctx,int width,int height)
 {
 	context *c;
 	hubbub_parser_optparams params;
@@ -309,21 +325,15 @@ error_code create_context(const char *charset, context **ctx)
 	}
 	c->css_stylesheet = NULL;
 
-	/* Allocate userdata for document */
-	ALLOCUD(c,doc_ud);
-	if (doc_ud == NULL) {
+	/* Allocate ui_component_t for document */
+	ui_component_t* comp;
+	SETBASE(c,comp,c->document);
+	if (comp == NULL) {
 		hubbub_parser_destroy(c->parser);
 		free(c);
 		return NOMEM;
 	}
-
-	
-
-	size2_t const viewportsize = R_GetViewPortSize();
-
-	lay_set_size(c->layout_ctx, doc_ud->layid, (lay_vec2){viewportsize.width,viewportsize.height});
-
-	c->document->_private = (void *) doc_ud;
+	lay_set_size(c->layout_ctx, comp->lay_item_id, (lay_vec2){width,height});
 
 	for (i = 0;
 		i < sizeof(c->namespaces) / sizeof(c->namespaces[0]); i++) {
@@ -345,6 +355,8 @@ error_code create_context(const char *charset, context **ctx)
 	ref_node(c, c->document);
 	params.document_node = c->document;
 	hubbub_parser_setopt(c->parser, HUBBUB_PARSER_DOCUMENT_NODE, &params);
+	params.enable_scripting = 1;
+	hubbub_parser_setopt(c->parser, HUBBUB_PARSER_ENABLE_SCRIPTING, &params);
 
 	*ctx = c;
 
@@ -365,8 +377,8 @@ void destroy_context(context *c)
 		hubbub_parser_destroy(c->parser);
 
 	if (c->document != NULL) {
-		/* Free userdata for document node */
-		userdata *doc_ud = (userdata *) c->document->_private;
+		/* Free ui_component_t for document node */
+		ui_component_t *doc_ud = (ui_component_t *) c->document->_private;
 		if (doc_ud != NULL) {
 			free(doc_ud);
 		}
@@ -514,8 +526,8 @@ hubbub_error create_comment(void *ctx, const hubbub_string *data, void **result)
 		free(content);
 		return HUBBUB_NOMEM;
 	}
-	ALLOCUDREF(c, ud,1);
-	n->_private = (void *) ud;
+	ui_component_t* comp;
+	SETBASEREF(c, comp,n,1);
 
 	free(content);
 
@@ -538,7 +550,7 @@ hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **res
 {
 	context *c = (context *) ctx;
 	char *name, *public = NULL, *system = NULL;
-	xmlDtdPtr n;
+	xmlDtdPtr n = NULL;
 
 	name = c_string_from_hubbub_string(c, &doctype->name);
 	if (name == NULL)
@@ -572,15 +584,15 @@ hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **res
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	/* Again, reference count must be 1, and allocate userdata */
-	ALLOCUDREF(c, ud,1);
-	if (ud == NULL) {
+	/* Again, reference count must be 1, and allocate ui_xmlnode */
+	ui_component_t* comp;
+	SETBASEREF(c, comp, n, 1);
+	if (comp == NULL) {
 		free(system);
 		free(public);
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	n->_private = (void *) ud;
 
 	*result = (void *) n;
 
@@ -629,13 +641,13 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	/* Reference count must be 1, and allocate userdata */
-	ALLOCUDREF(c, ud, 1)
-	if (ud == NULL) {
+	/* Reference count must be 1, and allocate ui_xmlnode */
+	ui_component_t* comp;
+	SETBASEREF(c, comp, n,1);
+	if (comp == NULL) {
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	n->_private = (void *) ud;
 
 	/* Attempt to add attributes to node */
 	if (tag->n_attributes > 0 && add_attributes(ctx, (void *) n,
@@ -648,7 +660,7 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	*result = (void *) n;
 
 	// 获取布局 ID
-	lay_id layout_id = ud->layid;
+	lay_id layout_id = comp->lay_item_id;
 	
 	// 为HTML元素设置根级布局
 	if (strcmp(name, "html") == 0) {
@@ -804,12 +816,12 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
 	if (n == NULL) {
 		return HUBBUB_NOMEM;
 	}
-	/* Reference count must be 1, and allocate userdata */
-	ALLOCUDREF(c, ud, 1);
-	if (ud == NULL) {
+	/* Reference count must be 1, and allocate ui_xmlnode */
+	ui_component_t* comp;
+	SETBASEREF(c, comp, n,1);
+	if (comp == NULL) {
 		return HUBBUB_NOMEM;
 	}
-	n->_private = (void *) ud;
 
 	*result = (void *) n;
 
@@ -829,17 +841,17 @@ hubbub_error ref_node(void *ctx, void *node)
 
 	if (node == c->document) {
 		xmlDoc *n = (xmlDoc *) node;
-		userdata *ud = (userdata *) n->_private;
-		assert(ud!=NULL);
-		ud->refcount++;
+		ui_xmlnode_t *xmlnode = (ui_xmlnode_t *) n->_private;
+		assert(xmlnode != NULL);
+		xmlnode->base.refcount++;
 	} else {
 		xmlNode *n = (xmlNode *) node;
-		userdata *ud = (userdata *) n->_private;
-		if (ud == NULL) {
+		ui_xmlnode_t *xmlnode = (ui_xmlnode_t *) n->_private;
+		if (xmlnode == NULL) {
 			/* This should not happen for properly created nodes */
 			return HUBBUB_NOMEM;
 		}
-		ud->refcount++;
+		xmlnode->base.refcount++;
 	}
 
 	return HUBBUB_OK;
@@ -861,25 +873,27 @@ hubbub_error unref_node(void *ctx, void *node)
 
 	if (node == c->document) {
 		xmlDoc *n = (xmlDoc *) node;
-		userdata *ud = (userdata *) n->_private;
-		
+		ui_xmlnode_t *xmlnode = (ui_xmlnode_t *) n->_private;
+
 		/* Trap any attempt to unref a non-referenced node */
-		assert(ud != NULL && ud->refcount != 0 && "Node has refcount of zero");
+		assert(xmlnode != NULL && xmlnode->base.refcount != 0 && "Node has refcount of zero");
 
 		/* Never destroy document node */
-		ud->refcount--;
+		xmlnode->base.refcount--;
 	} else {
 		xmlNode *n = (xmlNode *) node;
-		userdata *ud = (userdata *) n->_private;
+		ui_xmlnode_t *xmlnode = (ui_xmlnode_t *) n->_private;
 
 		/* Trap any attempt to unref a non-referenced node */
-		assert(ud != NULL && ud->refcount != 0 && "Node has refcount of zero");
+		assert(xmlnode != NULL && xmlnode->base.refcount != 0 && "Node has refcount of zero");
 
-		ud->refcount--;
+		xmlnode->base.refcount--;
 
 		/* Destroy node, if it has no parent and refcount is zero */
-		if (ud->refcount == 0 && n->parent == NULL) {
-			free(ud);  /* Free userdata structure */
+		if (xmlnode->base.refcount == 0 && n->parent == NULL) {
+			/* Shutdown ui_xmlnode */
+			UIComponent_ShutdownBase(&xmlnode->base);
+			free(xmlnode);  /* Free ui_xmlnode structure */
 			xmlFreeNode(n);
 		}
 	}
@@ -904,6 +918,8 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 {
 	xmlNode *chld = (xmlNode *) child;
 	xmlNode *p = (xmlNode *) parent;
+	ui_component_t *uip = (ui_component_t *) p->_private;
+	ui_component_t *uic = (ui_component_t *) chld->_private;
 
 	/* Note: this does not exactly follow the current specification.
 	 * See http://www.whatwg.org/specs/web-apps/current-work/ \
@@ -916,17 +932,17 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 		/* Need to clone the child, as libxml will free it if it
 		 * merges the content with a pre-existing text node. */
 
-		userdata cud = *((userdata*)chld->_private);
+		ui_component_t comp = *((ui_component_t*)chld->_private);
 		chld = xmlCopyNode(chld, 0);
 		if (chld == NULL)
 			return HUBBUB_NOMEM;
 
 		if (chld->_private == NULL) {
 			// 如果 xmlCopyNode 没有拷贝 _private，则需要手动拷贝
-			userdata *orig_private = (userdata*)((xmlNode *) child)->_private;
+			ui_component_t *orig_private = (ui_component_t*)((xmlNode *) child)->_private;
 			if (orig_private != NULL) {
-				chld->_private = malloc(sizeof(userdata));
-				memcpy(chld->_private,orig_private,sizeof(userdata));
+				chld->_private = malloc(sizeof(ui_component_t));
+				memcpy(chld->_private,orig_private,sizeof(ui_component_t));
 			}
 	   	}
 		*result = xmlAddChild(p, chld);
@@ -994,10 +1010,10 @@ hubbub_error insert_before(void *ctx, void *parent, void *child, void *ref_child
 		*result = xmlAddNextSibling(ref->prev, chld);
 		if (chld->_private == NULL) {
 			// 如果 xmlCopyNode 没有拷贝 _private，则需要手动拷贝
-			userdata *orig_private = (userdata*)((xmlNode *) child)->_private;
+			ui_component_t *orig_private = (ui_component_t*)((xmlNode *) child)->_private;
 			if (orig_private != NULL) {
-				chld->_private = malloc(sizeof(userdata));
-				memcpy(chld->_private,orig_private,sizeof(userdata));
+				chld->_private = malloc(sizeof(ui_component_t));
+				memcpy(chld->_private,orig_private,sizeof(ui_component_t));
 			}
 		}
 
@@ -1058,7 +1074,38 @@ hubbub_error clone_node(void *ctx, void *node, bool deep, void **result)
 	if (*result == NULL)
 		return HUBBUB_NOMEM;
 
-	memcpy(((xmlNode *)(*result))->_private,n->_private,sizeof(userdata));
+	/* Clone ui_xmlnode */
+	xmlNode *new_node = (xmlNode *) *result;
+	ui_xmlnode_t *orig_xmlnode = (ui_xmlnode_t *) n->_private;
+	ui_xmlnode_t *new_xmlnode;
+
+	if (orig_xmlnode != NULL) {
+		new_xmlnode = (ui_xmlnode_t *)malloc(sizeof(ui_xmlnode_t));
+		if (new_xmlnode == NULL) {
+			xmlFreeNode(new_node);
+			*result = NULL;
+			return HUBBUB_NOMEM;
+		}
+
+		/* Copy ui_xmlnode structure */
+		memcpy(new_xmlnode, orig_xmlnode, sizeof(ui_xmlnode_t));
+
+		/* Reset fields that need special handling */
+		new_xmlnode->base.xml_node = new_node;
+		new_xmlnode->base.refcount = 1;
+		new_xmlnode->base.parent = NULL;
+		new_xmlnode->base.children = NULL;
+		new_xmlnode->base.child_count = 0;
+		new_xmlnode->base.child_capacity = 0;
+
+		/* Allocate new layout item */
+		new_xmlnode->base.lay_item_id = lay_item(c->layout_ctx);
+
+		/* Associate with new node */
+		new_node->_private = new_xmlnode;
+	}
+
+	return HUBBUB_OK;
 
 	return HUBBUB_OK;
 }
@@ -1306,11 +1353,11 @@ hubbub_error change_encoding(void *ctx, const char *charset)
 static bool get_element_animation_value(context *c, xmlNode *node, int prop_index, anim_value_t *value) {
     if (!c || !node || !c->anim_mgr) return false;
     
-    userdata *ud = (userdata *) node->_private;
-    if (!ud || ud->animation_id == 0) return false;
+    ui_component_t *xmlnode = (ui_component_t *) node->_private;
+    if (!xmlnode || xmlnode->animation_id == 0) return false;
     
     // Get current animation value
-    return anim_manager_get_value(c->anim_mgr, ud->animation_id, prop_index, value);
+    return anim_manager_get_value(c->anim_mgr, xmlnode->animation_id, prop_index, value);
 }
 
 /**
@@ -1365,10 +1412,10 @@ void apply_animation_attribute(context *c, xmlNode *node, const char *animation_
 
 	printf("Started animation with ID: %u\n", anim_id);
 
-	// Store animation ID in node's userdata
-	userdata *ud = (userdata *) node->_private;
-	if (ud) {
-		ud->animation_id = anim_id;
+	// Store animation ID in node's xmlnode
+	ui_xmlnode_t *xmlnode = (ui_xmlnode_t *) node->_private;
+	if (xmlnode) {
+		xmlnode->base.animation_id = anim_id;
 	}
 }
 
@@ -1600,10 +1647,10 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		
 		/* Store color for rendering */
 		if (c) {
-			userdata *ud = (userdata *)node->_private;
-			if (ud) {
-				ud->bg_color = bg_color;
-				ud->has_bg_color = true;
+			ui_component_t*comp = (ui_component_t*)node->_private;
+			if (comp) {
+				comp->bg_color.normal = bg_color;
+				
 				printf("DEBUG: Stored bg_color for element\n");
 			}
 		}
@@ -1811,10 +1858,10 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 		
 		/* Store color for rendering */
 		if (c) {
-			userdata *ud = (userdata *)node->_private;
-			if (ud) {
-				ud->bg_color = bg_color;
-				ud->has_bg_color = true;
+			ui_component_t*comp = (ui_component_t*)node->_private;
+			if (comp) {
+				comp->bg_color.normal = bg_color;
+				
 				printf("DEBUG: Stored bg_color for element\n");
 			}
 		}
@@ -1822,11 +1869,11 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 	if (strstr(css, "font-size:")) {
 		int font_size = extract_number(css, "font-size:");
 		/* Store font size for rendering (this would need to be integrated with the rendering system) */
-		/* For now, we'll just store it in the userdata */
+		/* For now, we'll just store it in the ui_component_t */
 		if (c) {
-			userdata *ud = (userdata *)node->_private;
-			if (ud) {
-				/* We could extend userdata to store font size information */
+			ui_component_t*comp = (ui_component_t*)node->_private;
+			if (comp) {
+				/* We could extend ui_component_t to store font size information */
 				/* For now, this is just a placeholder */
 			}
 		}
@@ -1877,11 +1924,11 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 		font_str[i] = '\0';
 		
 		/* Store font family for rendering (this would need to be integrated with the rendering system) */
-		/* For now, we'll just store it in the userdata */
+		/* For now, we'll just store it in the ui_component_t */
 		if (c) {
-			userdata *ud = (userdata *)node->_private;
-			if (ud) {
-				/* We could extend userdata to store font family information */
+			ui_component_t*comp = (ui_component_t*)node->_private;
+			if (comp) {
+				/* We could extend ui_component_t to store font family information */
 				/* For now, this is just a placeholder */
 			}
 		}
@@ -2068,19 +2115,19 @@ return CSS_OK;
  */
 LPCSS html_getnodestyle(context *ctx, xmlNode* node)
 {
-    userdata* ud = node->_private;
-    if (!ud) return NULL;
+    ui_component_t* comp = node->_private;
+    if (!comp) return NULL;
     
     /* Check if we already computed the style */
-    if (ud->computedStyle) {
-        return ud->computedStyle;
+    if (comp->computedStyle) {
+        return comp->computedStyle;
     }
     
     /* Get context - use global HTML context if ctx is NULL */
     context *css_ctx = ctx ? ctx : g_html_render_context[0];
     if (!css_ctx || !css_ctx->css_select_ctx) {
         /* Fall back to inline style only */
-		if(!ud->parsedStyle){
+		if(!comp->parsedStyle){
 			xmlChar* style_str = xmlGetProp(node, BAD_CAST "style");
 			if (!style_str) {
 				style_str = xmlGetNsProp(node, BAD_CAST "style", NULL);
@@ -2092,14 +2139,14 @@ LPCSS html_getnodestyle(context *ctx, xmlNode* node)
 				
 				css_select_results *results = css_parse_style((const char*)style_str, element_name);
 				if (results) {
-					ud->parsedStyle = results;
-					ud->computedStyle = results;
+					comp->parsedStyle = results;
+					comp->computedStyle = results;
 				}
 				
 				xmlFree(style_str);
 			}
 		}
-        return ud->computedStyle;
+        return comp->computedStyle;
     }
     
     /* Prepare inline style if exists */
@@ -2164,8 +2211,8 @@ LPCSS html_getnodestyle(context *ctx, xmlNode* node)
     
     if (code == CSS_OK && results) {
         /* Store computed style */
-        ud->parsedStyle = results;
-        ud->computedStyle = results;
+        comp->parsedStyle = results;
+        comp->computedStyle = results;
         printf("DEBUG: Computed style for element '%s'\n", node->name ? (char*)node->name : "unknown");
         
         /* Apply computed style to lay layout system */
@@ -2175,7 +2222,7 @@ LPCSS html_getnodestyle(context *ctx, xmlNode* node)
                node->name ? (char*)node->name : "unknown", css_error_to_string(code));
     }
     
-    return ud->computedStyle;
+    return comp->computedStyle;
 }
 
 /**
@@ -2276,11 +2323,10 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
         color.b = (uint8_t)(bg_color & 0xFF);
         color.a = (uint8_t)((bg_color >> 24) & 0xFF);
         
-        /* Store in userdata for rendering */
-        userdata *ud = (userdata *)node->_private;
-        if (ud) {
-            ud->bg_color = color;
-            ud->has_bg_color = true;
+        /* Store in ui_component_t for rendering */
+        ui_component_t*comp = (ui_component_t*)node->_private;
+        if (comp) {
+            comp->bg_color.normal = color;
             printf("DEBUG:   Set bg_color=(%d,%d,%d,%d)\n", color.r, color.g, color.b, color.a);
         }
     }
@@ -2507,8 +2553,8 @@ const char *selector_value;
     for (int i = 0; i < match_count; i++) {
         printf("DEBUG: Collecting style #%d for element '%s'\n", i, matches[i].node->name ? (char*)matches[i].node->name : "NULL");
         
-        userdata *ud = (userdata *)matches[i].node->_private;
-        if (!ud) continue;
+        ui_component_t *comp = (ui_component_t *)matches[i].node->_private;
+        if (!comp) continue;
         
         // 查找是否已经为这个节点创建了收集器
         int idx = -1;
@@ -2541,8 +2587,8 @@ const char *selector_value;
     // 第二步：为每个节点合并内联样式和选择器样式，然后解析
     for (int i = 0; i < node_style_count; i++) {
         node_styles_t *ns = &node_styles[i];
-        userdata *ud = (userdata *)ns->node->_private;
-        if (!ud) continue;
+        ui_component_t *comp = (ui_component_t *)ns->node->_private;
+        if (!comp) continue;
         
         // 合并所有样式
         char merged_css[4096] = {0};
@@ -2573,13 +2619,13 @@ const char *selector_value;
             css_select_results *results = css_parse_style(merged_css, element_name);
             if (results) {
                 // 释放旧的parsedStyle（如果存在）
-                if (ud->parsedStyle) {
+                if (comp->parsedStyle) {
                     // TODO: 需要实现释放css_select_results的函数
-                    // css_select_results_destroy(ud->parsedStyle);
-                    ud->parsedStyle = NULL;
+                    // css_select_results_destroy(comp->parsedStyle);
+                    comp->parsedStyle = NULL;
                 }
                 // 存储新的parsedStyle
-                ud->parsedStyle = results;
+                comp->parsedStyle = results;
                 printf("DEBUG: Stored parsedStyle for '%s'\n", element_name);
             }
         }
@@ -2660,8 +2706,8 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 	
 	// 检查节点是否已处理过（使用私有数据标记）
 	if (node->_private) {
-		userdata *ud = (userdata *)node->_private;
-		if (ud->refcount & 0x80000000) {  // 使用最高位标记已处理
+		ui_component_t*comp = (ui_component_t*)node->_private;
+		if (comp->refcount & 0x80000000) {  // 使用最高位标记已处理
 			return;  // 已处理过，跳过
 		}
 	}
@@ -2713,8 +2759,8 @@ void process_style_node(context *ctx, xmlNode *node, int depth) {
 						ctx->css_stylesheet = stylesheet;
 						// 标记该节点已处理（使用refcount最高位）
 						if (node->_private) {
-							userdata *ud = (userdata *)node->_private;
-							ud->refcount |= 0x80000000;
+							ui_component_t*comp = (ui_component_t*)node->_private;
+							comp->refcount |= 0x80000000;
 						}
 					} else {
 						fprintf(stderr, "Failed to append stylesheet to select context\n");
@@ -2775,7 +2821,7 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
 
         // 根据元素类型进行渲染
         // First, draw background if it exists
-        userdata *ud = (userdata *)node->_private;
+        ui_component_t*comp = (ui_component_t*)node->_private;
         
         // 获取元素的 id 和 class 属性用于标识
         xmlChar *id_attr = xmlGetProp(node, BAD_CAST "id");
@@ -2800,14 +2846,10 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         for (int i = 0; i < depth && i < 15; i++) {
             strcat(indent, "  ");
         }
-        // printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), ud=%p, has_bg_color=%d\n", 
+        // printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), comp=%p, has_bg_color=%d\n", 
         //        indent, element_name, elem_id, layout_id, (int)x, (int)y, (int)width, (int)height, 
-        //        ud, ud ? ud->has_bg_color : -1);
-        if (ud && ud->has_bg_color) {
-            printf("DEBUG: Drawing bg_color=(%d,%d,%d,%d) for '%s'\n", 
-                   ud->bg_color.r, ud->bg_color.g, ud->bg_color.b, ud->bg_color.a, element_name);
-            render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(ud->bg_color, animated_opacity));
-        }
+        //        comp, comp ? comp->has_bg_color : -1);
+		render_rect_fill(x, y, width, height, APPLY_ANIMATED_OPACITY(comp->bg_color.normal, animated_opacity));
 
         // 移除了调试边框，让渲染更美观
         if (strcmp(element_name, "p") == 0) {
@@ -2846,12 +2888,7 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
 			process_script_node(ctx, node, depth);
             return;
         } else if (strcmp(element_name, "div") == 0) {
-            // div元素 - 添加白色边框以便调试
-            if (!ud || !ud->has_bg_color) {
-                render_rect_border(x, y, width, height, (COLOR32){255, 255, 255, 255});
-            } else {
-                render_rect_border(x, y, width, height, (COLOR32){200, 200, 200, 255});
-            }
+            render_rect_border(x, y, width, height, (COLOR32){200, 200, 200, 255});
         }
         
         // 递归渲染子元素
@@ -2921,7 +2958,7 @@ void html_process_styles_and_scripts(context *ctx, xmlNode *node, int depth) {
 
         // 根据元素类型进行渲染
         // First, draw background if it exists
-        userdata *ud = (userdata *)node->_private;
+        ui_component_t*comp = (ui_component_t *)node->_private;
 
         if (strcmp(element_name, "style") == 0) {
 			process_style_node(ctx, node, depth);
@@ -2939,139 +2976,139 @@ void html_process_styles_and_scripts(context *ctx, xmlNode *node, int depth) {
     }
 }
 
-// 初始化HTML渲染
+// // 初始化HTML渲染
 
-int html_init(LPCSTR filename)
-{
-	error_code error;
-	context *c;
-	hubbub_parser_optparams params;
-	FILE *input;
-	uint8_t *buf;
-	size_t len;
+// int html_init(LPCSTR filename)
+// {
+// 	error_code error;
+// 	context *c;
+// 	hubbub_parser_optparams params;
+// 	FILE *input;
+// 	uint8_t *buf;
+// 	size_t len;
 
-	/* Read input file into memory. If we wanted to, we could read into
-	 * a fixed-size buffer and pass each chunk to the parser sequentially.
-	 */
-	input = fopen(filename, "r");
-	if (input == NULL) {
-		fprintf(stderr, "Failed opening %s\n", filename);
-		return 1;
-	}
+// 	/* Read input file into memory. If we wanted to, we could read into
+// 	 * a fixed-size buffer and pass each chunk to the parser sequentially.
+// 	 */
+// 	input = fopen(filename, "r");
+// 	if (input == NULL) {
+// 		fprintf(stderr, "Failed opening %s\n", filename);
+// 		return 1;
+// 	}
 
-	fseek(input, 0, SEEK_END);
-	len = ftell(input);
-	fseek(input, 0, SEEK_SET);
+// 	fseek(input, 0, SEEK_END);
+// 	len = ftell(input);
+// 	fseek(input, 0, SEEK_SET);
 
-	buf = malloc(len);
-	if (buf == NULL) {
-		fclose(input);
-		fprintf(stderr, "No memory for buf\n");
-		return 1;
-	}
+// 	buf = malloc(len);
+// 	if (buf == NULL) {
+// 		fclose(input);
+// 		fprintf(stderr, "No memory for buf\n");
+// 		return 1;
+// 	}
 
-	fread(buf, 1, len, input);
+// 	fread(buf, 1, len, input);
 
-	/* Create our parsing context */
-	error = create_context(NULL, &c);
-	if (error != OK) {
-		free(buf);
-		fclose(input);
-		fprintf(stderr, "Failed creating parsing context\n");
-		return 1;
-	}
+// 	/* Create our parsing context */
+// 	error = create_context(NULL, &c);
+// 	if (error != OK) {
+// 		free(buf);
+// 		fclose(input);
+// 		fprintf(stderr, "Failed creating parsing context\n");
+// 		return 1;
+// 	}
 
-	/* Attempt to parse the document */
-	error = parse_chunk(c, buf, len);
-	assert(error == OK || error == ENCODINGCHANGE);
-	if (error == ENCODINGCHANGE) {
-		/* During parsing, we detected that the charset of the 
-		 * input data was different from what was auto-detected
-		 * (see the change_encoding callback for more details).
-		 * Therefore, we must destroy the current parser and create
-		 * a new one using the newly-detected charset. Then we
-		 * reparse the data using the new parser. 
-		 *
-		 * change_encoding() will have put the new charset into
-		 * c->encoding.
-		 */
-		context *c2;
+// 	/* Attempt to parse the document */
+// 	error = parse_chunk(c, buf, len);
+// 	assert(error == OK || error == ENCODINGCHANGE);
+// 	if (error == ENCODINGCHANGE) {
+// 		/* During parsing, we detected that the charset of the 
+// 		 * input data was different from what was auto-detected
+// 		 * (see the change_encoding callback for more details).
+// 		 * Therefore, we must destroy the current parser and create
+// 		 * a new one using the newly-detected charset. Then we
+// 		 * reparse the data using the new parser. 
+// 		 *
+// 		 * change_encoding() will have put the new charset into
+// 		 * c->encoding.
+// 		 */
+// 		context *c2;
 
-		error = create_context(c->encoding, &c2);
-		if (error != OK) {
-			destroy_context(c2);
-			free(buf);
-			fclose(input);
-			fprintf(stderr, "Failed recreating context\n");
-			return 1;
-		}
+// 		error = create_context(c->encoding, &c2);
+// 		if (error != OK) {
+// 			destroy_context(c2);
+// 			free(buf);
+// 			fclose(input);
+// 			fprintf(stderr, "Failed recreating context\n");
+// 			return 1;
+// 		}
 
-		destroy_context(c);
+// 		destroy_context(c);
 
-		c = c2;
+// 		c = c2;
 
-		/* Retry the parse */
-		error = parse_chunk(c, buf, len);
-	}
+// 		/* Retry the parse */
+// 		error = parse_chunk(c, buf, len);
+// 	}
 
-	if (error != OK) {
-		destroy_context(c);
-		free(buf);
-		fclose(input);
-		fprintf(stderr, "Failed parsing document\n");
-		return 1;
-	}
+// 	if (error != OK) {
+// 		destroy_context(c);
+// 		free(buf);
+// 		fclose(input);
+// 		fprintf(stderr, "Failed parsing document\n");
+// 		return 1;
+// 	}
 
 
-	/* Tell hubbub that we've finished */
-	error = parse_completed(c);
-	if (error != OK) {
-		destroy_context(c);
-		free(buf);
-		fclose(input);
-		fprintf(stderr, "Failed parsing document\n");
-		return 1;
-	}
+// 	/* Tell hubbub that we've finished */
+// 	error = parse_completed(c);
+// 	if (error != OK) {
+// 		destroy_context(c);
+// 		free(buf);
+// 		fclose(input);
+// 		fprintf(stderr, "Failed parsing document\n");
+// 		return 1;
+// 	}
 
-	/* We're done with this */
-	free(buf);
+// 	/* We're done with this */
+// 	free(buf);
 
-	/* At this point, the DOM tree can be accessed through c->document */
-	/* Let's dump it to stdout */
-	/* In a real application, we'd probably want to grab the document
-	 * from the parsing context, then destroy the context as it's no
-	 * longer of any use */
+// 	/* At this point, the DOM tree can be accessed through c->document */
+// 	/* Let's dump it to stdout */
+// 	/* In a real application, we'd probably want to grab the document
+// 	 * from the parsing context, then destroy the context as it's no
+// 	 * longer of any use */
 	
-	/* Run layout calculations after parsing is complete */
-	printf("Running layout calculation...\n");
-	printf("Layout context count: %d\n", lay_items_count(c->layout_ctx));
+// 	/* Run layout calculations after parsing is complete */
+// 	printf("Running layout calculation...\n");
+// 	printf("Layout context count: %d\n", lay_items_count(c->layout_ctx));
 	
 
-	/* Find the html element's layout ID and run layout from there */
-	// lay_run_item(c->layout_ctx, GETLAYID(c->document)); 
+// 	/* Find the html element's layout ID and run layout from there */
+// 	// lay_run_item(c->layout_ctx, GETLAYID(c->document)); 
 
-	lay_run_context(c->layout_ctx);
+// 	lay_run_context(c->layout_ctx);
 	
-	/* Print layout information */
-	// printf("=== Layout Information ===\n");
-	// print_layout_info(c->layout_ctx, c->document, c);
-	// printf("=========================\n");
+// 	/* Print layout information */
+// 	// printf("=== Layout Information ===\n");
+// 	// print_layout_info(c->layout_ctx, c->document, c);
+// 	// printf("=========================\n");
 
 
-    g_html_render_context[g_html_pages_count] = c;
-	g_html_pages_count++;
-    g_html_frame_count = 0;
+//     g_html_render_context[g_html_pages_count] = c;
+// 	g_html_pages_count++;
+//     g_html_frame_count = 0;
 
-    /* Scan and store @keyframes rules */
-    html_scan_and_store_keyframes();
+//     /* Scan and store @keyframes rules */
+//     html_scan_and_store_keyframes();
 
-    /* Reapply animations after keyframes are loaded */
-    html_reapply_all_animations();
+//     /* Reapply animations after keyframes are loaded */
+//     html_reapply_all_animations();
 
-	fclose(input);
+// 	fclose(input);
 
-	return 0;
-}
+// 	return 0;
+// }
 
 int html_destroy(){
 	for (int i = 0; i < g_html_pages_count; i++) {
@@ -3285,10 +3322,8 @@ void draw_html_background(context *ctx) {
         xmlNode *body = root->children;
         while (body) {
             if (body->type == XML_ELEMENT_NODE && strcmp((char*)body->name, "body") == 0) {
-                userdata *ud = (userdata *)body->_private;
-                if (ud && ud->has_bg_color) {
-                    bg_color = ud->bg_color;
-                }
+                ui_component_t *comp = (ui_component_t *)body->_private;
+                bg_color = comp->bg_color.normal;
                 break;
             }
             body = body->next;
@@ -3411,9 +3446,9 @@ void html_render_set_enabled(bool enabled) {
  * @brief 创建HTML上下文
  * @return 新的HTML上下文，失败返回NULL
  */
-context* html_context_create(void) {
+context* html_context_create(int width,int height) {
     context *ctx = NULL;
-    error_code err = create_context(NULL, &ctx);
+    error_code err = create_context(NULL, &ctx,width,height);
     if (err != OK || !ctx) {
         fprintf(stderr, "Failed to create HTML context\n");
         return NULL;
@@ -3688,42 +3723,6 @@ xmlNode* html_context_find_by_id(context *ctx, const char *id) {
     }
     
     return NULL;
-}
-
-// ========================================
-// 全局API的Context包装（向后兼容）
-// 这些函数内部使用全局context，但通过新API实现
-// ========================================
-
-/**
- * @brief 初始化HTML（使用全局context）
- * @param filename HTML文件
- * @return 0成功，非0失败
- */
-int html_init_wrapper(const char *filename) {
-    // 使用第一个全局context
-    if (g_html_pages_count >= MAX_HTML_PAGES) {
-        fprintf(stderr, "Maximum HTML pages reached\n");
-        return -1;
-    }
-    
-    // 创建新context
-    context *ctx = html_context_create();
-    if (!ctx) {
-        return -1;
-    }
-    
-    // 加载HTML文件
-    int result = html_context_load_file(ctx, filename);
-    if (result != 0) {
-        html_context_destroy(ctx);
-        return -1;
-    }
-    
-    // 存储到全局数组
-    g_html_render_context[g_html_pages_count++] = ctx;
-    
-    return 0;
 }
 
 /**

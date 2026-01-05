@@ -99,6 +99,7 @@ set(MAP_SELECT_SOURCES
     src/ui/ui_container.c
     src/ui/ui_component.c
     src/ui/ui_html_viewer.c
+    src/ui/ui_xmlnode.c
     src/ui/debug_overlay_scene.c
 )
 
