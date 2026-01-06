@@ -246,6 +246,108 @@ void* html_context_get_css_select_context(context *ctx);
  */
 void* html_context_get_css_stylesheet(context *ctx);
 
+/**
+ * @brief 设置 viewport 尺寸（用于滚动支持）
+ * @param ctx HTML上下文
+ * @param width viewport 宽度
+ * @param height viewport 高度
+ */
+void html_context_set_viewport(context *ctx, int width, int height);
+
+/**
+ * @brief 获取 viewport 宽度
+ * @param ctx HTML上下文
+ * @return viewport 宽度
+ */
+int html_context_get_viewport_width(context *ctx);
+
+/**
+ * @brief 获取 viewport 高度
+ * @param ctx HTML上下文
+ * @return viewport 高度
+ */
+int html_context_get_viewport_height(context *ctx);
+
+/**
+ * @brief 设置滚动位置
+ * @param ctx HTML上下文
+ * @param scroll_x 水平滚动偏移
+ * @param scroll_y 垂直滚动偏移
+ */
+void html_context_set_scroll(context *ctx, int scroll_x, int scroll_y);
+
+/**
+ * @brief 获取水平滚动位置
+ * @param ctx HTML上下文
+ * @return 水平滚动偏移
+ */
+int html_context_get_scroll_x(context *ctx);
+
+/**
+ * @brief 获取垂直滚动位置
+ * @param ctx HTML上下文
+ * @return 垂直滚动偏移
+ */
+int html_context_get_scroll_y(context *ctx);
+
+/**
+ * @brief 滚动到指定位置（带边界检查）
+ * @param ctx HTML上下文
+ * @param scroll_x 水平滚动偏移
+ * @param scroll_y 垂直滚动偏移
+ */
+void html_context_scroll_to(context *ctx, int scroll_x, int scroll_y);
+
+/**
+ * @brief 滚动指定偏移量
+ * @param ctx HTML上下文
+ * @param delta_x 水平滚动增量
+ * @param delta_y 垂直滚动增量
+ */
+void html_context_scroll_by(context *ctx, int delta_x, int delta_y);
+
+/**
+ * @brief 获取最大水平滚动偏移
+ * @param ctx HTML上下文
+ * @return 最大水平滚动偏移
+ */
+int html_context_get_max_scroll_x(context *ctx);
+
+/**
+ * @brief 获取最大垂直滚动偏移
+ * @param ctx HTML上下文
+ * @return 最大垂直滚动偏移
+ */
+int html_context_get_max_scroll_y(context *ctx);
+
+/**
+ * @brief 检查是否可以水平滚动
+ * @param ctx HTML上下文
+ * @return true 如果内容宽度大于 viewport 宽度
+ */
+bool html_context_can_scroll_horizontally(context *ctx);
+
+/**
+ * @brief 检查是否可以垂直滚动
+ * @param ctx HTML上下文
+ * @return true 如果内容高度大于 viewport 高度
+ */
+bool html_context_can_scroll_vertically(context *ctx);
+
+/**
+ * @brief 获取水平滚动百分比（0-100）
+ * @param ctx HTML上下文
+ * @return 滚动百分比
+ */
+float html_context_get_scroll_percent_x(context *ctx);
+
+/**
+ * @brief 获取垂直滚动百分比（0-100）
+ * @param ctx HTML上下文
+ * @return 滚动百分比
+ */
+float html_context_get_scroll_percent_y(context *ctx);
+
 // ==================== 实用函数 ====================
 
 /**

@@ -38,6 +38,7 @@
 #include <libcss/select.h>
 
 #include "html.h"
+#include "html_context.h"
 #include "animation/anim_state.h"
 #include "css/css_animation.h"
 #include "css.h"
@@ -105,6 +106,16 @@ typedef struct context {
 	// CSS selection context
 	css_select_ctx *css_select_ctx;	/**< CSS selection context */
 	css_stylesheet *css_stylesheet;	/**< Parsed stylesheet from <style> tags */
+
+	// Viewport information
+	int viewport_width;		/**< Viewport width (from html_viewer) */
+	int viewport_height;		/**< Viewport height (from html_viewer) */
+
+	// Scroll information
+	int scroll_x;			/**< Horizontal scroll offset */
+	int scroll_y;			/**< Vertical scroll offset */
+	int max_scroll_x;		/**< Maximum horizontal scroll offset */
+	int max_scroll_y;		/**< Maximum vertical scroll offset */
 
 	int inhead;
 } context;
@@ -248,6 +259,9 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css);
 void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c,int depth);
 static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c);
 static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_select_results *results);
+static void update_max_scroll(context *ctx);
+static void render_html_element(context *ctx, xmlNode *node, int depth);
+static void render_scrollbars(context *ctx);
 
 
 
@@ -333,7 +347,20 @@ error_code create_context(const char *charset, context **ctx,int width,int heigh
 		free(c);
 		return NOMEM;
 	}
-	lay_set_size(c->layout_ctx, comp->lay_item_id, (lay_vec2){width,height});
+
+	// Store viewport dimensions
+	c->viewport_width = width;
+	c->viewport_height = height;
+
+	// Initialize scroll state
+	c->scroll_x = 0;
+	c->scroll_y = 0;
+	c->max_scroll_x = 0;
+	c->max_scroll_y = 0;
+
+	// Note: Don't set fixed size for root - let it be adaptive based on content
+	// This allows scrolling when content exceeds viewport
+	lay_set_size(c->layout_ctx, comp->lay_item_id, (lay_vec2){0,0});
 
 	for (i = 0;
 		i < sizeof(c->namespaces) / sizeof(c->namespaces[0]); i++) {
@@ -3024,6 +3051,14 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
     lay_scalar x, y, width, height;
     lay_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
     
+    // Apply scroll offset for children (depth > 0), but NOT for root html element (depth 0)
+    // In HTML DOM: depth 0 is <html>, depth 1 is <body>, depth 2+ is content
+    // Scroll offset should apply to body and its children
+    if (depth > 0) {
+        x -= ctx->scroll_x;
+        y -= ctx->scroll_y;
+    }
+    
     // 计算并应用CSS样式（重要：这会触发apply_computed_style_to_lay）
     if (node->type == XML_ELEMENT_NODE) {
         html_getnodestyle(ctx, node);
@@ -3449,7 +3484,7 @@ void html_update_and_layout(float delta_time,int page_index) {
 
 	/* Print layout information */
 	// printf("=== Layout Information ===\n");
-	// print_layout_info(ctx->layout_ctx, ctx->document, ctx);
+	print_layout_info(ctx->layout_ctx, ctx->document, ctx,0);
 	// printf("=========================\n");
     
 }
@@ -3659,16 +3694,119 @@ void html_context_update(context *ctx, float delta_time) {
 void html_context_render(context *ctx) {
     if (!ctx || !ctx->document) return;
     
+    // Update max scroll based on current content size
+    update_max_scroll(ctx);
+    
     // 渲染背景
     // draw_html_background(ctx);
     
-    // 渲染HTML元素
+    // 渲染HTML元素（带滚动偏移）
     xmlNode *root = xmlDocGetRootElement(ctx->document);
     if (root) {
         render_html_element(ctx, root, 0);
     }
+    
+    // 绘制滚动条（在内容之后）
+    render_scrollbars(ctx);
 }
 
+/**
+ * @brief 绘制滚动条
+ * @param ctx HTML上下文
+ */
+static void render_scrollbars(context *ctx) {
+    if (!ctx) return;
+    
+    // 滚动条配置
+    const int scrollbar_width = 14;  // 滚动条宽度
+    const int scrollbar_height = 14; // 滚动条高度（水平）
+    
+    // 滚动条颜色
+    COLOR32 scrollbar_track_color = {224, 224, 224, 255}; // 轨道颜色：浅灰色
+    COLOR32 scrollbar_thumb_color = {176, 176, 176, 255}; // 滑块颜色：深灰色
+    COLOR32 scrollbar_border_color = {192, 192, 192, 255}; // 边框颜色
+    
+    // 获取滚动状态
+    bool can_scroll_v = html_context_can_scroll_vertically(ctx);
+    bool can_scroll_h = html_context_can_scroll_horizontally(ctx);
+    
+    // 绘制垂直滚动条（右侧）
+    if (can_scroll_v) {
+        int viewport_x = 0;
+        int viewport_y = 0;
+        int viewport_w = ctx->viewport_width;
+        int viewport_h = ctx->viewport_height;
+        
+        // 计算轨道位置（在viewport右侧）
+        int track_x = viewport_x + viewport_w - scrollbar_width;
+        int track_y = viewport_y;
+        int track_w = scrollbar_width;
+        int track_h = viewport_h;
+        
+        // 绘制轨道
+        render_rect_fill(track_x, track_y, track_w, track_h, scrollbar_track_color);
+        render_rect_border(track_x, track_y, track_w, track_h, scrollbar_border_color);
+        
+        // 计算滑块位置和大小
+        float scroll_percent = html_context_get_scroll_percent_y(ctx);
+        
+        // 滑块高度：根据viewport与内容高度的比例
+        int content_height = viewport_h + ctx->max_scroll_y;
+        float thumb_ratio = (float)viewport_h / (float)content_height;
+        int thumb_height = (int)(track_h * thumb_ratio);
+        // 确保滑块最小高度
+        if (thumb_height < 20) thumb_height = 20;
+        
+        // 滑块Y位置：根据滚动百分比
+        int thumb_y = track_y + (int)((track_h - thumb_height) * scroll_percent / 100.0f);
+        int thumb_x = track_x + 1; // 留出1px边距
+        int thumb_w = track_w - 2; // 留出两边边距
+        
+        // 绘制滑块
+        render_rect_fill(thumb_x, thumb_y, thumb_w, thumb_height, scrollbar_thumb_color);
+    }
+    
+    // 绘制水平滚动条（底部）
+    if (can_scroll_h) {
+        int viewport_x = 0;
+        int viewport_y = 0;
+        int viewport_w = ctx->viewport_width;
+        int viewport_h = ctx->viewport_height;
+        
+        // 计算轨道位置（在viewport底部）
+        // 如果有垂直滚动条，水平滚动条要缩短以避免重叠
+        int track_w = viewport_w;
+        if (can_scroll_v) {
+            track_w -= scrollbar_width;
+        }
+        
+        int track_x = viewport_x;
+        int track_y = viewport_y + viewport_h - scrollbar_height;
+        int track_h = scrollbar_height;
+        
+        // 绘制轨道
+        render_rect_fill(track_x, track_y, track_w, track_h, scrollbar_track_color);
+        render_rect_border(track_x, track_y, track_w, track_h, scrollbar_border_color);
+        
+        // 计算滑块位置和大小
+        float scroll_percent = html_context_get_scroll_percent_x(ctx);
+        
+        // 滑块宽度：根据viewport与内容宽度的比例
+        int content_width = viewport_w + ctx->max_scroll_x;
+        float thumb_ratio = (float)viewport_w / (float)content_width;
+        int thumb_width = (int)(track_w * thumb_ratio);
+        // 确保滑块最小宽度
+        if (thumb_width < 20) thumb_width = 20;
+        
+        // 滑块X位置：根据滚动百分比
+        int thumb_x = track_x + (int)((track_w - thumb_width) * scroll_percent / 100.0f);
+        int thumb_y = track_y + 1; // 留出1px边距
+        int thumb_h = track_h - 2; // 留出上下边距
+        
+        // 绘制滑块
+        render_rect_fill(thumb_x, thumb_y, thumb_width, thumb_h, scrollbar_thumb_color);
+    }
+}
 /**
  * @brief 设置字体
  * @param ctx HTML上下文
@@ -3869,6 +4007,194 @@ xmlNode* html_context_find_by_point(context *ctx, float x, float y) {
     find_node_by_point_recursive(ctx, root, x, y, &result, &max_depth, 0);
     
     return result;
+}
+
+/**
+ * @brief 设置 viewport 尺寸（用于滚动支持）
+ * @param ctx HTML上下文
+ * @param width viewport 宽度
+ * @param height viewport 高度
+ */
+void html_context_set_viewport(context *ctx, int width, int height) {
+    if (!ctx) return;
+    
+    ctx->viewport_width = width;
+    ctx->viewport_height = height;
+    
+    // Update CSS unit context for viewport-relative units (vw, vh)
+    extern css_unit_ctx* css_get_unit_ctx(void);
+    css_unit_ctx *unit_ctx = css_get_unit_ctx();
+    if (unit_ctx) {
+        unit_ctx->viewport_width = width * (1 << CSS_RADIX_POINT);
+        unit_ctx->viewport_height = height * (1 << CSS_RADIX_POINT);
+    }
+    
+    printf("Viewport set to %dx%d (CSS unit ctx updated)\n", width, height);
+}
+
+/**
+ * @brief 获取 viewport 宽度
+ * @param ctx HTML上下文
+ * @return viewport 宽度
+ */
+int html_context_get_viewport_width(context *ctx) {
+    if (!ctx) return 800; // 默认值
+    
+    return ctx->viewport_width;
+}
+
+/**
+ * @brief 获取 viewport 高度
+ * @param ctx HTML上下文
+ * @return viewport 高度
+ */
+int html_context_get_viewport_height(context *ctx) {
+    if (!ctx) return 600; // 默认值
+    
+    return ctx->viewport_height;
+}
+
+/**
+ * @brief 更新最大滚动偏移（在布局计算后调用）
+ * @param ctx HTML上下文
+ */
+static void update_max_scroll(context *ctx) {
+    if (!ctx || !ctx->layout_ctx) return;
+    
+    // Get root element's content size (item 0 is the root document)
+    lay_vec2 content_size = lay_get_size(ctx->layout_ctx, 0);
+    
+    // Calculate max scroll offset (content_size - viewport_size)
+    ctx->max_scroll_x = (int)(content_size[0] - ctx->viewport_width);
+    ctx->max_scroll_y = (int)(content_size[1] - ctx->viewport_height);
+    
+    // Ensure max scroll is at least 0 (if content fits in viewport)
+    if (ctx->max_scroll_x < 0) ctx->max_scroll_x = 0;
+    if (ctx->max_scroll_y < 0) ctx->max_scroll_y = 0;
+}
+
+/**
+ * @brief 设置滚动位置
+ * @param ctx HTML上下文
+ * @param scroll_x 水平滚动偏移
+ * @param scroll_y 垂直滚动偏移
+ */
+void html_context_set_scroll(context *ctx, int scroll_x, int scroll_y) {
+    if (!ctx) return;
+    
+    // Clamp scroll values to valid range
+    if (scroll_x < 0) scroll_x = 0;
+    if (scroll_y < 0) scroll_y = 0;
+    if (scroll_x > ctx->max_scroll_x) scroll_x = ctx->max_scroll_x;
+    if (scroll_y > ctx->max_scroll_y) scroll_y = ctx->max_scroll_y;
+    
+    ctx->scroll_x = scroll_x;
+    ctx->scroll_y = scroll_y;
+}
+
+/**
+ * @brief 获取水平滚动位置
+ * @param ctx HTML上下文
+ * @return 水平滚动偏移
+ */
+int html_context_get_scroll_x(context *ctx) {
+    if (!ctx) return 0;
+    return ctx->scroll_x;
+}
+
+/**
+ * @brief 获取垂直滚动位置
+ * @param ctx HTML上下文
+ * @return 垂直滚动偏移
+ */
+int html_context_get_scroll_y(context *ctx) {
+    if (!ctx) return 0;
+    return ctx->scroll_y;
+}
+
+/**
+ * @brief 滚动到指定位置（带边界检查）
+ * @param ctx HTML上下文
+ * @param scroll_x 水平滚动偏移
+ * @param scroll_y 垂直滚动偏移
+ */
+void html_context_scroll_to(context *ctx, int scroll_x, int scroll_y) {
+    html_context_set_scroll(ctx, scroll_x, scroll_y);
+}
+
+/**
+ * @brief 滚动指定偏移量
+ * @param ctx HTML上下文
+ * @param delta_x 水平滚动增量
+ * @param delta_y 垂直滚动增量
+ */
+void html_context_scroll_by(context *ctx, int delta_x, int delta_y) {
+    if (!ctx) return;
+    
+    int new_scroll_x = ctx->scroll_x + delta_x;
+    int new_scroll_y = ctx->scroll_y + delta_y;
+    
+    html_context_set_scroll(ctx, new_scroll_x, new_scroll_y);
+}
+
+/**
+ * @brief 获取最大水平滚动偏移
+ * @param ctx HTML上下文
+ * @return 最大水平滚动偏移
+ */
+int html_context_get_max_scroll_x(context *ctx) {
+    if (!ctx) return 0;
+    return ctx->max_scroll_x;
+}
+
+/**
+ * @brief 获取最大垂直滚动偏移
+ * @param ctx HTML上下文
+ * @return 最大垂直滚动偏移
+ */
+int html_context_get_max_scroll_y(context *ctx) {
+    if (!ctx) return 0;
+    return ctx->max_scroll_y;
+}
+
+/**
+ * @brief 检查是否可以水平滚动
+ * @param ctx HTML上下文
+ * @return true 如果内容宽度大于 viewport 宽度
+ */
+bool html_context_can_scroll_horizontally(context *ctx) {
+    if (!ctx) return false;
+    return ctx->max_scroll_x > 0;
+}
+
+/**
+ * @brief 检查是否可以垂直滚动
+ * @param ctx HTML上下文
+ * @return true 如果内容高度大于 viewport 高度
+ */
+bool html_context_can_scroll_vertically(context *ctx) {
+    if (!ctx) return false;
+    return ctx->max_scroll_y > 0;
+}
+
+/**
+ * @brief 获取水平滚动百分比（0-100）
+ * @param ctx HTML上下文
+ * @return 滚动百分比
+ */
+float html_context_get_scroll_percent_x(context *ctx) {
+    if (!ctx || ctx->max_scroll_x == 0) return 0.0f;
+    return (float)ctx->scroll_x * 100.0f / (float)ctx->max_scroll_x;
+}
+
+/**
+ * @brief 获取垂直滚动百分比（0-100）
+ * @param ctx HTML上下文
+ * @return 滚动百分比
+ */
+float html_context_get_scroll_percent_y(context *ctx) {
+    if (!ctx || ctx->max_scroll_y == 0) return 0.0f;
+    return (float)ctx->scroll_y * 100.0f / (float)ctx->max_scroll_y;
 }
 
 /**

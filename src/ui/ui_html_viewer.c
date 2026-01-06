@@ -67,6 +67,7 @@ static void html_viewer_update(ui_component_t *component, int msec) {
 
     float delta_time = msec / 1000.0f;
     html_context_update(viewer->html_ctx, delta_time);
+    html_context_print_layout_info(viewer->html_ctx,0);
 }
 
 static void html_viewer_render(ui_component_t *component) {
