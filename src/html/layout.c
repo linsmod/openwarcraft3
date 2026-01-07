@@ -316,6 +316,14 @@ const char* lay_get_behave_str(lay_context *ctx, lay_id item)
         len += snprintf(buf + len, sizeof(buf) - len, "%sVFILL", first ? "" : "|");
         first = 0;
     }
+    if (flags & LAY_LEFT) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sLEFT", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_TOP) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sTOP", first ? "" : "|");
+        first = 0;
+    }
     if (flags & LAY_HCENTER) {
         len += snprintf(buf + len, sizeof(buf) - len, "%sHCENTER", first ? "" : "|");
         first = 0;

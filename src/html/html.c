@@ -49,7 +49,7 @@
 
 #define UNUSED(x) ((x)=(x))
 
-#define GETLAYID(node) ((ui_component_t*)node->_private)->lay_item_id
+#define GETLAYID(node) ((ui_component_t*)node->_private)?((ui_component_t*)node->_private)->lay_item_id:LAY_INVALID_ID
 
 // Macro to apply animated opacity to a color
 #define APPLY_ANIMATED_OPACITY(color, opacity) \
@@ -140,6 +140,7 @@ typedef struct context {
 							   &g_xmlnode_vtable, NULL); \
 			xn->base.lay_ctx = c->layout_ctx; \
 			xn->base.lay_item_id = lay_item(c->layout_ctx); \
+			lay_set_behave(c->layout_ctx, xn->base.lay_item_id, 0); \
 			xn->base.parsedStyle = NULL; \
 			xn->base.computedStyle = NULL; \
 			xn->base.animation_id = 0; \
@@ -147,32 +148,11 @@ typedef struct context {
 			xn->base.refcount = rc; \
 			xn->base.xml_node = (void*)node; \
 			comp = (ui_component_t *)xn; \
-			n->_private = xn; \
+			node->_private = xn; \
 		} \
 	} while(0)
 
-#define SETBASE(c,comp,n) \
-	do { \
-		assert(c); \
-		assert(c->layout_ctx); \
-		ui_xmlnode_t *xn = (ui_xmlnode_t *)malloc(sizeof(ui_xmlnode_t)); \
-		if (!xn) { \
-			comp = NULL; \
-		} else { \
-			UIComponent_InitBase(&xn->base, UI_COMPONENT_TYPE_HTML_DOC, \
-							   &g_xmlnode_vtable, NULL); \
-			xn->base.lay_ctx = c->layout_ctx; \
-			xn->base.lay_item_id = lay_item(c->layout_ctx); \
-			xn->base.parsedStyle = NULL; \
-			xn->base.computedStyle = NULL; \
-			xn->base.animation_id = 0; \
-			xn->base.bg_color.normal = (COLOR32){0, 0, 0, 0}; \
-			xn->base.refcount = 0; \
-			xn->base.xml_node = (void*)n; \
-			comp = (ui_component_t *)xn; \
-			n->_private = xn; \
-		} \
-	} while(0)
+#define SETBASE(c,comp,n) SETBASEREF(c,comp,n,0)
 
 /**
  * Mapping of namespace prefixes to URIs, indexed by hubbub_ns.
@@ -554,8 +534,8 @@ hubbub_error create_comment(void *ctx, const hubbub_string *data, void **result)
 		free(content);
 		return HUBBUB_NOMEM;
 	}
-	ui_component_t* comp;
-	SETBASEREF(c, comp,n,1);
+	// Comment nodes should not participate in layout
+	n->_private = NULL;
 
 	free(content);
 
@@ -612,15 +592,8 @@ hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **res
 		free(name);
 		return HUBBUB_NOMEM;
 	}
-	/* Again, reference count must be 1, and allocate ui_xmlnode */
-	ui_component_t* comp;
-	SETBASEREF(c, comp, n, 1);
-	if (comp == NULL) {
-		free(system);
-		free(public);
-		free(name);
-		return HUBBUB_NOMEM;
-	}
+	/* Doctype nodes should not participate in layout */
+	n->_private = NULL;
 
 	*result = (void *) n;
 
@@ -693,22 +666,17 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	// 为HTML元素设置根级布局
 	if (strcmp(name, "html") == 0) {
 		// HTML元素作为根级容器：填充整个窗口，使用列布局
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
-		// 设置默认边距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
 	}
 	// 为body元素设置布局
 	else if (strcmp(name, "body") == 0) {
-		// Body元素：填充可用空间，使用文档流布局
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		// 设置默认边距（符合浏览器标准）
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 8, 8, 8, 8);
 	}
 	// 为div元素设置布局
 	else if (strcmp(name, "div") == 0) {
 		// 默认块级元素：填充可用宽度，垂直排列子元素
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
+		
 		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
 		// 设置默认边距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
@@ -721,7 +689,6 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	// 为p元素设置布局
 	else if (strcmp(name, "p") == 0) {
 		// 段落元素：块级，有下边距，垂直排列内容
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
 		// 设置段落间距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
@@ -730,7 +697,6 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	else if (strncmp(name, "h", 1) == 0 && strlen(name) == 2 &&
 			 name[1] >= '1' && name[1] <= '6') {
 		// 标题元素：块级，有边距，垂直排列内容
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
 		// 设置标题边距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 6);
@@ -738,42 +704,28 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	// 为ul和ol元素设置布局
 	else if (strcmp(name, "ul") == 0 || strcmp(name, "ol") == 0) {
 		// 列表元素：块级，有边距，垂直排列列表项
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
 		// 设置列表边距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
 	}
 	// 为li元素设置布局
 	else if (strcmp(name, "li") == 0) {
-		// 列表项元素：块级，有左边距用于列表标记
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
-		// 设置列表项边距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 20, 0, 0, 2);
 	}
 	// 为table元素设置布局
 	else if (strcmp(name, "table") == 0) {
-		// 表格元素：填充可用宽度，自动布局
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
-		// 表格默认边距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
 	}
 	// 为tr元素设置布局
 	else if (strcmp(name, "tr") == 0) {
-		// 表格行元素：行布局，填充可用宽度
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
 	}
 	// 为td和th元素设置布局
 	else if (strcmp(name, "td") == 0 || strcmp(name, "th") == 0) {
-		// 表格单元格元素：填充可用空间
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
-		// 设置单元格内边距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 4, 4, 4, 4);
 	}
 	// 为form元素设置布局
 	else if (strcmp(name, "form") == 0) {
-		// 表单元素：块级，有边距，垂直排列表单项
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
 		// 设置表单边距
 		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 16);
@@ -781,8 +733,6 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	// 为input, textarea, select元素设置布局
 	else if (strcmp(name, "input") == 0 || strcmp(name, "textarea") == 0 ||
 			 strcmp(name, "select") == 0) {
-		// 表单控件元素：固定高度，填充宽度
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		// 设置默认大小
 		lay_set_size_xy(c->layout_ctx, layout_id, 0, 24);
 		// 设置表单控件边距
@@ -804,8 +754,6 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	}
 	// 为br元素设置布局
 	else if (strcmp(name, "br") == 0) {
-		// 换行元素：强制换行
-		lay_set_behave(c->layout_ctx, layout_id, LAY_HFILL | LAY_VFILL);
 		// 设置最小高度
 		lay_set_size_xy(c->layout_ctx, layout_id, 0, 16);
 	}
@@ -858,10 +806,6 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
 	}
 
     lay_id layout_id = comp->lay_item_id;
-    
-    // 文本节点默认不填充，由内容决定大小
-    // lay_set_behave(c->layout_ctx, layout_id, 0); // 清除所有填充行为
-    // lay_set_contain(c->layout_ctx, layout_id, LAY_LAYOUT); // 文本节点通常是叶节点
     
     // 设置文本节点的最小尺寸（基于文本内容）
 	
@@ -937,6 +881,11 @@ hubbub_error unref_node(void *ctx, void *node)
 		xmlNode *n = (xmlNode *) node;
 		ui_xmlnode_t *xmlnode = (ui_xmlnode_t *) n->_private;
 
+		// 如果节点没有被引用，则直接返回
+		if(!xmlnode){
+			return HUBBUB_OK;
+		}
+
 		/* Trap any attempt to unref a non-referenced node */
 		assert(xmlnode != NULL && xmlnode->base.refcount != 0 && "Node has refcount of zero");
 
@@ -1003,7 +952,11 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 		assert(*result != (void *) chld);
 	} else {
 		*result = xmlAddChild(p, chld);
-		assert(chld->_private);
+
+		// No corresponding html element created, eg comment, doctype
+		if(!chld->_private){
+			return HUBBUB_OK;
+		}
 	}
 
 	if (*result == NULL)
@@ -1021,6 +974,11 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
         child_id = GETLAYID(result_node);
     } else {
         child_id = LAY_INVALID_ID;
+    }
+    
+    // Skip nodes that don't have layout items (comment, doctype)
+    if (child_id == LAY_INVALID_ID) {
+        return HUBBUB_OK;
     }
     
     // 将子布局项插入到父布局项中
@@ -2071,6 +2029,10 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 	}
 	for (int i = 0; i < depth; i++) printf("  ");
 	
+	
+	lay_scalar l, t, r, b;
+	lay_get_margins_ltrb(layout_ctx, layout_id, &l, &t, &r, &b);
+
 	lay_scalar x, y, width, height;
 	lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
 
@@ -2079,14 +2041,14 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 	const char* behave = lay_get_behave_str(layout_ctx, layout_id);
 	
 	if(node->content && strlen((char*)node->content)){
-		printf("%s @ (%d, %d) [%d x %d] id=%d \"%s\"\n",
-	       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id,
+		printf("%s @ (%d, %d) [%d x %d] margin=(%.f, %.f, %.f, %.f) id=%d \"%s\"\n",
+	       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, l, t, r, b, layout_id,
 		   content_to_string((char*)node->content));
 	}
 	else{
-		printf("%s @ (%d, %d) [%d x %d] id=%d contain=%s behave=%s\n",
+		printf("%s @ (%d, %d) [%d x %d] margin=(%.f, %.f, %.f, %.f) id=%d contain=%s behave=%s\n",
 	       node->name ? (char*)node->name : "unknown", 
-		   (int)x, (int)y, (int)width, (int)height, layout_id, contain,behave);
+		   (int)x, (int)y, (int)width, (int)height, l, t, r, b, layout_id, contain,behave);
 	}
 		
 	xmlNode *child = node->children;
@@ -3210,13 +3172,6 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
 // 渲染HTML元素
 void html_process_styles_and_scripts(context *ctx, xmlNode *node, int depth) {
     if (!ctx || !node) return;
-    
-    lay_id layout_id = GETLAYID(node);
-    if (layout_id == LAY_INVALID_ID) return;
-    
-    // 获取元素布局信息
-    lay_scalar x, y, width, height;
-    lay_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
     
     if (node->type == XML_ELEMENT_NODE) {
         const char *element_name = node->name ? (char*)node->name : "unknown";
