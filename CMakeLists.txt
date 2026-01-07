@@ -19,10 +19,14 @@ list(APPEND CMAKE_INCLUDE_PATH "${CUSTOM_LIB_DIR}/include")
 find_package(PkgConfig REQUIRED)
 
 # 使用pkgconfig查找netsurf相关库
-pkg_check_modules(HUBBUB REQUIRED libhubbub)
+# HUBBUB: 使用本地编译版本，通过add_subdirectory添加
+# pkg_check_modules(HUBBUB REQUIRED libhubbub)
 pkg_check_modules(LIBCSS REQUIRED libcss)
 pkg_check_modules(PARSERUTILS REQUIRED libparserutils)
 pkg_check_modules(WAPCAPLET REQUIRED libwapcaplet)
+
+# 添加本地hubbub子目录
+add_subdirectory(src/hubbub)
 
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -120,7 +124,6 @@ include_directories(
     src/lib
     ${LIBXML2_INCLUDE_DIR}
     ${CUSTOM_LIB_DIR}/include
-    ${HUBBUB_INCLUDE_DIRS}
     ${LIBCSS_INCLUDE_DIRS}
     ${PARSERUTILS_INCLUDE_DIRS}
     ${WAPCAPLET_INCLUDE_DIRS}
@@ -149,7 +152,7 @@ target_link_libraries(${PROJECT_NAME}
     cmath3
     game
     renderer
-    ${HUBBUB_LIBRARIES}
+    hubbub
     ${LIBCSS_LIBRARIES}
     ${LIBXML2_LIBRARIES}
     ${PARSERUTILS_LIBRARIES}
@@ -159,7 +162,6 @@ target_link_libraries(${PROJECT_NAME}
 # 设置链接目录
 target_link_directories(${PROJECT_NAME} PRIVATE
     ${CUSTOM_LIB_DIR}/lib
-    ${HUBBUB_LIBRARY_DIRS}
     ${LIBCSS_LIBRARY_DIRS}
     ${PARSERUTILS_LIBRARY_DIRS}
     ${WAPCAPLET_LIBRARY_DIRS}

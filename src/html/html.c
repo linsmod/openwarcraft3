@@ -7,6 +7,9 @@
  * Copyright 2008 John-Mark Bell <jmb@netsurf-browser.org>
  */
 #include "common/event.h"
+#include "html/layout.h"
+#include "hubbub/errors.h"
+#include "libxml/xmlstring.h"
 #include "ui/ui_component.h"
 #define LAY_IMPLEMENTATION
 #include "common/common.h"
@@ -116,8 +119,6 @@ typedef struct context {
 	int scroll_y;			/**< Vertical scroll offset */
 	int max_scroll_x;		/**< Maximum horizontal scroll offset */
 	int max_scroll_y;		/**< Maximum vertical scroll offset */
-
-	int inhead;
 } context;
 
 #include "css.h"
@@ -840,6 +841,11 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
 	context *c = (context *) ctx;
 	xmlNodePtr n;
 
+	// if all spaces, return error
+	if (is_whitespace_hubbub_string(data)) {
+		return HUBBUB_NOMEM;
+	}
+
 	n = xmlNewDocTextLen(c->document, BAD_CAST data->ptr, (int) data->len);
 	if (n == NULL) {
 		return HUBBUB_NOMEM;
@@ -1005,24 +1011,28 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 
 	ref_node(ctx, *result);
 
-	// 获取父节点的布局 ID
-	   lay_id parent_id = GETLAYID(p);
-	   
-	   // 获取子节点的布局 ID（使用 *result 而不是 chld，因为 chld 可能已被释放）
-	   lay_id child_id;
-	   if (*result != NULL) {
-	       xmlNode *result_node = (xmlNode *)*result;
-	       child_id = GETLAYID(result_node);
-	   } else {
-	       child_id = LAY_INVALID_ID;
-	   }
+    // 获取父节点的布局 ID
+    lay_id parent_id = GETLAYID(p);
+    
+    // 获取子节点的布局 ID（使用 *result 而不是 chld，因为 chld 可能已被释放）
+    lay_id child_id;
+    if (*result != NULL) {
+        xmlNode *result_node = (xmlNode *)*result;
+        child_id = GETLAYID(result_node);
+    } else {
+        child_id = LAY_INVALID_ID;
+    }
+    
+    // 将子布局项插入到父布局项中
 
-	   // 将子布局项插入到父布局项中
-	   if (parent_id != LAY_INVALID_ID && child_id != LAY_INVALID_ID) {
-			if(!lay_isinserted(((context *)ctx)->layout_ctx,child_id)){
-	       		lay_insert(((context *)ctx)->layout_ctx, parent_id, child_id);
-			}
-	   }
+	if(strcmp( (char*) chld->name,"head")==0){
+		return HUBBUB_OK;
+	}
+    if (parent_id != LAY_INVALID_ID && child_id != LAY_INVALID_ID) {
+ 		if(!lay_isinserted(((context *)ctx)->layout_ctx,child_id)){
+			lay_insert(((context *)ctx)->layout_ctx, parent_id, child_id);
+ 		}
+    }
 
 	return HUBBUB_OK;
 }
@@ -2049,8 +2059,6 @@ static char* content_to_string(const char*content)
 
 void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c)
 {
-	if(xmlIsBlankNode(node)) 
-		return;
 	lay_id layout_id;
 	if (c != NULL) {
 		layout_id = GETLAYID(node);
@@ -2065,6 +2073,10 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 	
 	lay_scalar x, y, width, height;
 	lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
+
+	const char* contain = lay_get_contain_str(layout_ctx, layout_id);
+
+	const char* behave = lay_get_behave_str(layout_ctx, layout_id);
 	
 	if(node->content && strlen((char*)node->content)){
 		printf("%s @ (%d, %d) [%d x %d] id=%d \"%s\"\n",
@@ -2072,8 +2084,9 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 		   content_to_string((char*)node->content));
 	}
 	else{
-		printf("%s @ (%d, %d) [%d x %d] id=%d\n",
-	       node->name ? (char*)node->name : "unknown", (int)x, (int)y, (int)width, (int)height, layout_id);
+		printf("%s @ (%d, %d) [%d x %d] id=%d contain=%s behave=%s\n",
+	       node->name ? (char*)node->name : "unknown", 
+		   (int)x, (int)y, (int)width, (int)height, layout_id, contain,behave);
 	}
 		
 	xmlNode *child = node->children;

@@ -1,6 +1,7 @@
 #include "layout.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 // #include <stdbool.h>
 
 // Users of this library can define LAY_REALLOC to use a custom (re)allocator
@@ -289,6 +290,57 @@ void lay_set_behave(lay_context *ctx, lay_id item, uint32_t flags)
     pitem->flags = (pitem->flags & ~(uint32_t)LAY_ITEM_LAYOUT_MASK) | flags;
 }
 
+#include <stdio.h>
+const char* lay_get_behave_str(lay_context *ctx, lay_id item)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    uint32_t flags = pitem->flags & LAY_ITEM_LAYOUT_MASK;
+
+    static char buf[128];
+    int len = 0;
+    int first = 1;  // 用于判断是否是第一个项
+
+    if (flags & LAY_ITEM_HFIXED) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sHFIXED", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_ITEM_VFIXED) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sVFIXED", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_HFILL) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sHFILL", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_VFILL) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sVFILL", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_HCENTER) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sHCENTER", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_VCENTER) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sVCENTER", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_RIGHT) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sRIGHT", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_BOTTOM) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sBOTTOM", first ? "" : "|");
+        first = 0;
+    }
+    if (flags & LAY_JUSTIFY) {
+        len += snprintf(buf + len, sizeof(buf) - len, "%sJUSTIFY", first ? "" : "|");
+        first = 0;
+    }
+
+    if (len == 0) return "default";
+    return buf;
+}
+
 void lay_set_contain(lay_context *ctx, lay_id item, uint32_t flags)
 {
     LAY_ASSERT((flags & LAY_ITEM_BOX_MASK) == flags);
@@ -300,6 +352,25 @@ uint32_t lay_get_contain(lay_context *ctx, lay_id item)
     lay_item_t *pitem = lay_get_item(ctx, item);
     return pitem->flags & LAY_ITEM_BOX_MASK;
 }
+const char* lay_get_contain_str(lay_context *ctx, lay_id item)
+{
+    lay_item_t *pitem = lay_get_item(ctx, item);
+    uint32_t flags = pitem->flags & LAY_ITEM_BOX_MODEL_MASK;
+
+    switch (flags) {
+        case LAY_ROW:
+            return "ROW";
+        case LAY_COLUMN:
+            return "COLUMN";
+        case LAY_ROW | LAY_WRAP:
+            return "ROW_WRAP";
+        case LAY_COLUMN | LAY_WRAP:
+            return "COLUMN_WRAP";
+        default:
+            return "DEFAULT"; // 或 "NONE"
+    }
+}
+
 void lay_set_margins(lay_context *ctx, lay_id item, lay_vec4 ltrb)
 {
     lay_item_t *pitem = lay_get_item(ctx, item);

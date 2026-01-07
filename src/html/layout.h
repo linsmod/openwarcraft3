@@ -226,6 +226,8 @@ enum {
         | LAY_USERMASK
 };
 
+const char* lay_get_behave_str(lay_context *ctx, lay_id item);
+const char* lay_get_contain_str(lay_context *ctx, lay_id item);
 LAY_STATIC_INLINE lay_vec4 lay_vec4_xyzw(lay_scalar x, lay_scalar y, lay_scalar z, lay_scalar w)
 {
 #if (defined(__GNUC__) || defined(__clang__)) && !defined(__cplusplus)
