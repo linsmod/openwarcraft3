@@ -570,6 +570,36 @@ void UIComponent_SetLayoutContain(ui_component_t *component, uint32_t flags) {
     UIComponent_SetContain(component, flags);
 }
 
+// Flex属性设置
+void UIComponent_SetFlexGrow(ui_component_t *component, float grow) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
+        return;
+    }
+    layx_set_flex_grow(component->lay_ctx, component->lay_item_id, (layx_scalar)grow);
+}
+
+void UIComponent_SetFlexShrink(ui_component_t *component, float shrink) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
+        return;
+    }
+    layx_set_flex_shrink(component->lay_ctx, component->lay_item_id, (layx_scalar)shrink);
+}
+
+void UIComponent_SetFlexBasis(ui_component_t *component, float basis) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
+        return;
+    }
+    layx_set_flex_basis(component->lay_ctx, component->lay_item_id, (layx_scalar)basis);
+}
+
+void UIComponent_SetFlex(ui_component_t *component, float grow, float shrink, float basis) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
+        return;
+    }
+    layx_set_flex_properties(component->lay_ctx, component->lay_item_id, 
+                             (layx_scalar)grow, (layx_scalar)shrink, (layx_scalar)basis);
+}
+
 void UIComponent_SetPosition(ui_component_t *component, float x, float y) {
     if (!component) return;
     component->x = x;

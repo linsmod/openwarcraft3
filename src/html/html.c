@@ -1988,9 +1988,9 @@ void print_node_layout(layx_context *layout_ctx, xmlNode *node, int depth, conte
 	layx_scalar x, y, width, height;
 	layx_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
 
-	const char* contain = layx_get_layout_properties_string(layout_ctx, layout_id);
+	const char* lay = layx_get_layout_properties_string(layout_ctx, layout_id);
 
-	const char* behave = layx_get_item_alignment_string(layout_ctx, layout_id);
+	const char* align = layx_get_item_alignment_string(layout_ctx, layout_id);
 	
 	if(node->content && strlen((char*)node->content)){
 		printf("%s @ (%d, %d) [%d x %d] margin=(%.f, %.f, %.f, %.f) id=%d \"%s\"\n",
@@ -1998,9 +1998,9 @@ void print_node_layout(layx_context *layout_ctx, xmlNode *node, int depth, conte
 		   content_to_string((char*)node->content));
 	}
 	else{
-		printf("%s @ (%d, %d) [%d x %d] margin=(%.f, %.f, %.f, %.f) id=%d contain=%s behave=%s\n",
+		printf("%s @ (%d, %d) [%d x %d] margin=(%.f, %.f, %.f, %.f) id=%d lay=%s align=%s\n",
 	       node->name ? (char*)node->name : "unknown", 
-		   (int)x, (int)y, (int)width, (int)height, l, t, r, b, layout_id, contain,behave);
+		   (int)x, (int)y, (int)width, (int)height, l, t, r, b, layout_id, lay,align);
 	}
 		
 	xmlNode *child = node->children;

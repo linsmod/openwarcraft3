@@ -684,7 +684,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetLayoutContain(right_container, LAYX_FLEX_DIRECTION_COLUMN);
 
     // 创建地图预览容器
-    g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 624.0f, 538.0f,
+    g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 624.0f, 0.0f,
                                                                (COLOR32){40, 40, 50, 230},
                                                                (COLOR32){255, 215, 0, 255}, g_ctx);
     if (!g_preview_container) {
@@ -692,8 +692,9 @@ int MapSelect_Init(scene_t *scene) {
         return -1;
     }
     
-    // 设置布局行为
-    UIComponent_SetSize(g_preview_container, 624.0f, 538.0f);
+    // 设置布局行为：使用flex自动占据剩余空间
+    UIComponent_SetSize(g_preview_container, 624.0f, 0.0f);
+    UIComponent_SetFlex(g_preview_container, 1.0f, 0.0f, 0.0f);  // grow=1, 自动填充
     UIComponent_SetBehave(g_preview_container, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_container, 10.0f, 0.0f, 10.0f, 0.0f);
 
@@ -792,8 +793,9 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_preview_path_text, 5.0f, 10.0f, 10.0f, 0.0f);
 
     // 6. 创建提示容器（底部按钮区域）
+    // 高度计算: hint_text1(50) + hint_text2(50+10margin) + start_button(50+10margin) = 170
     ui_component_t *hint_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 644.0f, 150.0f,
+        0.0f, 0.0f, 644.0f, 170.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -803,8 +805,9 @@ int MapSelect_Init(scene_t *scene) {
         return -1;
     }
     UIContainer_AddChild((ui_container_t *)right_container, hint_container);
-    UIComponent_SetSize(hint_container, 644.0f, 150.0f);
+    UIComponent_SetSize(hint_container, 644.0f, 170.0f);
     UIComponent_SetLayoutContain(hint_container, LAYX_FLEX_DIRECTION_COLUMN);
+    // hint_container不需要flex，保持固定高度
 
     // 创建提示文本1
     g_hint_text1 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "UP/DOWN: navigate  ENTER: select  Type: filter",

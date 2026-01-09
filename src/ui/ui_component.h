@@ -317,6 +317,12 @@ void UIComponent_SetContain(ui_component_t *component, uint32_t flags);
 // 设置布局容器标志（旧API别名）
 void UIComponent_SetLayoutContain(ui_component_t *component, uint32_t flags);
 
+// Flex属性设置
+void UIComponent_SetFlexGrow(ui_component_t *component, float grow);
+void UIComponent_SetFlexShrink(ui_component_t *component, float shrink);
+void UIComponent_SetFlexBasis(ui_component_t *component, float basis);
+void UIComponent_SetFlex(ui_component_t *component, float grow, float shrink, float basis);
+
 // 设置组件位置（直接设置，不经过布局系统）
 void UIComponent_SetPosition(ui_component_t *component, float x, float y);
 
