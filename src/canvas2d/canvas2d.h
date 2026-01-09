@@ -4,7 +4,7 @@
 
 // #include <stdbool.h>
 #include "r_local.h"
-#include "../html/layout.h"
+#include "../html/layx.h"
 typedef struct canvas2d_t canvas2d_t;
 typedef struct canvas2d_context_t canvas2d_context_t;
 
@@ -62,8 +62,8 @@ struct canvas2d_context_t {
     canvas2d_t *canvas;
     canvas2d_state_t state;
     canvas2d_state_t *stateStack;
-    lay_context *lay_ctx;
-    lay_id lay_id;
+    layx_context *lay_ctx;
+    layx_id layx_id;
     int stateStackSize;
     int stateStackCapacity;
 };
@@ -72,8 +72,8 @@ struct canvas2d_context_t {
 canvas2d_t* canvas2d_create(int width, int height);
 void canvas2d_destroy(canvas2d_t *canvas);
 canvas2d_context_t* canvas2d_get_context(canvas2d_t *canvas);
-lay_context* canvas2d_getlayctx(canvas2d_t *canvas);
-lay_id canvas2d_getlayid(canvas2d_t *canvas);
+layx_context* canvas2d_getlayctx(canvas2d_t *canvas);
+layx_id canvas2d_getlayid(canvas2d_t *canvas);
 void canvas2d_begin_draw(canvas2d_t *canvas);
 void canvas2d_end_draw(canvas2d_t *canvas);
 

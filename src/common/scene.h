@@ -150,7 +150,7 @@ typedef void (*scene_on_input_fn)(scene_t *scene, input_event_t *event);
 // ========================================
 // 场景结构
 // ========================================
-#include "html/layout.h"
+#include "html/layx.h"
 struct scene_t {
     ui_component_t *root_component;
     const char *name;
@@ -161,7 +161,7 @@ struct scene_t {
     const scene_params_t *launch_params;
     canvas2d_t *canvas;
     canvas2d_context_t *canvas_ctx;
-    lay_context *lay_ctx;
+    layx_context *lay_ctx;
     
     // 场景接口函数
     scene_init_fn init;

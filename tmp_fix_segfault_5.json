@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改 R_GetFontWidth 函数，安全处理无效 glyph",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/renderer/r_font.c",
+        "old_str": "FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {\n    FLOAT x = 0;\n    LPCSTR p = text;\n    unsigned codepoint;\n    while (*p) {\n        p = utf8_to_codepoint(p, &codepoint);\n        glyphSet_t *set = R_GetGlyphSet(font, codepoint);\n        stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];\n        x += INV_SCALE_X(g->xadvance);\n    }\n    return x;\n}",
+        "new_str": "FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {\n    FLOAT x = 0;\n    LPCSTR p = text;\n    unsigned codepoint;\n    while (*p) {\n        p = utf8_to_codepoint(p, &codepoint);\n        \n        // 计算宽度不需要纹理，传入 FALSE\n        glyphSet_t *set = R_GetGlyphSet(font, codepoint, FALSE);\n        stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];\n        \n        // 检查 glyph 是否有效\n        if (g->x1 > g->x0) {\n            x += INV_SCALE_X(g->xadvance);\n        } else {\n            // 使用默认宽度\n            x += INV_SCALE_X(font->size * 0.5);\n        }\n    }\n    return x;\n}"
+      }
+    }
+  ]
+}

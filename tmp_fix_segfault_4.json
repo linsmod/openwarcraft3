@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "修改 process_text 函数，安全处理纹理访问",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/renderer/r_font.c",
+        "old_str": "       unsigned codepoint;\n        p = utf8_to_codepoint(p, &codepoint);\n        glyphSet_t *set = R_GetGlyphSet(font, codepoint);\n        stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];\n        FLOAT charWidth = INV_SCALE_X(g->xadvance);\n        if (arg->wordWrap && ((cursor.x + charWidth) - (pos.x + arg->textWidth))> 0.001) {\n            cursor.x = pos.x;\n            cursor.y += linesize * arg->lineHeight;\n        }\n        if (draw) {\n            FLOAT const w = set->image->width;\n            FLOAT const h = set->image->height;\n            RECT const uv_rect = get_uvrect(g, h, w);\n            RECT const screen = get_screenrect(&cursor, g);\n            R_DrawImage2(set->image, &screen, &uv_rect, color,arg->model_matrix);\n        }\n        cursor.x += charWidth;",
+        "new_str": "       unsigned codepoint;\n        p = utf8_to_codepoint(p, &codepoint);\n        \n        // 传入 draw 参数，表示是否需要纹理\n        glyphSet_t *set = R_GetGlyphSet(font, codepoint, draw);\n        \n        // 安全地获取 glyph\n        stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];\n        \n        // 确保 glyph 数据有效\n        if (g->x1 <= g->x0) {\n            // 字符加载失败，使用默认宽度\n            FLOAT charWidth = INV_SCALE_X(font->size * 0.5); // 默认宽度\n            cursor.x += charWidth;\n            continue;\n        }\n        \n        FLOAT charWidth = INV_SCALE_X(g->xadvance);\n        if (arg->wordWrap && ((cursor.x + charWidth) - (pos.x + arg->textWidth))> 0.001) {\n            cursor.x = pos.x;\n            cursor.y += linesize * arg->lineHeight;\n        }\n        if (draw) {\n            // 安全访问纹理尺寸\n            FLOAT w, h;\n            if (set->image) {\n                w = (FLOAT)set->image->width;\n                h = (FLOAT)set->image->height;\n            } else {\n                w = h = 1.0f; // 使用安全值\n            }\n            \n            // 避免除零错误\n            if (w <= 0.0f) w = 1.0f;\n            if (h <= 0.0f) h = 1.0f;\n            \n            RECT const uv_rect = get_uvrect(g, h, w);\n            RECT const screen = get_screenrect(&cursor, g);\n            R_DrawImage2(set->image, &screen, &uv_rect, color,arg->model_matrix);\n        }\n        cursor.x += charWidth;"
+      }
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 #include "../ui/ui_container.h"
 #include "../ui/debug_overlay_scene.h"
 
-#include "../html/layout.h"
+#include "../html/layx.h"
 #include "../canvas2d/canvas2d.h"
 #include "common/shared.h"
 #include "r_local.h"
@@ -347,7 +347,7 @@ int Scene_CreateResources(scene_t *scene, int width, int height) {
     }
     
     // 插入根容器到布局系统
-    lay_insert(scene->lay_ctx, 
+    layx_insert(scene->lay_ctx, 
         canvas2d_getlayid((canvas2d_t *)scene->canvas), 
         scene->root_component->lay_item_id);
     
@@ -1302,7 +1302,7 @@ void Scene_LayoutUI(scene_t *scene, int msec) {
         
         // 调用组件的layout方法（如果存在）
         if (comp->vtable && comp->vtable->layout) {
-            // lay_get_rect_xywh(comp->lay_ctx, comp->lay_item_id,&comp->x, &comp->y, &comp->width, &comp->height);
+            // layx_get_rect_xywh(comp->lay_ctx, comp->lay_item_id,&comp->x, &comp->y, &comp->width, &comp->height);
             comp->vtable->layout(comp, scene->root_component);
         }
         
@@ -1335,11 +1335,11 @@ void Scene_RenderUI(scene_t *scene) {
         if (comp->flags & UI_FLAG_VISIBLE) {
             // 调用组件的render方法（如果存在）,否则使用默认的
             // 优先使用 vtable 中的渲染函数，如果存在的话
-            lay_scalar x, y, w, h;
-            lay_get_rect_xywh(scene->lay_ctx, comp->lay_item_id, &x,&y,&w,&h);
+            layx_scalar x, y, w, h;
+            layx_get_rect_xywh(scene->lay_ctx, comp->lay_item_id, &x,&y,&w,&h);
 
-            lay_scalar l, t, r, b;
-            lay_get_margins_ltrb(scene->lay_ctx, comp->lay_item_id, &l, &t, &r, &b);
+            layx_scalar l, t, r, b;
+            layx_get_margin_ltrb(scene->lay_ctx, comp->lay_item_id, &l, &t, &r, &b);
             // comp->x = x+l;
             // comp->y = y+t;
             // comp->width = w;

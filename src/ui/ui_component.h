@@ -4,14 +4,14 @@
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
 #include "../common/event.h"
-#include "../html/layout.h"
+#include "../html/layx.h"
 #include "libxml/tree.h"
 #include "../html/css.h"
 #include <sys/types.h>
 
 // 前向声明
 typedef struct ui_component_t ui_component_t;
-typedef struct lay_context lay_context;
+typedef struct layx_context layx_context;
 typedef struct handler_states_t handler_state_t;
 
 // ==================== 组件类型枚举 ====================
@@ -174,8 +174,8 @@ struct ui_component_t {
     float padding[4];                // 内边距 [top, right, bottom, left]
     
     // 布局相关（内部使用）
-    lay_context *lay_ctx;            // 布局上下文指针
-    lay_id lay_item_id;              // 组件的布局项ID
+    layx_context *lay_ctx;            // 布局上下文指针
+    layx_id lay_item_id;              // 组件的布局项ID
     
     uint refcount;
     uint css_processed;
@@ -285,13 +285,13 @@ void UIComponent_GetContentRect(const ui_component_t *component, float *x, float
 // ==================== 布局API - 对使用者隐藏lay细节 ====================
 
 // 设置布局上下文
-void UIComponent_SetLayoutContext(ui_component_t *component, lay_context *ctx);
+void UIComponent_SetLayoutContext(ui_component_t *component, layx_context *ctx);
 
 // 创建布局项（用于初始化根组件）
-lay_id UIComponent_CreateLayoutItem(ui_component_t *component);
+layx_id UIComponent_CreateLayoutItem(ui_component_t *component);
 
 // 获取布局项ID
-lay_id UIComponent_GetLayoutItem(const ui_component_t *component);
+layx_id UIComponent_GetLayoutItem(const ui_component_t *component);
 
 // 设置组件的尺寸（自动同步到布局系统）
 void UIComponent_SetSize(ui_component_t *component, float width, float height);

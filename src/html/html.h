@@ -1,7 +1,7 @@
 #include "common/shared.h"
 #include "renderer/r_local.h"
 
-#include "layout.h"
+#include "layx.h"
 
 // Forward declarations
 typedef struct context context;
@@ -114,7 +114,7 @@ xmlNode* html_context_get_root(context *ctx);
  * @param ctx HTML上下文
  * @return 布局上下文
  */
-lay_context* html_context_get_layout(context *ctx);
+layx_context* html_context_get_layout(context *ctx);
 
 /**
  * @brief 根据ID查找元素

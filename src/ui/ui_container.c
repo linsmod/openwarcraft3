@@ -1,7 +1,7 @@
 #include "ui_container.h"
 #include "common/event.h"
 #include "common/scene.h"
-#include "html/layout.h"
+#include "html/layx.h"
 #include "ui/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
@@ -151,13 +151,13 @@ static int container_add_child(ui_component_t *component, ui_component_t *child)
         child->lay_ctx = component->lay_ctx;
         
         // 如果子组件没有layout item，创建一个
-        if (child->lay_item_id == LAY_INVALID_ID) {
-            child->lay_item_id = lay_item(child->lay_ctx);
+        if (child->lay_item_id == LAYX_INVALID_ID) {
+            child->lay_item_id = layx_item(child->lay_ctx);
         }
         
         // 如果父组件有layout item，插入到布局中
-        if (component->lay_item_id != LAY_INVALID_ID && child->lay_item_id != LAY_INVALID_ID) {
-            lay_insert(component->lay_ctx, component->lay_item_id, child->lay_item_id);
+        if (component->lay_item_id != LAYX_INVALID_ID && child->lay_item_id != LAYX_INVALID_ID) {
+            layx_insert(component->lay_ctx, component->lay_item_id, child->lay_item_id);
         }
     }
     
@@ -269,7 +269,7 @@ ui_container_t* UIContainer_Create(float x, float y, float width, float height,
     container->border_color = border_color;
     container->border_width = 1.0f;
     container->max_children = 100;
-    UIComponent_SetLayoutContain((ui_component_t*)container,LAY_COLUMN);
+    UIComponent_SetLayoutContain((ui_component_t*)container,LAYX_FLEX_DIRECTION_COLUMN);
 
     // 启用裁剪
     // container->base.flags |= UI_FLAG_CLIPPING;

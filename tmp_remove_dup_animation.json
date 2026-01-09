@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_content",
+      "title": "删除apply_css_to_layout中重复的animation处理",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/html/html.c",
+        "old_str": "\t}\n\t\n\t/* Animation property */\n\tif (strstr(css, \"animation:\")) {\n\t\tconst char *anim_start = strstr(css, \"animation:\") + 10; /* Skip \"animation:\" including colon */\n\t\t\n\t\tprintf(\"DEBUG: Found 'animation:', anim_start='%s'\\n\", anim_start);\n\t\t\n\t\t/* Skip whitespace */\n\t\twhile (*anim_start && (*anim_start == ' ')) {\n\t\t\tanim_start++;\n\t\t}\n\t\t\n\t\tprintf(\"DEBUG: After skipping whitespace, anim_start='%s'\\n\", anim_start);\n\t\t\n\t\t/* Extract animation value */\n\t\tchar anim_value[256];\n\t\tint i = 0;\n\t\twhile (*anim_start && (*anim_start != ';' && *anim_start != '}') && i < sizeof(anim_value) - 1) {\n\t\t\tanim_value[i++] = *anim_start++;\n\t\t}\n\t\tanim_value[i] = '\\0';\n\t\t\n\t\tprintf(\"DEBUG: Found animation in style: '%s'\\n\", anim_value);\n\t\t\n\t\t/* Apply animation */\n\t\tapply_animation_attribute(c, node, anim_value);\n\t}\n\t",
+        "new_str": "\t}"
+      }
+    }
+  ]
+}

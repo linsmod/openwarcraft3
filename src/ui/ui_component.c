@@ -1,6 +1,6 @@
 #include "ui_component.h"
 #include "../common/event.h"
-#include "../html/layout.h"
+#include "../html/layx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,11 +40,11 @@ bool UIComponent_IsHovered(const ui_component_t *component) {
     return component ? (component->flags & UI_FLAG_HOVERED) != 0 : false;
 }
 void UIComponent_GetComputedRectXywh(ui_component_t *component, float *x, float *y, float *width, float *height){
-    lay_scalar x_,y_,width_,height_;
-    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x_, &y_, &width_, &height_);
+    layx_scalar x_,y_,width_,height_;
+    layx_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x_, &y_, &width_, &height_);
 
-    lay_scalar l, t,r,b;
-    lay_get_margins_ltrb(component->lay_ctx, component->lay_item_id, &l,&t,&r,&b);
+    layx_scalar l, t,r,b;
+    layx_get_margin_ltrb(component->lay_ctx, component->lay_item_id, &l,&t,&r,&b);
     *x = (float)x_+l;
     *y = (float)y_+t;
     *width = (float)width_;
@@ -286,10 +286,10 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->drag_offset_y = 0.0f;
     if(ctx && ctx->lay_ctx){
         component->lay_ctx = ctx->lay_ctx;
-        component->lay_item_id = lay_item(ctx->lay_ctx);
+        component->lay_item_id = layx_item(ctx->lay_ctx);
     }
     else{
-        component->lay_item_id = LAY_INVALID_ID;
+        component->lay_item_id = LAYX_INVALID_ID;
     }
 
     // 初始化事件处理器数组
@@ -321,8 +321,8 @@ static void UIComponent_RenderBackground(ui_component_t *component) {
     if (!component || !UIComponent_IsVisible(component)) return;
     
     // 从布局系统获取组件的实际位置和尺寸
-    lay_scalar x, y, w, h;
-    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x, &y, &w, &h);
+    layx_scalar x, y, w, h;
+    layx_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x, &y, &w, &h);
 
     // 根据组件状态选择背景色
     COLOR32 bg_color;
@@ -348,8 +348,8 @@ static void UIComponent_RenderBorder(ui_component_t *component) {
     if (!component || !UIComponent_IsVisible(component)) return;
     
     // 从布局系统获取组件的实际位置和尺寸
-    lay_scalar x, y, w, h;
-    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x, &y, &w, &h);
+    layx_scalar x, y, w, h;
+    layx_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x, &y, &w, &h);
 
     // 默认实现：检查是否有边框颜色（对于非容器组件，这里使用一个简单的默认边框）
     // 对于容器组件（ui_container_t），边框在 container_render 中绘制
@@ -465,8 +465,8 @@ void UIComponent_PrintTree(const ui_component_t *component, int indent) {
     const char *enabled = UIComponent_IsEnabled(component) ? "E" : "-";
     const char *focused = UIComponent_IsFocused(component) ? "F" : "-";
 
-    lay_scalar x,y,w,h;
-    lay_get_rect_xywh(component->lay_ctx, component->lay_item_id,&x,&y,&w,&h);
+    layx_scalar x,y,w,h;
+    layx_get_rect_xywh(component->lay_ctx, component->lay_item_id,&x,&y,&w,&h);
 
     char common[128];
     sprintf(common,"[%s%s%s] %s @ (%.f, %.f) [%.f x %.f]",
@@ -489,25 +489,25 @@ void UIComponent_PrintTree(const ui_component_t *component, int indent) {
 
 // ==================== 布局API实现 - 对使用者隐藏lay细节 ====================
 
-void UIComponent_SetLayoutContext(ui_component_t *component, lay_context *ctx) {
+void UIComponent_SetLayoutContext(ui_component_t *component, layx_context *ctx) {
     if (!component) {
         return;
     }
     component->lay_ctx = ctx;
 }
 
-lay_id UIComponent_CreateLayoutItem(ui_component_t *component) {
+layx_id UIComponent_CreateLayoutItem(ui_component_t *component) {
     if (!component || !component->lay_ctx) {
-        return LAY_INVALID_ID;
+        return LAYX_INVALID_ID;
     }
-    if (component->lay_item_id == LAY_INVALID_ID) {
-        component->lay_item_id = lay_item(component->lay_ctx);
+    if (component->lay_item_id == LAYX_INVALID_ID) {
+        component->lay_item_id = layx_item(component->lay_ctx);
     }
     return component->lay_item_id;
 }
 
-lay_id UIComponent_GetLayoutItem(const ui_component_t *component) {
-    return component ? component->lay_item_id : LAY_INVALID_ID;
+layx_id UIComponent_GetLayoutItem(const ui_component_t *component) {
+    return component ? component->lay_item_id : LAYX_INVALID_ID;
 }
 
 void UIComponent_SetLayoutMargins(ui_component_t *component, float left, float top, float right, float bottom) {
@@ -522,8 +522,8 @@ void UIComponent_SetSize(ui_component_t *component, float width, float height) {
     component->height = height;
     
     // 如果有布局上下文，同步到lay
-    if (component->lay_ctx && component->lay_item_id != LAY_INVALID_ID) {
-        lay_set_size_xy(component->lay_ctx, component->lay_item_id, width, height);
+    if (component->lay_ctx && component->lay_item_id != LAYX_INVALID_ID) {
+        layx_set_size(component->lay_ctx, component->lay_item_id, width, height);
     }
 }
 
@@ -547,30 +547,23 @@ void UIComponent_SetMargin(ui_component_t *component, float top, float right, fl
     component->margin[3] = left;
     
     // 如果有布局上下文，同步到lay
-    if (component->lay_ctx && component->lay_item_id != LAY_INVALID_ID) {
-        lay_set_margins_ltrb(component->lay_ctx, component->lay_item_id, left, top, right, bottom);
+    if (component->lay_ctx && component->lay_item_id != LAYX_INVALID_ID) {
+        layx_set_margin_ltrb(component->lay_ctx, component->lay_item_id, left, top, right, bottom);
     }
 }
 
 void UIComponent_SetBehave(ui_component_t *component, uint32_t flags) {
-    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
         return;
     }
-    lay_set_behave(component->lay_ctx, component->lay_item_id, flags);
+    layx_set_align_self(component->lay_ctx, component->lay_item_id, flags);
 }
 
 void UIComponent_SetContain(ui_component_t *component, uint32_t flags) {
-    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
+    if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
         return;
     }
-    lay_set_contain(component->lay_ctx, component->lay_item_id, flags);
-}
-
-uint32_t UIComponent_GetContain(ui_component_t* component){
-    if (!component || !component->lay_ctx || component->lay_item_id == LAY_INVALID_ID) {
-        return 0;
-    }
-    return lay_get_contain(component->lay_ctx, component->lay_item_id);
+    layx_set_flex(component->lay_ctx, component->lay_item_id, LAYX_FLEX_DIRECTION_COLUMN, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 }
 
 void UIComponent_SetLayoutContain(ui_component_t *component, uint32_t flags) {
@@ -589,7 +582,7 @@ void UIComponent_Layout(ui_component_t *root) {
     }
 
     // 运行布局计算
-    lay_run_context(root->lay_ctx);
+    layx_run_context(root->lay_ctx);
     
     // 调试输出：打印布局后的组件树
     // printf("\n========== UI Layout Tree (After Layout) ==========\n");

@@ -7,11 +7,11 @@
  * Copyright 2008 John-Mark Bell <jmb@netsurf-browser.org>
  */
 #include "common/event.h"
-#include "html/layout.h"
+#include "html/layx.h"
 #include "hubbub/errors.h"
 #include "libxml/xmlstring.h"
 #include "ui/ui_component.h"
-#define LAY_IMPLEMENTATION
+#define LAYX_IMPLEMENTATION
 #include "common/common.h"
 #include "common/shared.h"
 #include "libcss/errors.h"
@@ -49,7 +49,7 @@
 
 #define UNUSED(x) ((x)=(x))
 
-#define GETLAYID(node) ((ui_component_t*)node->_private)?((ui_component_t*)node->_private)->lay_item_id:LAY_INVALID_ID
+#define GETLAYID(node) ((ui_component_t*)node->_private)?((ui_component_t*)node->_private)->lay_item_id:LAYX_INVALID_ID
 
 // Macro to apply animated opacity to a color
 #define APPLY_ANIMATED_OPACITY(color, opacity) \
@@ -92,7 +92,7 @@ typedef struct context {
 	hubbub_tree_handler tree_handler;	/**< Hubbub tree callbacks */
 	
 	// Layout integration
-	lay_context* layout_ctx;			/**< Layout context */
+	layx_context* layout_ctx;			/**< Layout context */
 
 	// Animation integration
 	animation_manager_t* anim_mgr;	/**< Animation manager */
@@ -139,8 +139,7 @@ typedef struct context {
 			UIComponent_InitBase(&xn->base, UI_COMPONENT_TYPE_HTML_NODE, \
 							   &g_xmlnode_vtable, NULL); \
 			xn->base.lay_ctx = c->layout_ctx; \
-			xn->base.lay_item_id = lay_item(c->layout_ctx); \
-			lay_set_behave(c->layout_ctx, xn->base.lay_item_id, 0); \
+			xn->base.lay_item_id = layx_item(c->layout_ctx); \
 			xn->base.parsedStyle = NULL; \
 			xn->base.computedStyle = NULL; \
 			xn->base.animation_id = 0; \
@@ -237,8 +236,8 @@ int html_render_init(context *ctx);
 static int extract_number(const char *css, const char *property);
 static color32_t parse_css_color(const char *color_str);
 void apply_css_to_layout(context *c, xmlNode *node, const char *css);
-void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c,int depth);
-static void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c);
+void print_layout_info(layx_context *layout_ctx, xmlDoc *document, context *c,int depth);
+static void print_node_layout(layx_context *layout_ctx, xmlNode *node, int depth, context *c);
 static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_select_results *results);
 static void update_max_scroll(context *ctx);
 static void render_html_element(context *ctx, xmlNode *node, int depth);
@@ -290,16 +289,16 @@ error_code create_context(const char *charset, context **ctx,int width,int heigh
 	}
 
 	// layout context 
-	c->layout_ctx = malloc(sizeof(lay_context));
+	c->layout_ctx = malloc(sizeof(layx_context));
 	/* Initialize layout context */
-	lay_init_context(c->layout_ctx);
-	lay_reset_context(c->layout_ctx); /* Clear any existing data */
-	lay_reserve_items_capacity(c->layout_ctx, 1000); /* Pre-allocate */
+	layx_init_context(c->layout_ctx);
+	layx_reset_context(c->layout_ctx); /* Clear any existing data */
+	layx_reserve_items_capacity(c->layout_ctx, 1000); /* Pre-allocate */
 
 	// animation manager
 	c->anim_mgr = malloc(sizeof(animation_manager_t));
 	if (c->anim_mgr == NULL) {
-		lay_destroy_context(c->layout_ctx);
+		layx_destroy_context(c->layout_ctx);
 		free(c->layout_ctx);
 		hubbub_parser_destroy(c->parser);
 		free(c);
@@ -312,7 +311,7 @@ error_code create_context(const char *charset, context **ctx,int width,int heigh
 	if (css_err != CSS_OK) {
 		anim_manager_cleanup(c->anim_mgr);
 		free(c->anim_mgr);
-		lay_destroy_context(c->layout_ctx);
+		layx_destroy_context(c->layout_ctx);
 		free(c->layout_ctx);
 		hubbub_parser_destroy(c->parser);
 		free(c);
@@ -341,7 +340,7 @@ error_code create_context(const char *charset, context **ctx,int width,int heigh
 
 	// Note: Don't set fixed size for root - let it be adaptive based on content
 	// This allows scrolling when content exceeds viewport
-	lay_set_size(c->layout_ctx, comp->lay_item_id, (lay_vec2){0,0});
+	layx_set_size(c->layout_ctx, comp->lay_item_id, 0, 0);
 
 	for (i = 0;
 		i < sizeof(c->namespaces) / sizeof(c->namespaces[0]); i++) {
@@ -394,7 +393,7 @@ void destroy_context(context *c)
 	}
 
 	/* Clean up layout context */
-	lay_destroy_context(c->layout_ctx);
+	layx_destroy_context(c->layout_ctx);
 
 	/* Clean up animation manager */
 	if (c->anim_mgr != NULL) {
@@ -661,25 +660,29 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	*result = (void *) n;
 
 	// 获取布局 ID
-	lay_id layout_id = comp->lay_item_id;
+	layx_id layout_id = comp->lay_item_id;
 	
 	// 为HTML元素设置根级布局
 	if (strcmp(name, "html") == 0) {
 		// HTML元素作为根级容器：填充整个窗口，使用列布局
-		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN,
+		              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+		              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 	}
 	// 为body元素设置布局
 	else if (strcmp(name, "body") == 0) {
 		// 设置默认边距（符合浏览器标准）
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 8, 8, 8, 8);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 8, 8, 8, 8);
 	}
 	// 为div元素设置布局
 	else if (strcmp(name, "div") == 0) {
 		// 默认块级元素：填充可用宽度，垂直排列子元素
 		
-		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN,
+		              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+		              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		// 设置默认边距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
 	}
 	// 为span元素设置布局
 	else if (strcmp(name, "span") == 0) {
@@ -689,73 +692,75 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
 	// 为p元素设置布局
 	else if (strcmp(name, "p") == 0) {
 		// 段落元素：块级，有下边距，垂直排列内容
-		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN,
+		              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+		              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		// 设置段落间距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
 	}
 	// 为h1-h6元素设置布局
 	else if (strncmp(name, "h", 1) == 0 && strlen(name) == 2 &&
 			 name[1] >= '1' && name[1] <= '6') {
 		// 标题元素：块级，有边距，垂直排列内容
-		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		// 设置标题边距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 6);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 6);
 	}
 	// 为ul和ol元素设置布局
 	else if (strcmp(name, "ul") == 0 || strcmp(name, "ol") == 0) {
 		// 列表元素：块级，有边距，垂直排列列表项
-		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		// 设置列表边距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
 	}
 	// 为li元素设置布局
 	else if (strcmp(name, "li") == 0) {
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 20, 0, 0, 2);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 20, 0, 0, 2);
 	}
 	// 为table元素设置布局
 	else if (strcmp(name, "table") == 0) {
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 8);
 	}
 	// 为tr元素设置布局
 	else if (strcmp(name, "tr") == 0) {
-		lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_ROW, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 	}
 	// 为td和th元素设置布局
 	else if (strcmp(name, "td") == 0 || strcmp(name, "th") == 0) {
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 4, 4, 4, 4);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 4, 4, 4, 4);
 	}
 	// 为form元素设置布局
 	else if (strcmp(name, "form") == 0) {
-		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		// 设置表单边距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 16);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 16);
 	}
 	// 为input, textarea, select元素设置布局
 	else if (strcmp(name, "input") == 0 || strcmp(name, "textarea") == 0 ||
 			 strcmp(name, "select") == 0) {
 		// 设置默认大小
-		lay_set_size_xy(c->layout_ctx, layout_id, 0, 24);
+		layx_set_size(c->layout_ctx, layout_id, 0, 24);
 		// 设置表单控件边距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 4, 0, 4);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 4, 0, 4);
 	}
 	// 为img元素设置布局
 	else if (strcmp(name, "img") == 0) {
 		// 图片元素：内联块级，由内容决定大小
 		// 保持默认布局行为，不设置填充
 		// 设置图片边距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 0);
 	}
 	// 为a元素设置布局
 	else if (strcmp(name, "a") == 0) {
 		// 链接元素：内联元素，由内容决定大小
 		// 保持默认布局行为
 		// 设置链接下划线间距
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 2);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, 0, 0, 0, 2);
 	}
 	// 为br元素设置布局
 	else if (strcmp(name, "br") == 0) {
 		// 设置最小高度
-		lay_set_size_xy(c->layout_ctx, layout_id, 0, 16);
+		layx_set_size(c->layout_ctx, layout_id, 0, 16);
 	}
 	
 	free(name);
@@ -805,7 +810,7 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
 		return HUBBUB_NOMEM;
 	}
 
-    lay_id layout_id = comp->lay_item_id;
+    layx_id layout_id = comp->lay_item_id;
     
     // 设置文本节点的最小尺寸（基于文本内容）
 	
@@ -818,7 +823,7 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
     int estimated_height = 16; // 默认字体高度
     
     // 设置估算的尺寸
-    lay_set_size_xy(c->layout_ctx, layout_id, estimated_width, estimated_height);
+    layx_set_size(c->layout_ctx, layout_id, estimated_width, estimated_height);
 
 	*result = (void *) n;
 
@@ -965,19 +970,19 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 	ref_node(ctx, *result);
 
     // 获取父节点的布局 ID
-    lay_id parent_id = GETLAYID(p);
+    layx_id parent_id = GETLAYID(p);
     
     // 获取子节点的布局 ID（使用 *result 而不是 chld，因为 chld 可能已被释放）
-    lay_id child_id;
+    layx_id child_id;
     if (*result != NULL) {
         xmlNode *result_node = (xmlNode *)*result;
         child_id = GETLAYID(result_node);
     } else {
-        child_id = LAY_INVALID_ID;
+        child_id = LAYX_INVALID_ID;
     }
     
     // Skip nodes that don't have layout items (comment, doctype)
-    if (child_id == LAY_INVALID_ID) {
+    if (child_id == LAYX_INVALID_ID) {
         return HUBBUB_OK;
     }
     
@@ -986,9 +991,9 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 	if(strcmp( (char*) chld->name,"head")==0){
 		return HUBBUB_OK;
 	}
-    if (parent_id != LAY_INVALID_ID && child_id != LAY_INVALID_ID) {
- 		if(!lay_isinserted(((context *)ctx)->layout_ctx,child_id)){
-			lay_insert(((context *)ctx)->layout_ctx, parent_id, child_id);
+    if (parent_id != LAYX_INVALID_ID && child_id != LAYX_INVALID_ID) {
+ 		if(!layx_is_inserted(((context *)ctx)->layout_ctx,child_id)){
+			layx_insert(((context *)ctx)->layout_ctx, parent_id, child_id);
  		}
     }
 
@@ -1114,7 +1119,7 @@ hubbub_error clone_node(void *ctx, void *node, bool deep, void **result)
 		new_xmlnode->base.child_capacity = 0;
 
 		/* Allocate new layout item */
-		new_xmlnode->base.lay_item_id = lay_item(c->layout_ctx);
+		new_xmlnode->base.lay_item_id = layx_item(c->layout_ctx);
 
 		/* Associate with new node */
 		new_node->_private = new_xmlnode;
@@ -1436,9 +1441,9 @@ void apply_animation_attribute(context *c, xmlNode *node, const char *animation_
 
 void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 {
-	lay_id layout_id = GETLAYID(node);
+	layx_id layout_id = GETLAYID(node);
 	
-	if (layout_id == LAY_INVALID_ID) return;
+	if (layout_id == LAYX_INVALID_ID) return;
 	
 	printf("DEBUG: apply_css_to_layout called with css='%s'\n", css);
 	
@@ -1447,23 +1452,27 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 	/* Display and Flexbox */
 	if (strstr(css, "display: flex")) {
 		if (strstr(css, "flex-direction: row")) {
-			lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
+			layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_ROW,
+			              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+			              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		} else {
-			lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+			layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN,
+			              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+			              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		}
 	}
 	
 	/* Width and Height */
 	if (strstr(css, "width:")) {
 		int width = extract_number(css, "width:");
-		lay_set_size_xy(c->layout_ctx, layout_id, width,
-		               lay_get_size(c->layout_ctx, layout_id)[1]);
+		layx_vec2 size = layx_get_size(c->layout_ctx, layout_id);
+		layx_set_size(c->layout_ctx, layout_id, width, size[1]);
 	}
 	
 	if (strstr(css, "height:")) {
 		int height = extract_number(css, "height:");
-		lay_set_size_xy(c->layout_ctx, layout_id,
-		               lay_get_size(c->layout_ctx, layout_id)[0], height);
+		layx_vec2 size = layx_get_size(c->layout_ctx, layout_id);
+		layx_set_size(c->layout_ctx, layout_id, size[0], height);
 	}
 	
 	/* Enhanced Margin parsing - supports both simple and compound values */
@@ -1490,25 +1499,25 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		if (strstr(margin_str, "px")) {
 			/* Single value: margin: 10px */
 			if (sscanf(margin_str, "%dpx", &top) == 1) {
-				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, top, top, top);
+				layx_set_margin_ltrb(c->layout_ctx, layout_id, top, top, top, top);
 			}
 			/* Two values: margin: 10px 5px */
 			else if (sscanf(margin_str, "%dpx %dpx", &top, &right) == 2) {
-				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, right, top, right);
+				layx_set_margin_ltrb(c->layout_ctx, layout_id, top, right, top, right);
 			}
 			/* Three values: margin: 10px 5px 2px */
 			else if (sscanf(margin_str, "%dpx %dpx %dpx", &top, &right, &bottom) == 3) {
-				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, right, bottom, right);
+				layx_set_margin_ltrb(c->layout_ctx, layout_id, top, right, bottom, right);
 			}
 			/* Four values: margin: 10px 5px 2px 8px */
 			else if (sscanf(margin_str, "%dpx %dpx %dpx %dpx", &top, &right, &bottom, &left) == 4) {
-				lay_set_margins_ltrb(c->layout_ctx, layout_id, top, right, bottom, left);
+				layx_set_margin_ltrb(c->layout_ctx, layout_id, top, right, bottom, left);
 			}
 		} else {
 			/* Try to parse as plain number */
 			int margin_val;
 			if (sscanf(margin_str, "%d", &margin_val) == 1) {
-				lay_set_margins_ltrb(c->layout_ctx, layout_id, margin_val, margin_val, margin_val, margin_val);
+				layx_set_margin_ltrb(c->layout_ctx, layout_id, margin_val, margin_val, margin_val, margin_val);
 			}
 		}
 	}
@@ -1516,33 +1525,36 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 	/* Individual margin properties */
 	if (strstr(css, "margin-top:")) {
 		int top = extract_number(css, "margin-top:");
-		lay_scalar l, t, r, b;
-		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, l, top, r, b);
+		layx_scalar l, t, r, b;
+		layx_get_margin_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, l, top, r, b);
 	}
 	
 	if (strstr(css, "margin-right:")) {
 		int right = extract_number(css, "margin-right:");
-		lay_scalar l, t, r, b;
-		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, l, t, right, b);
+		layx_scalar l, t, r, b;
+		layx_get_margin_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, l, t, right, b);
 	}
 	
 	if (strstr(css, "margin-bottom:")) {
 		int bottom = extract_number(css, "margin-bottom:");
-		lay_scalar l, t, r, b;
-		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, l, t, r, bottom);
+		layx_scalar l, t, r, b;
+		layx_get_margin_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, l, t, r, bottom);
 	}
 	
 	if (strstr(css, "margin-left:")) {
 		int left = extract_number(css, "margin-left:");
-		lay_scalar l, t, r, b;
-		lay_get_margins_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
-		lay_set_margins_ltrb(c->layout_ctx, layout_id, left, t, r, b);
+		layx_scalar l, t, r, b;
+		layx_get_margin_ltrb(c->layout_ctx, layout_id, &l, &t, &r, &b);
+		layx_set_margin_ltrb(c->layout_ctx, layout_id, left, t, r, b);
 	}
 	
-	/* Padding support - new feature */
+	/* Padding support - deprecated, now handled by apply_computed_style_to_lay via libcss */
+	/* Note: Padding is now natively supported by layout.c and applied via
+	   apply_computed_style_to_lay() using css_computed_padding_*() functions.
+	   This section is kept for backward compatibility with inline styles. */
 	if (strstr(css, "padding:")) {
 		const char *padding_start = strstr(css, "padding:");
 		padding_start += 8; /* Skip "padding:" */
@@ -1560,23 +1572,17 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		}
 		padding_str[i] = '\0';
 		
-		/* Since layout system doesn't have direct padding support,
-		   we'll simulate it by adjusting margins and element size */
+		/* Since layout system has native padding support, use it */
 		int top, right, bottom, left;
 		
 		if (strstr(padding_str, "px")) {
 			/* Single value: padding: 10px */
 			if (sscanf(padding_str, "%dpx", &top) == 1) {
-				/* Simulate padding by increasing element size and adjusting margins */
-				lay_scalar current_width, current_height;
-				lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
-				lay_set_size_xy(c->layout_ctx, layout_id, current_width + top * 2, current_height + top * 2);
+				layx_set_padding_ltrb(c->layout_ctx, layout_id, top, top, top, top);
 			}
 			/* Two values: padding: 10px 5px */
 			else if (sscanf(padding_str, "%dpx %dpx", &top, &right) == 2) {
-				lay_scalar current_width, current_height;
-				lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
-				lay_set_size_xy(c->layout_ctx, layout_id, current_width + top + right, current_height + top + right);
+				layx_set_padding_ltrb(c->layout_ctx, layout_id, left, top, right, bottom);
 			}
 		}
 	}
@@ -1584,59 +1590,24 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 	/* Individual padding properties */
 	if (strstr(css, "padding-top:")) {
 		int top = extract_number(css, "padding-top:");
-		/* Simulate padding by increasing element size */
-		lay_scalar current_width, current_height;
-		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
-		lay_set_size_xy(c->layout_ctx, layout_id, current_width, current_height + top);
+		layx_set_padding_ltrb(c->layout_ctx, layout_id, 0, top, 0, 0);
 	}
 	
 	if (strstr(css, "padding-right:")) {
 		int right = extract_number(css, "padding-right:");
-		lay_scalar current_width, current_height;
-		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
-		lay_set_size_xy(c->layout_ctx, layout_id, current_width + right, current_height);
+		layx_set_padding_ltrb(c->layout_ctx, layout_id, 0, 0, right, 0);
 	}
 	
 	if (strstr(css, "padding-bottom:")) {
 		int bottom = extract_number(css, "padding-bottom:");
-		lay_scalar current_width, current_height;
-		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
-		lay_set_size_xy(c->layout_ctx, layout_id, current_width, current_height + bottom);
+		layx_set_padding_ltrb(c->layout_ctx, layout_id, 0, 0, 0, bottom);
 	}
 	
 	if (strstr(css, "padding-left:")) {
 		int left = extract_number(css, "padding-left:");
-		lay_scalar current_width, current_height;
-		lay_get_size_xy(c->layout_ctx, layout_id, &current_width, &current_height);
-		lay_set_size_xy(c->layout_ctx, layout_id, current_width + left, current_height);
+		layx_set_padding_ltrb(c->layout_ctx, layout_id, left, 0, 0, 0);
 	}
-	
-/* Animation property */
-	if (strstr(css, "animation:")) {
-		const char *anim_start = strstr(css, "animation:") + 10; /* Skip "animation:" including colon */
-		
-		printf("DEBUG: Found 'animation:', anim_start='%s'\n", anim_start);
-		
-		/* Skip whitespace */
-		while (*anim_start && (*anim_start == ' ')) {
-			anim_start++;
-		}
-		
-		printf("DEBUG: After skipping whitespace, anim_start='%s'\n", anim_start);
-		
-		/* Extract animation value */
-		char anim_value[256];
-		int i = 0;
-		while (*anim_start && (*anim_start != ';' && *anim_start != '}') && i < sizeof(anim_value) - 1) {
-			anim_value[i++] = *anim_start++;
-		}
-		anim_value[i] = '\0';
-		
-		printf("DEBUG: Found animation in style: '%s'\n", anim_value);
-		
-		/* Apply animation */
-		apply_animation_attribute(c, node, anim_value);
-	}
+
 	
 	/* Background color support */
 	if (strstr(css, "background-color:")) {
@@ -1671,32 +1642,7 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css)
 		}
 	}
 	
-/* Animation property */
-	if (strstr(css, "animation:")) {
-		const char *anim_start = strstr(css, "animation:") + 10; /* Skip "animation:" including colon */
-		
-		printf("DEBUG: Found 'animation:', anim_start='%s'\n", anim_start);
-		
-		/* Skip whitespace */
-		while (*anim_start && (*anim_start == ' ')) {
-			anim_start++;
-		}
-		
-		printf("DEBUG: After skipping whitespace, anim_start='%s'\n", anim_start);
-		
-		/* Extract animation value */
-		char anim_value[256];
-		int i = 0;
-		while (*anim_start && (*anim_start != ';' && *anim_start != '}') && i < sizeof(anim_value) - 1) {
-			anim_value[i++] = *anim_start++;
-		}
-		anim_value[i] = '\0';
-		
-		printf("DEBUG: Found animation in style: '%s'\n", anim_value);
-		
-		/* Apply animation */
-		apply_animation_attribute(c, node, anim_value);
-	}
+
 }
 
 static int extract_number(const char *css, const char *property)
@@ -1784,24 +1730,30 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 {
 	printf("DEBUG: apply_enhanced_css_to_layout called for node '%s'\n", node->name ? (char*)node->name : "NULL");
 	printf("DEBUG: CSS content: '%s'\n", css);
-	lay_id layout_id = GETLAYID(node);
+	layx_id layout_id = GETLAYID(node);
 	printf("DEBUG: layout_id=%d\n", layout_id);
 	
-	if (layout_id == LAY_INVALID_ID) return;
+	if (layout_id == LAYX_INVALID_ID) return;
 	
 	/* Enhanced CSS parsing with support for more properties */
 	
 	/* Display and Layout */
 	if (strstr(css, "display: flex")) {
 		if (strstr(css, "flex-direction: row")) {
-			lay_set_contain(c->layout_ctx, layout_id, LAY_ROW);
+			layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_ROW,
+			              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+			              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		} else {
-			lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+			layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN,
+			              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+			              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 		}
 	}
 	
 	if (strstr(css, "display: block")) {
-		lay_set_contain(c->layout_ctx, layout_id, LAY_COLUMN);
+		layx_set_flex(c->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN,
+		              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START,
+		              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
 	}
 	
 	if (strstr(css, "display: inline")) {
@@ -1822,11 +1774,11 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			width = (int)(vpsize.width * width / 100.0);
 			printf("DEBUG: width is percentage, calculated: %d\n", width);
 		}
-		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Current size before setting width: (%lf,%lf)\n", current_size[0], current_size[1]);
-		lay_set_size_xy(c->layout_ctx, layout_id, width, current_size[1]);
-		current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Size after setting width: (%lf,%lf)\n", current_size[0], current_size[1]);
+		layx_vec2 current_size = layx_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Current size before setting width: (%f,%f)\n", current_size[0], current_size[1]);
+		layx_set_size(c->layout_ctx, layout_id, width, current_size[1]);
+		current_size = layx_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Size after setting width: (%f,%f)\n", current_size[0], current_size[1]);
 	}
 	
 	if (strstr(css, "height:")) {
@@ -1842,11 +1794,11 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 			height = (int)(vpsize.height * height / 100.0);
 			printf("DEBUG: height is percentage, calculated: %d\n", height);
 		}
-		lay_vec2 current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Current size before setting height: (%lf,%lf)\n", current_size[0], current_size[1]);
-		lay_set_size_xy(c->layout_ctx, layout_id, current_size[0], height);
-		current_size = lay_get_size(c->layout_ctx, layout_id);
-		printf("DEBUG: Size after setting height: (%lf,%lf)\n", current_size[0], current_size[1]);
+		layx_vec2 current_size = layx_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Current size before setting height: (%f,%f)\n", current_size[0], current_size[1]);
+		layx_set_size(c->layout_ctx, layout_id, current_size[0], height);
+		current_size = layx_get_size(c->layout_ctx, layout_id);
+		printf("DEBUG: Size after setting height: (%f,%f)\n", current_size[0], current_size[1]);
 	}
 	
 	/* Background color support */
@@ -1949,7 +1901,7 @@ void apply_enhanced_css_to_layout(context *c, xmlNode *node, const char *css)
 		}
 	}
 }
-void print_layout_info(lay_context *layout_ctx, xmlDoc *document, context *c, int depth)
+void print_layout_info(layx_context *layout_ctx, xmlDoc *document, context *c, int depth)
 {
 	xmlNode *root = xmlDocGetRootElement(document);
 	print_node_layout(layout_ctx, root, depth, c);
@@ -2015,12 +1967,12 @@ static char* content_to_string(const char*content)
     return escape_string((const char*)content);
 }
 
-void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, context *c)
+void print_node_layout(layx_context *layout_ctx, xmlNode *node, int depth, context *c)
 {
-	lay_id layout_id;
+	layx_id layout_id;
 	if (c != NULL) {
 		layout_id = GETLAYID(node);
-		if(layout_id==LAY_INVALID_ID){
+		if(layout_id==LAYX_INVALID_ID){
 			return;
 		}
 	}
@@ -2030,15 +1982,15 @@ void print_node_layout(lay_context *layout_ctx, xmlNode *node, int depth, contex
 	for (int i = 0; i < depth; i++) printf("  ");
 	
 	
-	lay_scalar l, t, r, b;
-	lay_get_margins_ltrb(layout_ctx, layout_id, &l, &t, &r, &b);
+	layx_scalar l, t, r, b;
+	layx_get_margin_ltrb(layout_ctx, layout_id, &l, &t, &r, &b);
 
-	lay_scalar x, y, width, height;
-	lay_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
+	layx_scalar x, y, width, height;
+	layx_get_rect_xywh(layout_ctx, layout_id, &x, &y, &width, &height);
 
-	const char* contain = lay_get_contain_str(layout_ctx, layout_id);
+	const char* contain = layx_get_layout_properties_string(layout_ctx, layout_id);
 
-	const char* behave = lay_get_behave_str(layout_ctx, layout_id);
+	const char* behave = layx_get_item_alignment_string(layout_ctx, layout_id);
 	
 	if(node->content && strlen((char*)node->content)){
 		printf("%s @ (%d, %d) [%d x %d] margin=(%.f, %.f, %.f, %.f) id=%d \"%s\"\n",
@@ -2075,7 +2027,7 @@ typedef enum {
 static html_render_mode_t g_html_render_mode = HTML_RENDER_MODE_ANIMATED;
 
 // 渲染矩形边框
-void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, COLOR32 color) {
+void render_rect_border(layx_scalar x, layx_scalar y, layx_scalar width, layx_scalar height, COLOR32 color) {
     if (width <= 0 || height <= 0) return;
     
     // 归一化坐标
@@ -2086,7 +2038,7 @@ void render_rect_border(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar
 }
 
 // 渲染填充矩形
-void render_rect_fill(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, COLOR32 color) {
+void render_rect_fill(layx_scalar x, layx_scalar y, layx_scalar width, layx_scalar height, COLOR32 color) {
     if (width <= 0 || height <= 0) return;
 
 	
@@ -2260,8 +2212,8 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
 {
     if (!ctx || !node || !results) return;
     
-    lay_id layout_id = GETLAYID(node);
-    if (layout_id == LAY_INVALID_ID) return;
+    layx_id layout_id = GETLAYID(node);
+    if (layout_id == LAYX_INVALID_ID) return;
     
     const css_computed_style *style = results->styles[CSS_PSEUDO_ELEMENT_NONE];
     if (!style) return;
@@ -2271,7 +2223,7 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
     /* === 1. Handle Display Property === */
     uint8_t display_type = css_computed_display(style, false);
     if (display_type != CSS_DISPLAY_NONE) {
-        uint32_t container_flags = LAY_LAYOUT; // Default
+        uint32_t container_flags = LAYX_DISPLAY_BLOCK; // Default (no special layout)
         
         /* Get flex-direction */
         uint8_t flex_direction = css_computed_flex_direction(style);
@@ -2289,86 +2241,86 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
         switch(display_type) {
             case CSS_DISPLAY_FLEX:
                 /* Set flex container flag */
-                container_flags |= LAY_FLEX;
+                container_flags |= LAYX_DISPLAY_FLEX;
                 
                 /* Handle flex-direction */
                 if (flex_direction == CSS_FLEX_DIRECTION_ROW || flex_direction == CSS_FLEX_DIRECTION_ROW_REVERSE) {
-                    container_flags |= LAY_ROW;
+                    container_flags |= LAYX_FLEX_DIRECTION_ROW;
                 } else {
-                    container_flags |= LAY_COLUMN;
+                    container_flags |= LAYX_FLEX_DIRECTION_COLUMN;
                 }
                 
                 /* Handle flex-wrap */
                 if (flex_wrap == CSS_FLEX_WRAP_WRAP || flex_wrap == CSS_FLEX_WRAP_WRAP_REVERSE) {
-                    container_flags |= LAY_WRAP;
+                    container_flags |= LAYX_FLEX_WRAP_WRAP;
                 } else {
-                    container_flags |= LAY_NOWRAP;
+                    container_flags |= LAYX_FLEX_WRAP_NOWRAP;
                 }
                 
                 /* Handle justify-content */
                 if (justify_content == CSS_JUSTIFY_CONTENT_FLEX_START) {
-                    container_flags |= LAY_START;
+                    container_flags |= LAYX_JUSTIFY_FLEX_START;
                 } else if (justify_content == CSS_JUSTIFY_CONTENT_FLEX_END) {
-                    container_flags |= LAY_END;
+                    container_flags |= LAYX_JUSTIFY_FLEX_END;
                 } else if (justify_content == CSS_JUSTIFY_CONTENT_CENTER) {
-                    container_flags |= LAY_MIDDLE;
+                    container_flags |= LAYX_JUSTIFY_CENTER;
                 } else if (justify_content == CSS_JUSTIFY_CONTENT_SPACE_BETWEEN || 
                            justify_content == CSS_JUSTIFY_CONTENT_SPACE_AROUND) {
-                    container_flags |= LAY_JUSTIFY;
+                    container_flags |= LAYX_JUSTIFY_SPACE_BETWEEN;
                 }
                 
                 /* Handle align-items by setting child elements' behave flags */
                 /* align-items controls cross-axis alignment */
-                /* - For flex-direction: row, cross-axis is vertical (use LAY_TOP/BOTTOM/VCENTER/VFILL) */
-                /* - For flex-direction: column, cross-axis is horizontal (use LAY_LEFT/RIGHT/HCENTER/HFILL) */
+                /* - For flex-direction: row, cross-axis is vertical (use LAYX_ALIGN_SELF_FLEX_START/BOTTOM/VCENTER/VFILL) */
+                /* - For flex-direction: column, cross-axis is horizontal (use LAYX_ALIGN_SELF_FLEX_START/RIGHT/HCENTER/HFILL) */
                 if (node->children) {
                     xmlNode *child = node->children;
                     while (child) {
                         if (child->type == XML_ELEMENT_NODE) {
-                            lay_id child_id = GETLAYID(child);
-                            if (child_id != LAY_INVALID_ID) {
+                            layx_id child_id = GETLAYID(child);
+                            if (child_id != LAYX_INVALID_ID) {
                                 uint32_t child_flags = 0;
                                 
                                 if (flex_direction == CSS_FLEX_DIRECTION_ROW || flex_direction == CSS_FLEX_DIRECTION_ROW_REVERSE) {
                                     /* Cross-axis is vertical */
                                     switch(align_items) {
                                         case CSS_ALIGN_ITEMS_FLEX_START:
-                                            child_flags = LAY_TOP;
+                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
                                             break;
                                         case CSS_ALIGN_ITEMS_FLEX_END:
-                                            child_flags = LAY_BOTTOM;
+                                            child_flags = LAYX_ALIGN_SELF_FLEX_END;
                                             break;
                                         case CSS_ALIGN_ITEMS_CENTER:
-                                            child_flags = LAY_VCENTER;
+                                            child_flags = LAYX_ALIGN_SELF_CENTER;
                                             break;
                                         case CSS_ALIGN_ITEMS_STRETCH:
-                                            child_flags = LAY_VFILL;
+                                            child_flags = LAYX_ALIGN_SELF_STRETCH;
                                             break;
                                         default:
-                                            child_flags = LAY_TOP;
+                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
                                             break;
                                     }
                                 } else {
                                     /* Cross-axis is horizontal */
                                     switch(align_items) {
                                         case CSS_ALIGN_ITEMS_FLEX_START:
-                                            child_flags = LAY_LEFT;
+                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
                                             break;
                                         case CSS_ALIGN_ITEMS_FLEX_END:
-                                            child_flags = LAY_RIGHT;
+                                            child_flags = LAYX_ALIGN_SELF_FLEX_END;
                                             break;
                                         case CSS_ALIGN_ITEMS_CENTER:
-                                            child_flags = LAY_HCENTER;
+                                            child_flags = LAYX_ALIGN_SELF_CENTER;
                                             break;
                                         case CSS_ALIGN_ITEMS_STRETCH:
-                                            child_flags = LAY_HFILL;
+                                            child_flags = LAYX_ALIGN_SELF_STRETCH;
                                             break;
                                         default:
-                                            child_flags = LAY_LEFT;
+                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
                                             break;
                                     }
                                 }
-                                lay_set_behave(ctx->layout_ctx, child_id, child_flags);
+                                layx_set_align_self(ctx->layout_ctx, child_id, child_flags);
                                 printf("DEBUG:   Set child align-items flags=0x%x for element '%s' (flex_direction=%d)\n", child_flags, child->name, flex_direction);
                             }
                         }
@@ -2380,22 +2332,22 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
                 
             case CSS_DISPLAY_BLOCK:
                 /* Block elements use column layout */
-                container_flags |= LAY_COLUMN;
+                container_flags |= LAYX_FLEX_DIRECTION_COLUMN;
                 break;
                 
             case CSS_DISPLAY_INLINE:
             case CSS_DISPLAY_INLINE_BLOCK:
                 /* Inline elements - use default stacking */
-                container_flags |= LAY_LAYOUT;
+                container_flags |= LAYX_DISPLAY_BLOCK;
                 break;
                 
             default:
                 /* Default layout */
-                container_flags |= LAY_COLUMN;
+                container_flags |= LAYX_FLEX_DIRECTION_COLUMN;
                 break;
         }
         
-        lay_set_contain(ctx->layout_ctx, layout_id, container_flags);
+        layx_set_flex(ctx->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
         printf("DEBUG:   Set display/container_flags=0x%x\n", container_flags);
     }
     
@@ -2407,8 +2359,8 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
     if (width_type == CSS_WIDTH_SET && width_unit == CSS_UNIT_PX) {
         int width_px = (int)(width_fixed >> 10); /* Convert from fixed (16.16) to int */
         if (width_px > 0) {
-            lay_scalar current_height = lay_get_size(ctx->layout_ctx, layout_id)[1];
-            lay_set_size_xy(ctx->layout_ctx, layout_id, width_px, current_height);
+            layx_vec2 current_size = layx_get_size(ctx->layout_ctx, layout_id);
+            layx_set_size(ctx->layout_ctx, layout_id, width_px, current_size[1]);
             printf("DEBUG:   Set width=%dpx\n", width_px);
         }
     }
@@ -2420,8 +2372,8 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
     if (height_type == CSS_HEIGHT_SET && height_unit == CSS_UNIT_PX) {
         int height_px = (int)(height_fixed >> 10); /* Convert from fixed (16.16) to int */
         if (height_px > 0) {
-            lay_scalar current_width = lay_get_size(ctx->layout_ctx, layout_id)[0];
-            lay_set_size_xy(ctx->layout_ctx, layout_id, current_width, height_px);
+            layx_vec2 current_size = layx_get_size(ctx->layout_ctx, layout_id);
+            layx_set_size(ctx->layout_ctx, layout_id, current_size[0], height_px);
             printf("DEBUG:   Set height=%dpx\n", height_px);
         }
     }
@@ -2444,12 +2396,34 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
         int margin_bottom_px = (int)(margin_bottom_fixed >> 10);
         int margin_left_px = (int)(margin_left_fixed >> 10);
         
-        lay_set_margins_ltrb(ctx->layout_ctx, layout_id, margin_top_px, margin_right_px, margin_bottom_px, margin_left_px);
+        layx_set_margin_ltrb(ctx->layout_ctx, layout_id, margin_top_px, margin_right_px, margin_bottom_px, margin_left_px);
         printf("DEBUG:   Set margins: t=%d, r=%d, b=%d, l=%d\n", 
                margin_top_px, margin_right_px, margin_bottom_px, margin_left_px);
     }
     
-    /* === 4. Handle Background Color === */
+    /* === 4. Handle Padding === */
+    css_fixed padding_top_fixed, padding_right_fixed, padding_bottom_fixed, padding_left_fixed;
+    css_unit padding_top_unit, padding_right_unit, padding_bottom_unit, padding_left_unit;
+    
+    uint8_t padding_top_type = css_computed_padding_top(style, &padding_top_fixed, &padding_top_unit);
+    uint8_t padding_right_type = css_computed_padding_right(style, &padding_right_fixed, &padding_right_unit);
+    uint8_t padding_bottom_type = css_computed_padding_bottom(style, &padding_bottom_fixed, &padding_bottom_unit);
+    uint8_t padding_left_type = css_computed_padding_left(style, &padding_left_fixed, &padding_left_unit);
+    
+    if (padding_top_type == CSS_PADDING_SET && padding_right_type == CSS_PADDING_SET &&
+        padding_bottom_type == CSS_PADDING_SET && padding_left_type == CSS_PADDING_SET) {
+        /* Convert fixed point to pixels (assuming all are PX for now) */
+        int padding_top_px = (int)(padding_top_fixed >> 10);
+        int padding_right_px = (int)(padding_right_fixed >> 10);
+        int padding_bottom_px = (int)(padding_bottom_fixed >> 10);
+        int padding_left_px = (int)(padding_left_fixed >> 10);
+        
+        layx_set_padding_ltrb(ctx->layout_ctx, layout_id, padding_left_px, padding_top_px, padding_right_px, padding_bottom_px);
+        printf("DEBUG:   Set padding: t=%d, r=%d, b=%d, l=%d\n", 
+               padding_top_px, padding_right_px, padding_bottom_px, padding_left_px);
+    }
+    
+    /* === 5. Handle Background Color === */
     css_color bg_color;
     uint8_t bg_color_type = css_computed_background_color(style, &bg_color);
     
@@ -2546,7 +2520,7 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
 }
 
 extern LPFONT g_default_text_font;
-void html_render_textnode(xmlNode* textnode, const char *text, lay_scalar x, lay_scalar y, COLOR32 default_color)
+void html_render_textnode(xmlNode* textnode, const char *text, layx_scalar x, layx_scalar y, COLOR32 default_color)
 {
     if (!text || strlen(text) == 0) return;
     
@@ -2600,14 +2574,14 @@ void html_render_textnode(xmlNode* textnode, const char *text, lay_scalar x, lay
     R_DrawUtf8Text2(text,rect,render_color,render_font,NULL);
 }
 
-void render_text(const char *text, lay_scalar x, lay_scalar y, COLOR32 render_color){
+void render_text(const char *text, layx_scalar x, layx_scalar y, COLOR32 render_color){
 	size2_t vpsize = R_GetViewPortSize();
     RECT rect = MAKE(RECT, x*1.0/vpsize.width, y*1.0/vpsize.height,1,1);
     R_DrawUtf8Text2(text,rect,render_color,g_default_text_font,NULL);
 }
 
 // 渲染图片
-void render_image(lay_scalar x, lay_scalar y, lay_scalar width, lay_scalar height, LPCTEXTURE texture) {
+void render_image(layx_scalar x, layx_scalar y, layx_scalar width, layx_scalar height, LPCTEXTURE texture) {
     if (!texture || width <= 0 || height <= 0) return;
     
     // 归一化坐标
@@ -3019,12 +2993,12 @@ void process_script_node(context *ctx, xmlNode *node, int depth) {
 void render_html_element(context *ctx, xmlNode *node, int depth) {
     if (!ctx || !node) return;
     
-    lay_id layout_id = GETLAYID(node);
-    if (layout_id == LAY_INVALID_ID) return;
+    layx_id layout_id = GETLAYID(node);
+    if (layout_id == LAYX_INVALID_ID) return;
     
     // 获取元素布局信息
-    lay_scalar x, y, width, height;
-    lay_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
+    layx_scalar x, y, width, height;
+    layx_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
     
     // Apply scroll offset for children (depth > 0), but NOT for root html element (depth 0)
     // In HTML DOM: depth 0 is <html>, depth 1 is <body>, depth 2+ is content
@@ -3079,7 +3053,7 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
         for (int i = 0; i < depth && i < 15; i++) {
             strcat(indent, "  ");
         }
-        // printf("%sDEBUG: Rendering '%s'%s [lay_id:%d] xy=(%d,%d) size=(%dx%d), comp=%p, has_bg_color=%d\n", 
+        // printf("%sDEBUG: Rendering '%s'%s [layx_id:%d] xy=(%d,%d) size=(%dx%d), comp=%p, has_bg_color=%d\n", 
         //        indent, element_name, elem_id, layout_id, (int)x, (int)y, (int)width, (int)height, 
         //        comp, comp ? comp->has_bg_color : -1);
         // printf("DEBUG: Rendering bg_fill: xy=(%d,%d) size=(%dx%d), color=(%d,%d,%d,%d)\n",
@@ -3447,7 +3421,7 @@ void html_update_and_layout(float delta_time,int page_index) {
     }
     
     // 2. 重新计算布局（总是需要）
-    lay_run_context(ctx->layout_ctx);
+    layx_run_context(ctx->layout_ctx);
 
 
 	/* Print layout information */
@@ -3485,7 +3459,7 @@ void html_render_cleanup() {
 			ctx->document = NULL;
 		}
 		if (ctx->layout_ctx) {
-			lay_destroy_context(ctx->layout_ctx);
+			layx_destroy_context(ctx->layout_ctx);
 			free(ctx->layout_ctx);
 			ctx->layout_ctx = NULL;
 		}
@@ -3652,7 +3626,7 @@ void html_context_update(context *ctx, float delta_time) {
     }
     
     // 运行布局
-    lay_run_context(ctx->layout_ctx);
+    layx_run_context(ctx->layout_ctx);
 }
 
 /**
@@ -3853,7 +3827,7 @@ xmlNode* html_context_get_root(context *ctx) {
  * @param ctx HTML上下文
  * @return 布局上下文
  */
-lay_context* html_context_get_layout(context *ctx) {
+layx_context* html_context_get_layout(context *ctx) {
     if (!ctx) return NULL;
     return ctx->layout_ctx;
 }
@@ -3930,10 +3904,10 @@ static void find_node_by_point_recursive(context *ctx, xmlNode *node,
     }
     
     // 获取节点的layout信息
-    lay_id layout_id = GETLAYID(node);
-    if (layout_id != LAY_INVALID_ID) {
-        lay_scalar elem_x, elem_y, elem_width, elem_height;
-        lay_get_rect_xywh(ctx->layout_ctx, layout_id, &elem_x, &elem_y, &elem_width, &elem_height);
+    layx_id layout_id = GETLAYID(node);
+    if (layout_id != LAYX_INVALID_ID) {
+        layx_scalar elem_x, elem_y, elem_width, elem_height;
+        layx_get_rect_xywh(ctx->layout_ctx, layout_id, &elem_x, &elem_y, &elem_width, &elem_height);
         
         // 检查点是否在矩形内
         if (x >= elem_x && x < elem_x + elem_width &&
@@ -4030,7 +4004,7 @@ static void update_max_scroll(context *ctx) {
     if (!ctx || !ctx->layout_ctx) return;
     
     // Get root element's content size (item 0 is the root document)
-    lay_vec2 content_size = lay_get_size(ctx->layout_ctx, 0);
+    layx_vec2 content_size = layx_get_size(ctx->layout_ctx, 0);
     
     // Calculate max scroll offset (content_size - viewport_size)
     ctx->max_scroll_x = (int)(content_size[0] - ctx->viewport_width);

@@ -11,7 +11,7 @@
 
 #include "common/shared.h"
 #include "renderer/r_local.h"
-#include "layout.h"
+#include "layx.h"
 
 // Forward declarations
 typedef struct context context;
@@ -72,14 +72,14 @@ xmlNode* html_context_get_root_element(context *ctx);
  * @param ctx HTML上下文
  * @return 布局上下文指针
  */
-lay_context* html_context_get_layout_context(context *ctx);
+layx_context* html_context_get_layout_context(context *ctx);
 
 /**
  * @brief 设置布局上下文（用于外部集成）
  * @param ctx HTML上下文
  * @param layout_ctx 布局上下文
  */
-void html_context_set_layout_context(context *ctx, lay_context *layout_ctx);
+void html_context_set_layout_context(context *ctx, layx_context *layout_ctx);
 
 /**
  * @brief 运行布局计算
