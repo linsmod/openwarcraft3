@@ -28,6 +28,9 @@ pkg_check_modules(WAPCAPLET REQUIRED libwapcaplet)
 # 添加本地hubbub子目录
 add_subdirectory(src/hubbub)
 
+# 添加layx子模块
+add_subdirectory(thirdparty/layx)
+
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -122,6 +125,7 @@ include_directories(
     src/renderer
     src/server
     src/lib
+    ${CMAKE_SOURCE_DIR}/thirdparty/layx
     ${LIBXML2_INCLUDE_DIR}
     ${CUSTOM_LIB_DIR}/include
     ${LIBCSS_INCLUDE_DIRS}
@@ -153,6 +157,7 @@ target_link_libraries(${PROJECT_NAME}
     game
     renderer
     hubbub
+    layx
     ${LIBCSS_LIBRARIES}
     ${LIBXML2_LIBRARIES}
     ${PARSERUTILS_LIBRARIES}

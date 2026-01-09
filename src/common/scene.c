@@ -4,7 +4,7 @@
 #include "../ui/ui_container.h"
 #include "../ui/debug_overlay_scene.h"
 
-#include "../html/layx.h"
+#include "layx.h"
 #include "../canvas2d/canvas2d.h"
 #include "common/shared.h"
 #include "r_local.h"

@@ -1,6 +1,6 @@
 #include "ui_component.h"
 #include "../common/event.h"
-#include "../html/layx.h"
+#include "layx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

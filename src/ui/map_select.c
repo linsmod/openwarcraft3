@@ -23,7 +23,7 @@
 #include <time.h>
 
 // 使用lay库进行布局（启用浮点坐标）
-#include "../html/layx.h"
+#include "layx.h"
 
 // 最大地图数量
 #define MAX_MAPS 500

@@ -4,7 +4,7 @@
 
 // #include <stdbool.h>
 #include "r_local.h"
-#include "../html/layx.h"
+#include "layx.h"
 typedef struct canvas2d_t canvas2d_t;
 typedef struct canvas2d_context_t canvas2d_context_t;
 

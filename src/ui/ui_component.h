@@ -4,7 +4,7 @@
 #include "../canvas2d/canvas2d.h"
 #include "../common/shared.h"
 #include "../common/event.h"
-#include "../html/layx.h"
+#include "layx.h"
 #include "libxml/tree.h"
 #include "../html/css.h"
 #include <sys/types.h>

@@ -7,7 +7,7 @@
  * Copyright 2008 John-Mark Bell <jmb@netsurf-browser.org>
  */
 #include "common/event.h"
-#include "html/layx.h"
+#include "layx.h"
 #include "hubbub/errors.h"
 #include "libxml/xmlstring.h"
 #include "ui/ui_component.h"
@@ -2223,8 +2223,6 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
     /* === 1. Handle Display Property === */
     uint8_t display_type = css_computed_display(style, false);
     if (display_type != CSS_DISPLAY_NONE) {
-        uint32_t container_flags = LAYX_DISPLAY_BLOCK; // Default (no special layout)
-        
         /* Get flex-direction */
         uint8_t flex_direction = css_computed_flex_direction(style);
         
@@ -2233,95 +2231,78 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
         
         /* Get align-items */
         uint8_t align_items = css_computed_align_items(style);
-        printf("DEBUG: align_items value=%d for element '%s'\n", align_items, node->name);
+        printf("DEBUG: align_items value=%d for element '%s'\n", align_items, node->name ? (char*)node->name : "unknown");
         
         /* Get flex-wrap */
         uint8_t flex_wrap = css_computed_flex_wrap(style);
         
+        /* Get align-content */
+        uint8_t align_content = CSS_ALIGN_CONTENT_STRETCH; /* Default */
+        
         switch(display_type) {
-            case CSS_DISPLAY_FLEX:
-                /* Set flex container flag */
-                container_flags |= LAYX_DISPLAY_FLEX;
+            case CSS_DISPLAY_FLEX: {
+                /* Convert CSS values to layx values */
+                layx_flex_direction layx_dir = LAYX_FLEX_DIRECTION_COLUMN;
+                layx_flex_wrap layx_wrap = LAYX_FLEX_WRAP_NOWRAP;
+                layx_justify_content layx_justify = LAYX_JUSTIFY_FLEX_START;
+                layx_align_items layx_align = LAYX_ALIGN_ITEMS_STRETCH;
                 
                 /* Handle flex-direction */
                 if (flex_direction == CSS_FLEX_DIRECTION_ROW || flex_direction == CSS_FLEX_DIRECTION_ROW_REVERSE) {
-                    container_flags |= LAYX_FLEX_DIRECTION_ROW;
+                    layx_dir = LAYX_FLEX_DIRECTION_ROW;
                 } else {
-                    container_flags |= LAYX_FLEX_DIRECTION_COLUMN;
+                    layx_dir = LAYX_FLEX_DIRECTION_COLUMN;
                 }
                 
                 /* Handle flex-wrap */
                 if (flex_wrap == CSS_FLEX_WRAP_WRAP || flex_wrap == CSS_FLEX_WRAP_WRAP_REVERSE) {
-                    container_flags |= LAYX_FLEX_WRAP_WRAP;
+                    layx_wrap = LAYX_FLEX_WRAP_WRAP;
                 } else {
-                    container_flags |= LAYX_FLEX_WRAP_NOWRAP;
+                    layx_wrap = LAYX_FLEX_WRAP_NOWRAP;
                 }
                 
                 /* Handle justify-content */
                 if (justify_content == CSS_JUSTIFY_CONTENT_FLEX_START) {
-                    container_flags |= LAYX_JUSTIFY_FLEX_START;
+                    layx_justify = LAYX_JUSTIFY_FLEX_START;
                 } else if (justify_content == CSS_JUSTIFY_CONTENT_FLEX_END) {
-                    container_flags |= LAYX_JUSTIFY_FLEX_END;
+                    layx_justify = LAYX_JUSTIFY_FLEX_END;
                 } else if (justify_content == CSS_JUSTIFY_CONTENT_CENTER) {
-                    container_flags |= LAYX_JUSTIFY_CENTER;
+                    layx_justify = LAYX_JUSTIFY_CENTER;
                 } else if (justify_content == CSS_JUSTIFY_CONTENT_SPACE_BETWEEN || 
-                           justify_content == CSS_JUSTIFY_CONTENT_SPACE_AROUND) {
-                    container_flags |= LAYX_JUSTIFY_SPACE_BETWEEN;
+                           justify_content == CSS_JUSTIFY_CONTENT_SPACE_AROUND ||
+                           justify_content == CSS_JUSTIFY_CONTENT_SPACE_EVENLY) {
+                    layx_justify = LAYX_JUSTIFY_SPACE_BETWEEN;
                 }
                 
-                /* Handle align-items by setting child elements' behave flags */
-                /* align-items controls cross-axis alignment */
-                /* - For flex-direction: row, cross-axis is vertical (use LAYX_ALIGN_SELF_FLEX_START/BOTTOM/VCENTER/VFILL) */
-                /* - For flex-direction: column, cross-axis is horizontal (use LAYX_ALIGN_SELF_FLEX_START/RIGHT/HCENTER/HFILL) */
+                /* Handle align-items */
+                if (align_items == CSS_ALIGN_ITEMS_FLEX_START) {
+                    layx_align = LAYX_ALIGN_ITEMS_FLEX_START;
+                } else if (align_items == CSS_ALIGN_ITEMS_FLEX_END) {
+                    layx_align = LAYX_ALIGN_ITEMS_FLEX_END;
+                } else if (align_items == CSS_ALIGN_ITEMS_CENTER) {
+                    layx_align = LAYX_ALIGN_ITEMS_CENTER;
+                } else if (align_items == CSS_ALIGN_ITEMS_STRETCH) {
+                    layx_align = LAYX_ALIGN_ITEMS_STRETCH;
+                }
+                
+                /* Apply flex layout with correct values */
+                layx_set_flex(ctx->layout_ctx, layout_id, layx_dir, layx_wrap, 
+                              layx_justify, layx_align, 
+                              LAYX_ALIGN_CONTENT_STRETCH);
+                printf("DEBUG:   Set flex: dir=%d, wrap=%d, justify=%d, align=%d\n", 
+                       layx_dir, layx_wrap, layx_justify, layx_align);
+                
+                /* Handle align-items by setting child elements' align-self */
+                /* Note: This is handled by layx_set_flex align-items, but we also set align-self for explicit control */
                 if (node->children) {
                     xmlNode *child = node->children;
                     while (child) {
                         if (child->type == XML_ELEMENT_NODE) {
                             layx_id child_id = GETLAYID(child);
                             if (child_id != LAYX_INVALID_ID) {
-                                uint32_t child_flags = 0;
-                                
-                                if (flex_direction == CSS_FLEX_DIRECTION_ROW || flex_direction == CSS_FLEX_DIRECTION_ROW_REVERSE) {
-                                    /* Cross-axis is vertical */
-                                    switch(align_items) {
-                                        case CSS_ALIGN_ITEMS_FLEX_START:
-                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
-                                            break;
-                                        case CSS_ALIGN_ITEMS_FLEX_END:
-                                            child_flags = LAYX_ALIGN_SELF_FLEX_END;
-                                            break;
-                                        case CSS_ALIGN_ITEMS_CENTER:
-                                            child_flags = LAYX_ALIGN_SELF_CENTER;
-                                            break;
-                                        case CSS_ALIGN_ITEMS_STRETCH:
-                                            child_flags = LAYX_ALIGN_SELF_STRETCH;
-                                            break;
-                                        default:
-                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
-                                            break;
-                                    }
-                                } else {
-                                    /* Cross-axis is horizontal */
-                                    switch(align_items) {
-                                        case CSS_ALIGN_ITEMS_FLEX_START:
-                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
-                                            break;
-                                        case CSS_ALIGN_ITEMS_FLEX_END:
-                                            child_flags = LAYX_ALIGN_SELF_FLEX_END;
-                                            break;
-                                        case CSS_ALIGN_ITEMS_CENTER:
-                                            child_flags = LAYX_ALIGN_SELF_CENTER;
-                                            break;
-                                        case CSS_ALIGN_ITEMS_STRETCH:
-                                            child_flags = LAYX_ALIGN_SELF_STRETCH;
-                                            break;
-                                        default:
-                                            child_flags = LAYX_ALIGN_SELF_FLEX_START;
-                                            break;
-                                    }
-                                }
-                                layx_set_align_self(ctx->layout_ctx, child_id, child_flags);
-                                printf("DEBUG:   Set child align-items flags=0x%x for element '%s' (flex_direction=%d)\n", child_flags, child->name, flex_direction);
+                                layx_align_self layx_self = LAYX_ALIGN_SELF_AUTO;
+                                layx_set_align_self(ctx->layout_ctx, child_id, layx_self);
+                                printf("DEBUG:   Set child align-self=AUTO for element '%s'\n", child->name);
                             }
                         }
                         child = child->next;
@@ -2329,26 +2310,31 @@ static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_s
                 }
                 
                 break;
+            }
                 
             case CSS_DISPLAY_BLOCK:
                 /* Block elements use column layout */
-                container_flags |= LAYX_FLEX_DIRECTION_COLUMN;
+                layx_set_flex(ctx->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, 
+                              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, 
+                              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
                 break;
                 
             case CSS_DISPLAY_INLINE:
             case CSS_DISPLAY_INLINE_BLOCK:
                 /* Inline elements - use default stacking */
-                container_flags |= LAYX_DISPLAY_BLOCK;
+                layx_set_flex(ctx->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, 
+                              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, 
+                              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
                 break;
                 
             default:
                 /* Default layout */
-                container_flags |= LAYX_FLEX_DIRECTION_COLUMN;
+                layx_set_flex(ctx->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, 
+                              LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, 
+                              LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
                 break;
         }
-        
-        layx_set_flex(ctx->layout_ctx, layout_id, LAYX_FLEX_DIRECTION_COLUMN, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
-        printf("DEBUG:   Set display/container_flags=0x%x\n", container_flags);
+        printf("DEBUG:   Set display flags=0x%x\n", display_type);
     }
     
     /* === 2. Handle Width and Height === */

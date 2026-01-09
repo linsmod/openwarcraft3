@@ -150,7 +150,7 @@ typedef void (*scene_on_input_fn)(scene_t *scene, input_event_t *event);
 // ========================================
 // 场景结构
 // ========================================
-#include "html/layx.h"
+#include "layx.h"
 struct scene_t {
     ui_component_t *root_component;
     const char *name;
