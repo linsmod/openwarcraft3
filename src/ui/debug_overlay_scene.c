@@ -68,7 +68,7 @@ void DebugOverlayScene_Render(scene_t *scene) {
         ui_component_t *target = mgr->mouse_target;
 
         float x, y, width, height;
-        UIComponent_GetComputedRectXywh(target, &x, &y, &width, &height);
+        UIComponent_GetContentBoxRect(target, &x, &y, &width, &height);
         // 获取画布上下文
         canvas2d_context_t *ctx = mgr->current_scene->canvas_ctx;
         if (!ctx) return;

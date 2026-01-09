@@ -665,7 +665,7 @@ int MapSelect_Init(scene_t *scene) {
     // 将列表添加到左侧容器
     UIContainer_AddChild((ui_container_t *)left_container, g_ui_list);
     UIComponent_SetSize(g_ui_list, 360.0f, 630.0f);
-    UIComponent_SetBehave(g_ui_list, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetBehave(g_ui_list, LAYX_ALIGN_SELF_FLEX_START);
     UIComponent_SetMargin(g_ui_list, 10.0f, 0.0f, 10.0f, 0.0f);
 
     // 5. 创建右侧容器（预览+按钮）

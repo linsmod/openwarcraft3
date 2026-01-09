@@ -237,7 +237,7 @@ void UIComponent_SetFocused(ui_component_t *component, bool focused);
 
 const char* UIComponent_GetTypeName(int typeid);
 
-void UIComponent_GetComputedRectXywh(ui_component_t *component, float *x, float *y, float *width, float *height);
+void UIComponent_GetContentBoxRect(ui_component_t *component, float *x, float *y, float *width, float *height);
 
 // ==================== 事件处理 ====================
 
