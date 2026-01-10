@@ -972,6 +972,12 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
 
 	ref_node(ctx, *result);
 
+	// 设置ui_component的parent关系（使用*result，因为chld可能已被合并）
+	ui_component_t *uic_result = (ui_component_t *)((xmlNode *)*result)->_private;
+	if (uic_result && uip) {
+		uic_result->parent = uip;
+	}
+
     // 获取父节点的布局 ID
     layx_id parent_id = GETLAYID(p);
     

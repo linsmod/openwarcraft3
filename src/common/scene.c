@@ -756,6 +756,26 @@ void SceneManager_InitMouseState(scene_manager_t *mgr) {
 }
 
 
+// 查找第一个可以滚动的父组件
+static ui_component_t* FindScrollableParent(ui_component_t *component) {
+    if (!component) return NULL;
+    
+    // 从当前组件开始，向上遍历
+    ui_component_t *current = component;
+    while (current) {
+        // 检查组件是否支持滚动
+        if (current->vtable && current->vtable->can_scroll) {
+            int scroll_capabilities = current->vtable->can_scroll(current);
+            if (scroll_capabilities != 0) {
+                return current;  // 找到可滚动的组件
+            }
+        }
+        // 移动到父组件
+        current = current->parent;
+    }
+    return NULL;
+}
+
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
     if (!mgr || !mgr->current_scene || !mgr->current_scene->root_component) {
         mgr->mouse_target = NULL;
@@ -906,8 +926,29 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
                     }
                     break;
                 case EVENT_MOUSE_WHEEL:
-                    if (current->vtable->on_mouse_wheel) {
-                        current->vtable->on_mouse_wheel(current, event);
+                    // 滚轮事件特殊处理：查找可滚动的父组件
+                    {
+                        ui_component_t *scrollable = FindScrollableParent(current);
+                        if (scrollable && scrollable->vtable && scrollable->vtable->scroll_by) {
+                            float delta_x = 0;
+                            float delta_y = event->wheel.delta;
+                            
+                            // 检查是否使用Shift键进行水平滚动
+                            if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {
+                                int capabilities = scrollable->vtable->can_scroll(scrollable);
+                                if (capabilities & 2) {  // 可以水平滚动
+                                    delta_x = event->wheel.delta;
+                                    delta_y = 0;
+                                }
+                            }
+                            
+                            scrollable->vtable->scroll_by(scrollable, delta_x, delta_y);
+                            event->propagation_stopped = true;
+                        }
+                        else if (current->vtable->on_mouse_wheel) {
+                            // 兼容旧的on_mouse_wheel处理
+                            current->vtable->on_mouse_wheel(current, event);
+                        }
                     }
                     break;
                 case EVENT_CLICK:
@@ -1366,4 +1407,3 @@ void Scene_RenderUI(scene_t *scene) {
         }
     }
 }
-

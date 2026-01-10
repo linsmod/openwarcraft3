@@ -271,16 +271,35 @@ static void list_on_mouse_down(ui_component_t *component, event_t *event) {
     }
 }
 
-static void list_on_mouse_wheel(ui_component_t *component, event_t *event) {
+static int list_can_scroll(ui_component_t *component) {
+    ui_list_t *list = (ui_list_t *)component;
+    if (!list || !UIComponent_IsEnabled(component)) return 0;
+    
+    int max_offset = list->item_count - list->visible_count;
+    if (max_offset > 0) {
+        return 1;  // 可垂直滚动
+    }
+    return 0;
+}
+
+static void list_scroll_by(ui_component_t *component, float delta_x, float delta_y) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return;
-
+    
     int max_offset = list->item_count - list->visible_count;
-    int scroll_delta = -event->wheel.delta; // 标准化滚轮值
+    if (max_offset <= 0) return;
+    
+    if (delta_y != 0) {
+        list->scroll_offset += (int)(-delta_y);
+        if (list->scroll_offset < 0) list->scroll_offset = 0;
+        if (list->scroll_offset > max_offset) list->scroll_offset = max_offset;
+    }
+}
 
-    list->scroll_offset += scroll_delta;
-    if (list->scroll_offset < 0) list->scroll_offset = 0;
-    if (list->scroll_offset > max_offset) list->scroll_offset = max_offset;
+static void list_on_mouse_wheel(ui_component_t *component, event_t *event) {
+    // 这个函数现在不再需要了，因为滚轮事件会通过can_scroll/scroll_by机制自动处理
+    // 保留它是为了兼容性
+    list_scroll_by(component, 0, event->wheel.delta);
 }
 
 static void list_on_key_down(ui_component_t *component, event_t *event) {
@@ -363,6 +382,8 @@ static const ui_component_vtable_t g_list_vtable = {
     .on_drag_start = NULL,
     .on_drag = NULL,
     .on_drag_end = NULL,
+    .can_scroll = list_can_scroll,
+    .scroll_by = list_scroll_by,
     .on_key_down = list_on_key_down,
     .on_key_up = NULL,
     .on_text_input = NULL,

@@ -1,0 +1,14 @@
+{
+  "commands": [
+    {
+      "call": "read_file",
+      "title": "查看ui_list.c的函数声明部分",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_list.c",
+        "showLineNo": true,
+        "fromLineNo": 1,
+        "countOfLines": 10
+      }
+    }
+  ]
+}

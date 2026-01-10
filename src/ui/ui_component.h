@@ -139,6 +139,11 @@ typedef struct ui_component_vtable {
     // 滚动事件
     void (*on_scroll)(ui_component_t *component, void *event);
     
+    // 滚动能力查询和滚动函数（用于滚轮事件穿透）
+    // 返回值：1=可垂直滚动, 2=可水平滚动, 3=两者都可, 0=不可滚动
+    int (*can_scroll)(ui_component_t *component);
+    void (*scroll_by)(ui_component_t *component, float delta_x, float delta_y);
+    
     // 容器特定方法
     int (*add_child)(ui_component_t *component, ui_component_t *child);
     bool (*remove_child)(ui_component_t *component, ui_component_t *child);

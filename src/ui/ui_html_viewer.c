@@ -21,6 +21,8 @@ static void html_viewer_on_mouse_down(ui_component_t *component, event_t *event)
 static void html_viewer_on_mouse_up(ui_component_t *component, event_t *event);
 static void html_viewer_on_mouse_move(ui_component_t *component, event_t *event);
 static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event);
+static int html_viewer_can_scroll(ui_component_t *component);
+static void html_viewer_scroll_by(ui_component_t *component, float delta_x, float delta_y);
 static void html_viewer_print_tree(const ui_component_t *component, int indent, const char *common);
 
 static const ui_component_vtable_t html_viewer_vtable = {
@@ -34,6 +36,8 @@ static const ui_component_vtable_t html_viewer_vtable = {
     .on_mouse_up = html_viewer_on_mouse_up,
     .on_mouse_move = html_viewer_on_mouse_move,
     .on_mouse_wheel = html_viewer_on_mouse_wheel,
+    .can_scroll = html_viewer_can_scroll,
+    .scroll_by = html_viewer_scroll_by,
     .print_tree = html_viewer_print_tree
 };
 
@@ -421,6 +425,55 @@ static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event
     }
 }
 
+static int html_viewer_can_scroll(ui_component_t *component) {
+    ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
+    if (!viewer->html_ctx) return 0;
+    
+    int result = 0;
+    if (html_context_can_scroll_vertically(viewer->html_ctx)) {
+        result |= 1;  // 垂直滚动
+    }
+    if (html_context_can_scroll_horizontally(viewer->html_ctx)) {
+        result |= 2;  // 水平滚动
+    }
+    return result;
+}
+
+static void html_viewer_scroll_by(ui_component_t *component, float delta_x, float delta_y) {
+    ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
+    if (!viewer->html_ctx) return;
+    
+    bool scrolled = false;
+    
+    // 垂直滚动
+    if (delta_y != 0 && html_context_can_scroll_vertically(viewer->html_ctx)) {
+        float new_scroll_y = viewer->scroll_y - delta_y;
+        if (new_scroll_y < 0) new_scroll_y = 0;
+        if (new_scroll_y > viewer->scroll_max_y) new_scroll_y = viewer->scroll_max_y;
+        
+        if (new_scroll_y != viewer->scroll_y) {
+            viewer->scroll_y = new_scroll_y;
+            scrolled = true;
+        }
+    }
+    
+    // 水平滚动
+    if (delta_x != 0 && html_context_can_scroll_horizontally(viewer->html_ctx)) {
+        float new_scroll_x = viewer->scroll_x - delta_x;
+        if (new_scroll_x < 0) new_scroll_x = 0;
+        if (new_scroll_x > viewer->scroll_max_x) new_scroll_x = viewer->scroll_max_x;
+        
+        if (new_scroll_x != viewer->scroll_x) {
+            viewer->scroll_x = new_scroll_x;
+            scrolled = true;
+        }
+    }
+    
+    if (scrolled) {
+        html_context_set_scroll(viewer->html_ctx, viewer->scroll_x, viewer->scroll_y);
+    }
+}
+
 static void html_viewer_print_tree(const ui_component_t *component, int indent, const char *common) {
     const ui_html_viewer_t *viewer = (const ui_html_viewer_t *)component;
     
@@ -488,6 +541,15 @@ int UIHTMLViewer_LoadFromFile(ui_html_viewer_t *viewer, const char *filename) {
     int result = html_context_load_file(viewer->html_ctx, filename);
     if (result != 0) return -1;
 
+    // 设置HTML根节点的parent指向viewer
+    xmlDoc *doc = html_context_get_document(viewer->html_ctx);
+    if (doc && doc->_private) {
+        ui_component_t *root_comp = (ui_component_t *)doc->_private;
+        if (root_comp) {
+            root_comp->parent = (ui_component_t *)viewer;
+        }
+    }
+
     html_context_scan_keyframes(viewer->html_ctx);
     html_context_reapply_animations(viewer->html_ctx);
 
@@ -513,6 +575,15 @@ int UIHTMLViewer_LoadFromMemory(ui_html_viewer_t *viewer,
 
     int result = html_context_load_memory(viewer->html_ctx, html_data, length);
     if (result != 0) return -1;
+
+    // 设置HTML根节点的parent指向viewer
+    xmlDoc *doc = html_context_get_document(viewer->html_ctx);
+    if (doc && doc->_private) {
+        ui_component_t *root_comp = (ui_component_t *)doc->_private;
+        if (root_comp) {
+            root_comp->parent = (ui_component_t *)viewer;
+        }
+    }
 
     viewer->loaded = true;
     return 0;

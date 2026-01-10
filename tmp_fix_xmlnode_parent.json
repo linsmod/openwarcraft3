@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_lines",
+      "title": "在append_child中设置xmlnode的parent指针",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/html/html.c",
+        "old_str": "\tif (*result == NULL)\n\t\treturn HUBBUB_NOMEM;\n\n\tref_node(ctx, *result);\n\n    // 获取父节点的布局 ID\n    layx_id parent_id = GETLAYID(p);\n    \n    // 获取子节点的布局 ID（使用 *result 而不是 chld，因为 chld 可能已被释放）\n    layx_id child_id;",
+        "new_str": "\tif (*result == NULL)\n\t\treturn HUBBUB_NOMEM;\n\n\tref_node(ctx, *result);\n\n\t// 设置ui_component的parent关系\n\tif (uic && uip) {\n\t\tuic->parent = uip;\n\t}\n\n    // 获取父节点的布局 ID\n    layx_id parent_id = GETLAYID(p);\n    \n    // 获取子节点的布局 ID（使用 *result 而不是 chld，因为 chld 可能已被释放）\n    layx_id child_id;"
+      }
+    }
+  ]
+}
