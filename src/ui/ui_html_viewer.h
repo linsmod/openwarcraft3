@@ -45,6 +45,14 @@ struct ui_html_viewer_t {
     html_viewer_link_clicked_fn on_link_clicked;
     void *callback_user_data;
 
+    // 滚动条拖动状态
+    bool vscroll_dragging;  // 垂直滚动条拖动中
+    float vscroll_drag_start_y;  // 垂直滚动条拖动起始Y
+    float vscroll_drag_start_scroll;  // 垂直滚动条拖动起始滚动位置
+    bool hscroll_dragging;  // 水平滚动条拖动中
+    float hscroll_drag_start_x;  // 水平滚动条拖动起始X
+    float hscroll_drag_start_scroll;  // 水平滚动条拖动起始滚动位置
+
 };
 
 // ==================== 创建和销毁 ====================

@@ -109,8 +109,45 @@ void DebugOverlayScene_Render(scene_t *scene) {
             canvas2d_set_font_size(ctx, 14.0f);
             canvas2d_set_fill_style(ctx, MAKE(COLOR32, 255, 255, 0, 255)); // 黄色
             
-            // 在组件上方显示信息
-            canvas2d_fill_text(ctx, info_text, x, y - 20.0f);
+            // 获取视口尺寸
+            size2_t vpsize = R_GetViewPortSize();
+            float text_height = 20.0f; // 估算的文本高度
+            float top_margin = 10.0f;
+            float bottom_margin = 10.0f;
+            
+            // 计算文本位置，确保在屏幕内
+            // 优先选择组件上方，如果上方空间不足则选择下方
+            float text_y = y - text_height - 5.0f;
+            bool show_above = true;
+            
+            // 检查上方是否有足够空间
+            if (text_y < top_margin) {
+                // 上方空间不足，检查下方
+                float below_y = y + height + 5.0f;
+                if (below_y + text_height <= vpsize.height - bottom_margin) {
+                    // 下方空间足够
+                    text_y = below_y;
+                    show_above = false;
+                } else {
+                    // 上下都不够，显示在组件内部右上角
+                    text_y = y + 5.0f;
+                    show_above = false;
+                }
+            } else {
+                // 上方空间足够，但也要检查下方是否更合适
+                // 如果组件位于屏幕下半部分，下方显示可能更好
+                if (y + height > vpsize.height * 0.6f) {
+                    float below_y = y + height + 5.0f;
+                    if (below_y + text_height <= vpsize.height - bottom_margin) {
+                        // 下方空间足够且更合适
+                        text_y = below_y;
+                        show_above = false;
+                    }
+                }
+            }
+            
+            // 显示信息
+            canvas2d_fill_text(ctx, info_text, x, text_y);
         }
     }
 }

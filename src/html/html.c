@@ -114,7 +114,7 @@ typedef struct context {
 	int viewport_width;		/**< Viewport width (from html_viewer) */
 	int viewport_height;		/**< Viewport height (from html_viewer) */
 
-	// Scroll information
+	// Scroll information - cached values from layx (for performance)
 	int scroll_x;			/**< Horizontal scroll offset */
 	int scroll_y;			/**< Vertical scroll offset */
 	int max_scroll_x;		/**< Maximum horizontal scroll offset */
@@ -122,6 +122,9 @@ typedef struct context {
 } context;
 
 #include "css.h"
+
+// Scrollbar width (fixed value)
+#define SCROLLBAR_WIDTH 12
 
 // Helper macros for accessing xmlnode
 #define GET_XMLNODE(node) ((ui_xmlnode_t*)node->_private)
@@ -2986,13 +2989,9 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
     layx_scalar x, y, width, height;
     layx_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
     
-    // Apply scroll offset for children (depth > 0), but NOT for root html element (depth 0)
-    // In HTML DOM: depth 0 is <html>, depth 1 is <body>, depth 2+ is content
-    // Scroll offset should apply to body and its children
-    if (depth > 0) {
-        x -= ctx->scroll_x;
-        y -= ctx->scroll_y;
-    }
+    // 注意：滚动偏移现在由layx原生处理
+    // layx_init_scroll_fields()已将scroll信息设置到根元素
+    // 这里不再需要手动应用scroll偏移
     
     // 计算并应用CSS样式（重要：这会触发apply_computed_style_to_lay）
     if (node->type == XML_ELEMENT_NODE) {
@@ -3645,8 +3644,8 @@ void html_context_render(context *ctx) {
 static void render_scrollbars(context *ctx) {
     if (!ctx) return;
     
-    // 滚动条配置
-    const int scrollbar_width = 14;  // 滚动条宽度
+    // 滚动条配置 - 使用固定宽度
+    int scrollbar_width = SCROLLBAR_WIDTH;
     const int scrollbar_height = 14; // 滚动条高度（水平）
     
     // 滚动条颜色
@@ -3989,16 +3988,20 @@ int html_context_get_viewport_height(context *ctx) {
 static void update_max_scroll(context *ctx) {
     if (!ctx || !ctx->layout_ctx) return;
     
-    // Get root element's content size (item 0 is the root document)
-    layx_vec2 content_size = layx_get_size(ctx->layout_ctx, 0);
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return;
     
-    // Calculate max scroll offset (content_size - viewport_size)
-    ctx->max_scroll_x = (int)(content_size[0] - ctx->viewport_width);
-    ctx->max_scroll_y = (int)(content_size[1] - ctx->viewport_height);
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return;
     
-    // Ensure max scroll is at least 0 (if content fits in viewport)
-    if (ctx->max_scroll_x < 0) ctx->max_scroll_x = 0;
-    if (ctx->max_scroll_y < 0) ctx->max_scroll_y = 0;
+    // 从layx获取滚动信息并缓存到context
+    layx_vec2 scroll_max;
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    ctx->max_scroll_x = (int)scroll_max[0];
+    ctx->max_scroll_y = (int)scroll_max[1];
+    
+    printf("DEBUG: update_max_scroll: max_scroll=(%d,%d)\n", 
+           ctx->max_scroll_x, ctx->max_scroll_y);
 }
 
 /**
@@ -4016,8 +4019,18 @@ void html_context_set_scroll(context *ctx, int scroll_x, int scroll_y) {
     if (scroll_x > ctx->max_scroll_x) scroll_x = ctx->max_scroll_x;
     if (scroll_y > ctx->max_scroll_y) scroll_y = ctx->max_scroll_y;
     
+    // 缓存到context
     ctx->scroll_x = scroll_x;
     ctx->scroll_y = scroll_y;
+    
+    // 使用layx API设置滚动
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return;
+    
+    layx_scroll_to(ctx->layout_ctx, root_id, (layx_scalar)scroll_x, (layx_scalar)scroll_y);
 }
 
 /**
@@ -4092,6 +4105,7 @@ int html_context_get_max_scroll_y(context *ctx) {
  */
 bool html_context_can_scroll_horizontally(context *ctx) {
     if (!ctx) return false;
+    // 直接使用缓存值：如果内容宽度超过viewport宽度，则需要水平滚动
     return ctx->max_scroll_x > 0;
 }
 
@@ -4102,6 +4116,7 @@ bool html_context_can_scroll_horizontally(context *ctx) {
  */
 bool html_context_can_scroll_vertically(context *ctx) {
     if (!ctx) return false;
+    // 直接使用缓存值：如果内容高度超过viewport高度，则需要垂直滚动
     return ctx->max_scroll_y > 0;
 }
 
