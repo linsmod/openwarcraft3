@@ -145,10 +145,18 @@ typedef struct ui_component_vtable {
     void (*scroll_by)(ui_component_t *component, float delta_x, float delta_y);
 
     // 滚动条查询函数（用于默认滚动条渲染）
-    bool (*can_scroll_vertically)(ui_component_t *component);
-    bool (*can_scroll_horizontally)(ui_component_t *component);
+    float (*get_scroll_factor)(const ui_component_t *component);
+    float (*get_scroll_x)(const ui_component_t *component);
+    float (*get_scroll_y)(const ui_component_t *component);
+    float (*get_max_scroll_x)(const ui_component_t *component);
+    float (*get_max_scroll_y)(const ui_component_t *component);
+    void (*set_scroll_x)(ui_component_t *component, float x);
+    void (*set_scroll_y)(ui_component_t *component, float y);
+    bool (*can_scroll_vertically)(const ui_component_t *component);
+    bool (*can_scroll_horizontally)(const ui_component_t *component);
     float (*get_scroll_percent_x)(ui_component_t *component);
     float (*get_scroll_percent_y)(ui_component_t *component);
+    void (*on_scrolled)(ui_component_t *component,int dx,int dy);
     
     // 容器特定方法
     int (*add_child)(ui_component_t *component, ui_component_t *child);
@@ -162,7 +170,9 @@ typedef struct ui_component_vtable {
     
     // 调试方法, print self and its children
     void (*print_tree)(const ui_component_t *component, int indent,const char* common);
+    
 } ui_component_vtable_t;
+// ==================== 组件结构 ====================
 // ==================== 组件结构 ====================
 typedef enum HANDLER_STAGE{
     HANDLER_STAGE_NONE = 0,

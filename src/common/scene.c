@@ -941,8 +941,7 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
                                     delta_y = 0;
                                 }
                             }
-                            
-                            scrollable->vtable->scroll_by(scrollable, delta_x, delta_y);
+                            UIComponent_ScrollBy(scrollable, delta_x, delta_y);
                             event->propagation_stopped = true;
                         }
                         else if (current->vtable->on_mouse_wheel) {

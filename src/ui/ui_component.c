@@ -365,6 +365,136 @@ static void UIComponent_RenderBorder(ui_component_t *component) {
     }
 }
 
+float UIComponent_GetScrollFactor(const ui_component_t *component){
+    if(component && component->vtable->get_scroll_factor) {
+        return component->vtable->get_scroll_factor(component);
+    }
+    else{
+        return 1.0f;
+    }
+}
+float UIComponent_GetScrollX(const ui_component_t *component) {
+    if(component && component->vtable->get_scroll_x) {
+        return component->vtable->get_scroll_x(component);
+    }
+    else{
+        return 0.0f;
+    }
+}
+float UIComponent_GetScrollY(const ui_component_t *component) {
+    if(component && component->vtable->get_scroll_y) {
+        return component->vtable->get_scroll_y(component);
+    }
+    else{
+        return 0.0f;
+    }
+}
+float UIComponent_GetMaxScrollX(const ui_component_t *component) {
+    if(component && component->vtable->get_max_scroll_x) {
+        return component->vtable->get_max_scroll_x(component);
+    }
+    else{
+        return 0.0f;
+    }
+}
+float UIComponent_GetMaxScrollY(const ui_component_t *component) {
+    if(component && component->vtable->get_max_scroll_y) {
+        return component->vtable->get_max_scroll_y(component);
+    }
+    else{
+        return 0.0f;
+    }
+}
+float UIComponent_CanScrollVertically(const ui_component_t *component) {
+    if(component && component->vtable->can_scroll_vertically) {
+        return component->vtable->can_scroll_vertically(component);
+    }
+    else{
+        return 0.0f;
+    }
+}
+float UIComponent_CanScrollHorizontally(const ui_component_t *component) {
+    if(component && component->vtable->can_scroll_horizontally) {
+        return component->vtable->can_scroll_horizontally(component);
+    }
+    else{
+        return 0.0f;
+    }
+}
+void UIComponent_SetScrollY(ui_component_t *component, float scroll_y) {
+    if(component && component->vtable->set_scroll_y) {
+        component->vtable->set_scroll_y(component, scroll_y);
+    }
+}
+void UIComponent_SetScrollX(ui_component_t *component, float scroll_x) {
+    if(component && component->vtable->set_scroll_x) {
+        component->vtable->set_scroll_x(component, scroll_x);
+    }
+}
+void UIComponent_OnScrolled(ui_component_t *component,int dx,int dy) {
+    if(component && component->vtable->on_scrolled){
+        component->vtable->on_scrolled(component,dx,dy);
+    }
+}
+void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y) {
+    if(component && component->vtable && component->vtable->scroll_by) {
+        component->vtable->scroll_by(component, delta_x, delta_y);
+        return;
+    }
+    
+    bool scrolled = false;
+    
+    // 检查是否可以滚动
+    bool can_scroll_x = UIComponent_CanScrollHorizontally(component);
+    bool can_scroll_y = UIComponent_CanScrollVertically(component);
+    
+    if ((delta_x == 0 && delta_y == 0) || (!can_scroll_x && !can_scroll_y)) {
+        return;
+    }
+    
+    float scroll_factor = UIComponent_GetScrollFactor(component);
+    float old_scroll_x = UIComponent_GetScrollX(component);
+    float old_scroll_y = UIComponent_GetScrollY(component);
+    float max_scroll_x = UIComponent_GetMaxScrollX(component);
+    float max_scroll_y = UIComponent_GetMaxScrollY(component);
+    
+    float new_scroll_x = old_scroll_x;
+    float new_scroll_y = old_scroll_y;
+    
+    // 垂直滚动
+    if (delta_y != 0 && can_scroll_y) {
+        new_scroll_y = old_scroll_y - delta_y * scroll_factor;
+        
+        // 应用边界限制
+        if (new_scroll_y < 0) new_scroll_y = 0;
+        if (new_scroll_y > max_scroll_y) new_scroll_y = max_scroll_y;
+        
+        if (new_scroll_y != old_scroll_y) {
+            UIComponent_SetScrollY(component, new_scroll_y);
+            scrolled = true;
+        }
+    }
+    
+    // 水平滚动
+    if (delta_x != 0 && can_scroll_x) {
+        new_scroll_x = old_scroll_x - delta_x * scroll_factor;
+        
+        // 应用边界限制 - 这里修复了条件
+        if (new_scroll_x < 0) new_scroll_x = 0;
+        if (new_scroll_x > max_scroll_x) new_scroll_x = max_scroll_x;
+        
+        if (new_scroll_x != old_scroll_x) {
+            UIComponent_SetScrollX(component, new_scroll_x);
+            scrolled = true;
+        }
+    }
+    
+    if (scrolled) {
+        UIComponent_OnScrolled(component, 
+                              new_scroll_x - old_scroll_x,
+                              new_scroll_y - old_scroll_y);
+    }
+}
 void UIComponent_SetBgColor(ui_component_t *component, COLOR32 color) {
     if (component) {
         // 设置所有状态为相同颜色
