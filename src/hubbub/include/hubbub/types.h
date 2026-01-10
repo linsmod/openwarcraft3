@@ -4,7 +4,6 @@
  *                http://www.opensource.org/licenses/mit-license.php
  * Copyright 2007 John-Mark Bell <jmb@netsurf-browser.org>
  */
-
 #ifndef hubbub_types_h_
 #define hubbub_types_h_
 

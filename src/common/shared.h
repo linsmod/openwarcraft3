@@ -20,6 +20,7 @@
 #define MAX_LAYOUT_OBJECTS 0xffff
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
+#define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
 
 // 键盘修饰键常量
 #define KEY_MODIFIER_SHIFT   0x01

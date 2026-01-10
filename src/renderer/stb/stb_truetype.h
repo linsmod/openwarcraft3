@@ -4793,7 +4793,7 @@ char* GetAllFontNames(const stbtt_fontinfo *font,int index) {
     
     // 1. 定位 name 表
     stbtt_uint32 nm = stbtt__find_table(fc, offset, "name");
-    if (!nm) return;
+    if (!nm) return NULL;
 
     // 2. 读取表头信息
     int count = ttUSHORT(fc + nm + 2);        // 记录总数

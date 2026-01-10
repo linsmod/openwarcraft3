@@ -1,12 +1,24 @@
 #include "ui_component.h"
 #include "../common/event.h"
+#include "../common/scene.h"
 #include "layx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include <SDL2/SDL.h>
 
 // 双击时间间隔（毫秒）
 #define DOUBLE_CLICK_TIME 500
+
+// 默认滚动配置（接近浏览器默认值）
+static const ui_scroll_config_t default_scroll_config = {
+    .deceleration_rate = 0.985f,    // 减速系数
+    .overscroll_stiffness = 0.2f,  // 弹性系数
+    .overscroll_damping = 0.9f,    // 弹性阻尼
+    .scroll_threshold = 5.0f,      // 停止滚动阈值 (px/s)
+    .max_overscroll = 100.0f        // 最大过度滚动距离 (px)
+};
 
 // ==================== 事件操作 ====================
 
@@ -436,11 +448,237 @@ void UIComponent_OnScrolled(ui_component_t *component,int dx,int dy) {
         component->vtable->on_scrolled(component,dx,dy);
     }
 }
+
+// ==================== 惯性滚动和弹性边界 ====================
+
+// 初始化惯性滚动（设置初始速度）
+void UIComponent_ScrollWithInertia(ui_component_t *component, 
+                                   float velocity_x, 
+                                   float velocity_y) {
+    if (!component) return;
+    
+    uint64_t current_time = SDL_GetTicks();
+    ui_scroll_state_t* state = &component->scroll_state;
+    
+    // 设置新的速度
+    state->velocity_x = velocity_x;
+    state->velocity_y = velocity_y;
+    
+    state->is_scrolling = true;
+    state->is_decelerating = true;
+    state->last_update_time = current_time;
+    
+    // 请求动画帧，触发持续的动画更新
+    UIComponent_RequestAnimationFrame(component);
+}
+
+// 更新惯性滚动动画（每帧调用）
+void UIComponent_UpdateScrollAnimation(ui_component_t *component) {
+    if (!component) return;
+    
+    ui_scroll_state_t* state = &component->scroll_state;
+    
+    if (!state->is_scrolling && !state->is_decelerating) {
+        return;
+    }
+    
+    // 计算时间差
+    uint64_t current_time = SDL_GetTicks();
+    uint64_t dt_ms = current_time - state->last_update_time;
+    if (dt_ms == 0 || dt_ms > 100) {  // 防止时间差过大（如窗口失焦后恢复）
+        state->last_update_time = current_time;
+        return;
+    }
+    
+    state->last_update_time = current_time;
+    float dt_sec = dt_ms / 1000.0f;
+    
+    float old_scroll_x = UIComponent_GetScrollX(component);
+    float old_scroll_y = UIComponent_GetScrollY(component);
+    float new_scroll_x = old_scroll_x;
+    float new_scroll_y = old_scroll_y;
+    
+    bool can_scroll_x = UIComponent_CanScrollHorizontally(component);
+    bool can_scroll_y = UIComponent_CanScrollVertically(component);
+    float max_scroll_x = UIComponent_GetMaxScrollX(component);
+    float max_scroll_y = UIComponent_GetMaxScrollY(component);
+    
+    // 处理惯性滚动
+    if (state->is_decelerating) {
+        // 应用减速
+        float decay = powf(default_scroll_config.deceleration_rate, dt_sec * 60.0f);
+        state->velocity_x *= decay;
+        state->velocity_y *= decay;
+        
+        // 计算位移
+        float delta_x = state->velocity_x * dt_sec;
+        float delta_y = state->velocity_y * dt_sec;
+        
+        // 应用滚动
+        if (can_scroll_x) {
+            new_scroll_x = old_scroll_x - delta_x;
+        }
+        if (can_scroll_y) {
+            new_scroll_y = old_scroll_y - delta_y;
+        }
+        
+        // 检查是否停止
+        float speed_x = fabsf(state->velocity_x);
+        float speed_y = fabsf(state->velocity_y);
+        if (speed_x < default_scroll_config.scroll_threshold &&
+            speed_y < default_scroll_config.scroll_threshold &&
+            state->overscroll_x == 0 && state->overscroll_y == 0) {
+            state->velocity_x = 0;
+            state->velocity_y = 0;
+            state->is_decelerating = false;
+            state->is_scrolling = false;
+        }
+    }
+    
+    // 应用弹性边界
+    bool has_overscroll = false;
+    
+    if (new_scroll_x < 0) {
+        state->overscroll_x = new_scroll_x;
+        new_scroll_x = 0;
+        has_overscroll = true;
+    } else if (can_scroll_x && new_scroll_x > max_scroll_x) {
+        state->overscroll_x = new_scroll_x - max_scroll_x;
+        new_scroll_x = max_scroll_x;
+        has_overscroll = true;
+    } else {
+        state->overscroll_x *= default_scroll_config.overscroll_damping;
+        if (fabsf(state->overscroll_x) < 0.5f) state->overscroll_x = 0;
+    }
+    
+    if (new_scroll_y < 0) {
+        state->overscroll_y = new_scroll_y;
+        new_scroll_y = 0;
+        has_overscroll = true;
+    } else if (can_scroll_y && new_scroll_y > max_scroll_y) {
+        state->overscroll_y = new_scroll_y - max_scroll_y;
+        new_scroll_y = max_scroll_y;
+        has_overscroll = true;
+    } else {
+        state->overscroll_y *= default_scroll_config.overscroll_damping;
+        if (fabsf(state->overscroll_y) < 0.5f) state->overscroll_y = 0;
+    }
+    
+    // 应用过度滚动的回弹力
+    if (state->overscroll_x != 0 || state->overscroll_y != 0) {
+        state->velocity_x -= state->overscroll_x * default_scroll_config.overscroll_stiffness * 60.0f * dt_sec;
+        state->velocity_y -= state->overscroll_y * default_scroll_config.overscroll_stiffness * 60.0f * dt_sec;
+        
+        if (!has_overscroll) {
+            state->is_decelerating = true;
+        }
+    }
+    
+    // 限制过度滚动距离
+    state->overscroll_x = CLAMP(state->overscroll_x, 
+                               -default_scroll_config.max_overscroll,
+                               default_scroll_config.max_overscroll);
+    state->overscroll_y = CLAMP(state->overscroll_y,
+                               -default_scroll_config.max_overscroll,
+                               default_scroll_config.max_overscroll);
+    
+    // 更新滚动位置（包含过度滚动的偏移）
+    float final_scroll_x = new_scroll_x + state->overscroll_x;
+    float final_scroll_y = new_scroll_y + state->overscroll_y;
+    
+    if (can_scroll_x && final_scroll_x != old_scroll_x) {
+        UIComponent_SetScrollX(component, final_scroll_x);
+    }
+    if (can_scroll_y && final_scroll_y != old_scroll_y) {
+        UIComponent_SetScrollY(component, final_scroll_y);
+    }
+    
+    // 检查是否需要继续动画
+    if (state->is_decelerating || state->overscroll_x != 0 || state->overscroll_y != 0) {
+        // 需要继续动画，将在主循环中再次调用
+    } else {
+        state->is_scrolling = false;
+    }
+    
+    if (final_scroll_x != old_scroll_x || final_scroll_y != old_scroll_y) {
+        UIComponent_OnScrolled(component, 
+                              final_scroll_x - old_scroll_x,
+                              final_scroll_y - old_scroll_y);
+    }
+}
+
+// 检查组件是否正在滚动（用于确定是否需要更新动画）
+bool UIComponent_IsScrolling(const ui_component_t *component) {
+    if (!component) return false;
+    const ui_scroll_state_t* state = &component->scroll_state;
+    return state->is_scrolling || state->is_decelerating || 
+           state->overscroll_x != 0 || state->overscroll_y != 0;
+}
+
+// 停止惯性滚动（用于触摸/鼠标按下时）
+void UIComponent_StopInertiaScroll(ui_component_t *component) {
+    if (!component) return;
+    ui_scroll_state_t* state = &component->scroll_state;
+    state->velocity_x = 0;
+    state->velocity_y = 0;
+    state->is_scrolling = false;
+    state->is_decelerating = false;
+    state->overscroll_x = 0;
+    state->overscroll_y = 0;
+    
+    // 取消动画帧请求
+    UIComponent_CancelAnimationFrame(component);
+}
+
+// ==================== RequestAnimationFrame 机制 ====================
+
+// 设置场景管理器（用于 RequestAnimationFrame 机制）
+void UIComponent_SetSceneManager(ui_component_t *component, struct scene_manager_t *mgr) {
+    if (component) {
+        component->scene_manager = mgr;
+        // 递归设置所有子组件的 scene_manager
+        if (component->children) {
+            for (int i = 0; i < component->child_count; i++) {
+                UIComponent_SetSceneManager(component->children[i], mgr);
+            }
+        }
+    }
+}
+
+// 请求动画帧（将组件注册到 SceneManager 的动画列表中）
+// 这个函数会自动调用组件的 vtable->update_animation 方法
+void UIComponent_RequestAnimationFrame(ui_component_t *component) {
+    if (!component || !component->scene_manager) {
+        return;
+    }
+    
+    // 注册到 SceneManager 的动画列表
+    SceneManager_RegisterAnimationComponent(component->scene_manager, component);
+}
+
+// 取消动画帧请求（从 SceneManager 的动画列表中移除）
+void UIComponent_CancelAnimationFrame(ui_component_t *component) {
+    if (!component || !component->scene_manager) {
+        return;
+    }
+    
+    // 从 SceneManager 的动画列表中移除
+    SceneManager_UnregisterAnimationComponent(component->scene_manager, component);
+}
+
+// 组件的默认 update_animation 实现（处理惯性滚动）
+void UIComponent_UpdateAnimationDefault(ui_component_t *component) {
+    UIComponent_UpdateScrollAnimation(component);
+}
+
 void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y) {
     if(component && component->vtable && component->vtable->scroll_by) {
         component->vtable->scroll_by(component, delta_x, delta_y);
         return;
     }
+    
+    // 停止任何现有的惯性滚动
+    UIComponent_StopInertiaScroll(component);
     
     bool scrolled = false;
     
@@ -465,7 +703,7 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
     if (delta_y != 0 && can_scroll_y) {
         new_scroll_y = old_scroll_y - delta_y * scroll_factor;
         
-        // 应用边界限制
+        // 应用边界限制（直接滚动，不应用弹性边界）
         if (new_scroll_y < 0) new_scroll_y = 0;
         if (new_scroll_y > max_scroll_y) new_scroll_y = max_scroll_y;
         
@@ -479,7 +717,7 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
     if (delta_x != 0 && can_scroll_x) {
         new_scroll_x = old_scroll_x - delta_x * scroll_factor;
         
-        // 应用边界限制 - 这里修复了条件
+        // 应用边界限制
         if (new_scroll_x < 0) new_scroll_x = 0;
         if (new_scroll_x > max_scroll_x) new_scroll_x = max_scroll_x;
         

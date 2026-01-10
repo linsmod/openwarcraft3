@@ -241,6 +241,10 @@ struct scene_manager_t {
     // ============= 鼠标捕获管理 =============
     ui_component_t *captured;           // 当前捕获鼠标的组件（优先接收所有鼠标事件）
     
+    // ============= 动画帧管理 =============
+    ui_component_t *animated_components[64];  // 需要动画更新的组件列表
+    int animated_count;                     // 当前动画组件数量
+    
     // ============= 调试覆盖层 =============
     scene_t *debug_overlay_scene;        // 调试覆盖层场景（始终显示在顶部）
 };
@@ -392,6 +396,17 @@ void SceneManager_ClearFocus(scene_manager_t *mgr);
 void SceneManager_CaptureMouse(scene_manager_t *mgr, ui_component_t *component);
 ui_component_t* SceneManager_GetCaptured(scene_manager_t *mgr);
 void SceneManager_ReleaseMouse(scene_manager_t *mgr);
+
+// ============= 动画帧管理 =============
+
+// 注册需要动画更新的组件（RequestAnimationFrame机制）
+void SceneManager_RegisterAnimationComponent(scene_manager_t *mgr, ui_component_t *component);
+
+// 注销动画组件（组件不再需要动画更新时调用）
+void SceneManager_UnregisterAnimationComponent(scene_manager_t *mgr, ui_component_t *component);
+
+// 更新所有动画组件（在 SceneManager_Update 中自动调用）
+void SceneManager_UpdateAnimations(scene_manager_t *mgr);
 
 // 更新场景的所有UI组件
 void Scene_UpdateUI(scene_t *scene, int msec);

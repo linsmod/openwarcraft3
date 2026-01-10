@@ -77,6 +77,27 @@ typedef event_t ui_event_t;
 
 typedef void (*ui_event_handler_t)(ui_component_t *component, event_t *event, void *user_data);
 
+// ==================== 滚动状态结构 ====================
+
+typedef struct {
+    float velocity_x;      // 水平滚动速度 (px/s)
+    float velocity_y;      // 垂直滚动速度 (px/s)
+    uint64_t last_update_time; // 上次更新时间戳 (ms)
+    bool is_scrolling;     // 是否正在滚动
+    bool is_decelerating;  // 是否正在减速
+    float overscroll_x;    // 过度滚动距离
+    float overscroll_y;    // 过度滚动距离
+} ui_scroll_state_t;
+
+// 惯性滚动的配置参数
+typedef struct {
+    float deceleration_rate;    // 减速系数 (0.95-0.999)
+    float overscroll_stiffness; // 弹性系数 (0.1-0.3)
+    float overscroll_damping;   // 弹性阻尼 (0.8-0.95)
+    float scroll_threshold;    // 停止滚动阈值 (px/s)
+    float max_overscroll;       // 最大过度滚动距离 (px)
+} ui_scroll_config_t;
+
 // ==================== 背景颜色状态 ====================
 
 typedef struct {
@@ -93,6 +114,7 @@ typedef struct ui_component_vtable {
     void (*init)(ui_component_t *component, canvas2d_context_t *ctx);
     void (*shutdown)(ui_component_t *component);
     void (*update)(ui_component_t *component, int msec);
+    void (*update_animation)(ui_component_t *component);  // 动画帧更新
     void (*layout)(ui_component_t* component, ui_component_t* root);
     void (*render)(ui_component_t *component);
     
@@ -227,6 +249,9 @@ struct ui_component_t {
     // 用户数据
     void *user_data;
     
+    // 场景管理器引用（用于 RequestAnimationFrame 机制）
+    struct scene_manager_t *scene_manager;
+    
     // 双击检测
     int last_click_time;
     float last_click_x;
@@ -238,6 +263,9 @@ struct ui_component_t {
     float drag_offset_x;
     float drag_offset_y;
     bool interact_disabled;
+    
+    // 滚动状态（用于惯性滚动和弹性边界）
+    ui_scroll_state_t scroll_state;
 };
 
 // ==================== 事件操作 ====================
@@ -309,6 +337,9 @@ void UIComponent_GetContentRect(const ui_component_t *component, float *x, float
 // 设置布局上下文
 void UIComponent_SetLayoutContext(ui_component_t *component, layx_context *ctx);
 
+// 设置场景管理器（用于 RequestAnimationFrame 机制）
+void UIComponent_SetSceneManager(ui_component_t *component, struct scene_manager_t *mgr);
+
 // 创建布局项（用于初始化根组件）
 layx_id UIComponent_CreateLayoutItem(ui_component_t *component);
 
@@ -351,4 +382,37 @@ void UIComponent_Layout(ui_component_t *root);
 void UIComponent_PrintTree(const ui_component_t *component, int indent);
 
 ui_component_t* UIComponent_HitTest(ui_component_t*,float x, float y);
+
+// ==================== 惯性滚动和弹性边界 ====================
+
+// 初始化惯性滚动（设置初始速度）
+void UIComponent_ScrollWithInertia(ui_component_t *component, 
+                                   float velocity_x, 
+                                   float velocity_y);
+
+// 更新惯性滚动动画（每帧调用）
+void UIComponent_UpdateScrollAnimation(ui_component_t *component);
+
+// 检查组件是否正在滚动
+bool UIComponent_IsScrolling(const ui_component_t *component);
+
+// 停止惯性滚动（用于触摸/鼠标按下时）
+void UIComponent_StopInertiaScroll(ui_component_t *component);
+
+// 滚动组件（停止惯性滚动并进行直接滚动）
+void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y);
+
+// ==================== RequestAnimationFrame 机制 ====================
+
+// 请求动画帧（将组件注册到 SceneManager 的动画列表中）
+// 这个函数会自动调用组件的 vtable->update_animation 方法
+void UIComponent_RequestAnimationFrame(ui_component_t *component);
+
+// 取消动画帧请求（从 SceneManager 的动画列表中移除）
+void UIComponent_CancelAnimationFrame(ui_component_t *component);
+
+// 组件的默认 update_animation 实现（处理惯性滚动）
+// 可在虚函数表中覆盖此实现
+void UIComponent_UpdateAnimationDefault(ui_component_t *component);
+
 #endif // __UI_COMPONENT_H__

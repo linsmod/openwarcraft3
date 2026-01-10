@@ -1,7 +1,7 @@
 #ifndef __EVENT_H__
 #define __EVENT_H__
 
-#include <stdbool.h>
+#include "shared.h"
 #include <stddef.h>
 
 // 前向声明

@@ -23,8 +23,8 @@ static void html_viewer_on_mouse_move(ui_component_t *component, event_t *event)
 static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event);
 static int html_viewer_can_scroll(ui_component_t *component);
 static void html_viewer_scroll_by(ui_component_t *component, float delta_x, float delta_y);
-static bool html_viewer_can_scroll_vertically(ui_component_t *component);
-static bool html_viewer_can_scroll_horizontally(ui_component_t *component);
+static bool html_viewer_can_scroll_vertically(const ui_component_t *component);
+static bool html_viewer_can_scroll_horizontally(const ui_component_t *component);
 static float html_viewer_get_scroll_percent_x(ui_component_t *component);
 static float html_viewer_get_scroll_percent_y(ui_component_t *component);
 static void html_viewer_print_tree(const ui_component_t *component, int indent, const char *common);
@@ -487,13 +487,13 @@ static void html_viewer_scroll_by(ui_component_t *component, float delta_x, floa
     }
 }
 
-static bool html_viewer_can_scroll_vertically(ui_component_t *component) {
+static bool html_viewer_can_scroll_vertically(const ui_component_t *component) {
     ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
     if (!viewer->html_ctx) return false;
     return viewer->scroll_max_y > 0;
 }
 
-static bool html_viewer_can_scroll_horizontally(ui_component_t *component) {
+static bool html_viewer_can_scroll_horizontally(const ui_component_t *component) {
     ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
     if (!viewer->html_ctx) return false;
     return viewer->scroll_max_x > 0;

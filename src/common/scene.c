@@ -391,6 +391,7 @@ scene_manager_t* SceneManager_Create(int width, int height) {
     
     memset(mgr, 0, sizeof(scene_manager_t));
     mgr->registered_count = 0;
+    mgr->animated_count = 0;
     
     // 保存窗口尺寸
     mgr->width = width;
@@ -681,6 +682,69 @@ const scene_params_t* SceneManager_GetPreviousResult(scene_manager_t *mgr) {
 
 void Scene_LayoutUI(scene_t *scene, int msec);
 
+// ============= 动画帧管理实现 =============
+
+// 注册需要动画更新的组件
+void SceneManager_RegisterAnimationComponent(scene_manager_t *mgr, ui_component_t *component) {
+    if (!mgr || !component) return;
+    
+    // 检查是否已经注册
+    for (int i = 0; i < mgr->animated_count; i++) {
+        if (mgr->animated_components[i] == component) {
+            return;  // 已经注册，无需重复
+        }
+    }
+    
+    // 检查容量
+    if (mgr->animated_count >= 64) {
+        printf("SceneManager: Warning - Animation component list full\n");
+        return;
+    }
+    
+    // 注册组件
+    mgr->animated_components[mgr->animated_count++] = component;
+}
+
+// 注销动画组件
+void SceneManager_UnregisterAnimationComponent(scene_manager_t *mgr, ui_component_t *component) {
+    if (!mgr || !component) return;
+    
+    // 查找并移除组件
+    for (int i = 0; i < mgr->animated_count; i++) {
+        if (mgr->animated_components[i] == component) {
+            // 将最后一个元素移到当前位置
+            mgr->animated_count--;
+            if (i < mgr->animated_count) {
+                mgr->animated_components[i] = mgr->animated_components[mgr->animated_count];
+            }
+            return;
+        }
+    }
+}
+
+// 更新所有动画组件
+void SceneManager_UpdateAnimations(scene_manager_t *mgr) {
+    if (!mgr || mgr->animated_count == 0) return;
+    
+    // 创建一个快照列表，避免在更新过程中列表发生变化
+    ui_component_t *components[64];
+    int count = mgr->animated_count;
+    memcpy(components, mgr->animated_components, sizeof(ui_component_t*) * count);
+    
+    // 更新所有组件的动画
+    for (int i = 0; i < count; i++) {
+        ui_component_t *component = components[i];
+        if (component && component->vtable && component->vtable->update_animation) {
+            component->vtable->update_animation(component);
+        }
+        
+        // 如果组件不再需要动画更新，从列表中移除
+        if (!UIComponent_IsScrolling(component)) {
+            SceneManager_UnregisterAnimationComponent(mgr, component);
+        }
+    }
+}
+
 void SceneManager_Update(scene_manager_t *mgr, int msec) {
     if (!mgr || !mgr->current_scene) return;
     
@@ -703,6 +767,9 @@ void SceneManager_Update(scene_manager_t *mgr, int msec) {
 
     // 再更新UI逻辑
     Scene_UpdateUI(mgr->current_scene, msec);
+    
+    // 更新所有动画组件（惯性滚动等）
+    SceneManager_UpdateAnimations(mgr);
 
     // 从栈底到栈顶依次渲染（实现叠加效果）
     for (int i = 0; i < mgr->stack_size; i++) {
