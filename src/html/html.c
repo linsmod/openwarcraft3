@@ -3913,8 +3913,8 @@ static void update_max_scroll(context *ctx) {
     ctx->max_scroll_x = (int)scroll_max[0];
     ctx->max_scroll_y = (int)scroll_max[1];
     
-    printf("DEBUG: update_max_scroll: max_scroll=(%d,%d)\n", 
-           ctx->max_scroll_x, ctx->max_scroll_y);
+    // printf("DEBUG: update_max_scroll: max_scroll=(%d,%d)\n", 
+    //        ctx->max_scroll_x, ctx->max_scroll_y);
 }
 
 float html_context_get_scroll_factor(context *ctx) {
@@ -4069,6 +4069,6 @@ void html_context_print_layout_info(context *ctx,int depth) {
     }
     
     // printf("=== HTML Layout Tree ===\n");
-    print_layout_info(ctx->layout_ctx, ctx->document, ctx,depth);
+    // print_layout_info(ctx->layout_ctx, ctx->document, ctx,depth);
     // printf("========================\n");
 }

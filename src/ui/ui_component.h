@@ -387,8 +387,8 @@ ui_component_t* UIComponent_HitTest(ui_component_t*,float x, float y);
 
 // 初始化惯性滚动（设置初始速度）
 void UIComponent_ScrollWithInertia(ui_component_t *component, 
-                                   float velocity_x, 
-                                   float velocity_y);
+                                   float delta_x, 
+                                   float delta_y,uint64_t timestamp_ms);
 
 // 更新惯性滚动动画（每帧调用）
 void UIComponent_UpdateScrollAnimation(ui_component_t *component);
@@ -400,7 +400,7 @@ bool UIComponent_IsScrolling(const ui_component_t *component);
 void UIComponent_StopInertiaScroll(ui_component_t *component);
 
 // 滚动组件（停止惯性滚动并进行直接滚动）
-void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y);
+void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y, uint64_t current_time);
 
 // ==================== RequestAnimationFrame 机制 ====================
 

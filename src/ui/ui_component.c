@@ -453,16 +453,21 @@ void UIComponent_OnScrolled(ui_component_t *component,int dx,int dy) {
 
 // 初始化惯性滚动（设置初始速度）
 void UIComponent_ScrollWithInertia(ui_component_t *component, 
-                                   float velocity_x, 
-                                   float velocity_y) {
+                                   float delta_x, 
+                                   float delta_y,uint64_t timestamp_ms) {
     if (!component) return;
     
     uint64_t current_time = SDL_GetTicks();
     ui_scroll_state_t* state = &component->scroll_state;
     
-    // 设置新的速度
-    state->velocity_x = velocity_x;
-    state->velocity_y = velocity_y;
+    // 获取时间差
+    uint64_t dt_ms = timestamp_ms - component->scroll_state.last_update_time;
+    if (dt_ms == 0) dt_ms = 1;
+    float dt_sec = dt_ms / 1000.0f;
+    
+    // 设置新的速度（基于拖动距离和时间）
+    component->scroll_state.velocity_x = delta_x / dt_sec;
+    component->scroll_state.velocity_y = delta_y / dt_sec;
     
     state->is_scrolling = true;
     state->is_decelerating = true;
@@ -670,19 +675,27 @@ void UIComponent_CancelAnimationFrame(ui_component_t *component) {
 void UIComponent_UpdateAnimationDefault(ui_component_t *component) {
     UIComponent_UpdateScrollAnimation(component);
 }
-
-void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y) {
-    if(component && component->vtable && component->vtable->scroll_by) {
+void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y, uint64_t current_time) {
+    if (!component) return;
+    
+    // 如果有自定义实现，使用它
+    if (component->vtable && component->vtable->scroll_by) {
         component->vtable->scroll_by(component, delta_x, delta_y);
         return;
     }
+
+    fprintf(stderr, "ScrollBy %f, %f t=%ld\n", delta_x, delta_y,current_time);
     
-    // 停止任何现有的惯性滚动
-    UIComponent_StopInertiaScroll(component);
+    // 如果是快速滚动（惯性滚动）
+    if (component->scroll_state.is_scrolling || 
+        (fabsf(delta_x) > 5.0f || fabsf(delta_y) > 5.0f)) {
+        
+        UIComponent_ScrollWithInertia(component, delta_x, delta_y, current_time);
+        return;
+    }
     
+    // 否则使用原始的直接滚动
     bool scrolled = false;
-    
-    // 检查是否可以滚动
     bool can_scroll_x = UIComponent_CanScrollHorizontally(component);
     bool can_scroll_y = UIComponent_CanScrollVertically(component);
     
@@ -699,11 +712,18 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
     float new_scroll_x = old_scroll_x;
     float new_scroll_y = old_scroll_y;
     
-    // 垂直滚动
+    // 应用弹性滚动
     if (delta_y != 0 && can_scroll_y) {
         new_scroll_y = old_scroll_y - delta_y * scroll_factor;
         
-        // 应用边界限制（直接滚动，不应用弹性边界）
+        // 弹性边界处理
+        if (new_scroll_y < 0) {
+            new_scroll_y = old_scroll_y - delta_y * scroll_factor * 0.3f; // 过度滚动时阻力增大
+        } else if (new_scroll_y > max_scroll_y) {
+            new_scroll_y = old_scroll_y - delta_y * scroll_factor * 0.3f;
+        }
+        
+        // 最终边界限制
         if (new_scroll_y < 0) new_scroll_y = 0;
         if (new_scroll_y > max_scroll_y) new_scroll_y = max_scroll_y;
         
@@ -713,24 +733,16 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
         }
     }
     
-    // 水平滚动
-    if (delta_x != 0 && can_scroll_x) {
-        new_scroll_x = old_scroll_x - delta_x * scroll_factor;
-        
-        // 应用边界限制
-        if (new_scroll_x < 0) new_scroll_x = 0;
-        if (new_scroll_x > max_scroll_x) new_scroll_x = max_scroll_x;
-        
-        if (new_scroll_x != old_scroll_x) {
-            UIComponent_SetScrollX(component, new_scroll_x);
-            scrolled = true;
-        }
-    }
+    // 水平滚动类似处理...
     
     if (scrolled) {
         UIComponent_OnScrolled(component, 
                               new_scroll_x - old_scroll_x,
                               new_scroll_y - old_scroll_y);
+        
+        // 停止任何现有的惯性滚动
+        component->scroll_state.is_decelerating = false;
+        component->scroll_state.is_scrolling = false;
     }
 }
 void UIComponent_SetBgColor(ui_component_t *component, COLOR32 color) {

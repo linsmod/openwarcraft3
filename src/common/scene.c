@@ -996,7 +996,7 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
                     // 滚轮事件特殊处理：查找可滚动的父组件
                     {
                         ui_component_t *scrollable = FindScrollableParent(current);
-                        if (scrollable && scrollable->vtable && scrollable->vtable->scroll_by) {
+                        if (scrollable) {
                             float delta_x = 0;
                             float delta_y = event->wheel.delta;
                             
@@ -1008,7 +1008,7 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
                                     delta_y = 0;
                                 }
                             }
-                            UIComponent_ScrollBy(scrollable, delta_x, delta_y);
+                            UIComponent_ScrollBy(scrollable, delta_x, delta_y,event->timestamp);
                             event->propagation_stopped = true;
                         }
                         else if (current->vtable->on_mouse_wheel) {

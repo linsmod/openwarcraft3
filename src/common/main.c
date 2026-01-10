@@ -118,8 +118,8 @@ int main(int argc, LPSTR argv[]) {
     // 主游戏循环 - 使用SceneManager
     DWORD startTime = SDL_GetTicks();
     while (true) {
-        DWORD currentTime = SDL_GetTicks();
-        float dt =currentTime - startTime;
+        DWORD frame_start = SDL_GetTicks();
+        float dt =frame_start - startTime;
         
         // 处理SDL事件并分发给当前场景
         SDL_Event event;
@@ -177,12 +177,12 @@ int main(int argc, LPSTR argv[]) {
         re.EndFrame();
         
         // 帧率控制
-        DWORD frameTime = SDL_GetTicks() - currentTime;
+        DWORD frameTime = SDL_GetTicks() - frame_start;
         if (frameTime < 16) {
             SDL_Delay(16 - frameTime);
         }
         
-        startTime = currentTime;
+        startTime = frame_start;
     }
     
     // 清理SceneManager
