@@ -334,6 +334,9 @@ bool html_context_can_scroll_horizontally(context *ctx);
  */
 bool html_context_can_scroll_vertically(context *ctx);
 
+
+float html_context_get_scroll_factor(context *ctx);
+
 /**
  * @brief 获取水平滚动百分比（0-100）
  * @param ctx HTML上下文

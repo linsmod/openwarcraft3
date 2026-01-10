@@ -271,7 +271,7 @@ ui_container_t* UIContainer_Create(float x, float y, float width, float height,
     container->border_color = border_color;
     container->border_width = 1.0f;
     container->max_children = 100;
-    UIComponent_SetLayoutContain((ui_component_t*)container,LAYX_FLEX_DIRECTION_COLUMN);
+    UIComponent_SetFlexDirection((ui_component_t*)container,LAYX_FLEX_DIRECTION_COLUMN);
 
     // 启用裁剪
     // container->base.flags |= UI_FLAG_CLIPPING;

@@ -1411,6 +1411,8 @@ void Scene_RenderUI(scene_t *scene) {
                     }
                 }
             }
+            // 渲染滚动条（在内容之后，使用默认实现）
+            UIComponent_RenderScrollbars(comp);
         }
     }
 }

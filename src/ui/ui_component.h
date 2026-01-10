@@ -143,6 +143,12 @@ typedef struct ui_component_vtable {
     // 返回值：1=可垂直滚动, 2=可水平滚动, 3=两者都可, 0=不可滚动
     int (*can_scroll)(ui_component_t *component);
     void (*scroll_by)(ui_component_t *component, float delta_x, float delta_y);
+
+    // 滚动条查询函数（用于默认滚动条渲染）
+    bool (*can_scroll_vertically)(ui_component_t *component);
+    bool (*can_scroll_horizontally)(ui_component_t *component);
+    float (*get_scroll_percent_x)(ui_component_t *component);
+    float (*get_scroll_percent_y)(ui_component_t *component);
     
     // 容器特定方法
     int (*add_child)(ui_component_t *component, ui_component_t *child);
@@ -272,6 +278,7 @@ void UIComponent_Destroy(ui_component_t *component);
 // ==================== 组件渲染 ====================
 
 void UIComponent_Render(ui_component_t *component);
+void UIComponent_RenderScrollbars(ui_component_t *component);
 
 // ==================== 样式相关函数 ====================
 
@@ -314,13 +321,7 @@ void UIComponent_SetMargin(ui_component_t *component, float top, float right, fl
 void UIComponent_SetLayoutMargins(ui_component_t *component, float left, float top, float right, float bottom);
 
 // 设置布局行为标志（如 LAY_HFILL, LAY_VFILL 等）
-void UIComponent_SetBehave(ui_component_t *component, uint32_t flags);
-
-// 设置布局容器标志（如 LAY_ROW, LAY_COLUMN 等）
-void UIComponent_SetContain(ui_component_t *component, uint32_t flags);
-
-// 设置布局容器标志（旧API别名）
-void UIComponent_SetLayoutContain(ui_component_t *component, uint32_t flags);
+void UIComponent_SetAlignSelf(ui_component_t *component, uint32_t flags);
 
 // Flex属性设置
 void UIComponent_SetFlexGrow(ui_component_t *component, float grow);

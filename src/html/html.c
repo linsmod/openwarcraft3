@@ -119,6 +119,7 @@ typedef struct context {
 	int scroll_y;			/**< Vertical scroll offset */
 	int max_scroll_x;		/**< Maximum horizontal scroll offset */
 	int max_scroll_y;		/**< Maximum vertical scroll offset */
+	float scroll_factor;		/**< Scroll factor (for zoom) */
 } context;
 
 #include "css.h"
@@ -340,6 +341,7 @@ error_code create_context(const char *charset, context **ctx,int width,int heigh
 	c->scroll_y = 0;
 	c->max_scroll_x = 0;
 	c->max_scroll_y = 0;
+	c->scroll_factor = 15.0f;
 
 	// Note: Don't set fixed size for root - let it be adaptive based on content
 	// This allows scrolling when content exceeds viewport
@@ -3642,107 +3644,9 @@ void html_context_render(context *ctx) {
         render_html_element(ctx, root, 0);
     }
     
-    // 绘制滚动条（在内容之后）
-    render_scrollbars(ctx);
+    // 注意：滚动条渲染已移至 UIComponent 层级，由 UIComponent_Render 调用
 }
 
-/**
- * @brief 绘制滚动条
- * @param ctx HTML上下文
- */
-static void render_scrollbars(context *ctx) {
-    if (!ctx) return;
-    
-    // 滚动条配置 - 使用固定宽度
-    int scrollbar_width = SCROLLBAR_WIDTH;
-    const int scrollbar_height = 14; // 滚动条高度（水平）
-    
-    // 滚动条颜色
-    COLOR32 scrollbar_track_color = {224, 224, 224, 255}; // 轨道颜色：浅灰色
-    COLOR32 scrollbar_thumb_color = {176, 176, 176, 255}; // 滑块颜色：深灰色
-    COLOR32 scrollbar_border_color = {192, 192, 192, 255}; // 边框颜色
-    
-    // 获取滚动状态
-    bool can_scroll_v = html_context_can_scroll_vertically(ctx);
-    bool can_scroll_h = html_context_can_scroll_horizontally(ctx);
-    
-    // 绘制垂直滚动条（右侧）
-    if (can_scroll_v) {
-        int viewport_x = 0;
-        int viewport_y = 0;
-        int viewport_w = ctx->viewport_width;
-        int viewport_h = ctx->viewport_height;
-        
-        // 计算轨道位置（在viewport右侧）
-        int track_x = viewport_x + viewport_w - scrollbar_width;
-        int track_y = viewport_y;
-        int track_w = scrollbar_width;
-        int track_h = viewport_h;
-        
-        // 绘制轨道
-        render_rect_fill(track_x, track_y, track_w, track_h, scrollbar_track_color);
-        render_rect_border(track_x, track_y, track_w, track_h, scrollbar_border_color);
-        
-        // 计算滑块位置和大小
-        float scroll_percent = html_context_get_scroll_percent_y(ctx);
-        
-        // 滑块高度：根据viewport与内容高度的比例
-        int content_height = viewport_h + ctx->max_scroll_y;
-        float thumb_ratio = (float)viewport_h / (float)content_height;
-        int thumb_height = (int)(track_h * thumb_ratio);
-        // 确保滑块最小高度
-        if (thumb_height < 20) thumb_height = 20;
-        
-        // 滑块Y位置：根据滚动百分比
-        int thumb_y = track_y + (int)((track_h - thumb_height) * scroll_percent / 100.0f);
-        int thumb_x = track_x + 1; // 留出1px边距
-        int thumb_w = track_w - 2; // 留出两边边距
-        
-        // 绘制滑块
-        render_rect_fill(thumb_x, thumb_y, thumb_w, thumb_height, scrollbar_thumb_color);
-    }
-    
-    // 绘制水平滚动条（底部）
-    if (can_scroll_h) {
-        int viewport_x = 0;
-        int viewport_y = 0;
-        int viewport_w = ctx->viewport_width;
-        int viewport_h = ctx->viewport_height;
-        
-        // 计算轨道位置（在viewport底部）
-        // 如果有垂直滚动条，水平滚动条要缩短以避免重叠
-        int track_w = viewport_w;
-        if (can_scroll_v) {
-            track_w -= scrollbar_width;
-        }
-        
-        int track_x = viewport_x;
-        int track_y = viewport_y + viewport_h - scrollbar_height;
-        int track_h = scrollbar_height;
-        
-        // 绘制轨道
-        render_rect_fill(track_x, track_y, track_w, track_h, scrollbar_track_color);
-        render_rect_border(track_x, track_y, track_w, track_h, scrollbar_border_color);
-        
-        // 计算滑块位置和大小
-        float scroll_percent = html_context_get_scroll_percent_x(ctx);
-        
-        // 滑块宽度：根据viewport与内容宽度的比例
-        int content_width = viewport_w + ctx->max_scroll_x;
-        float thumb_ratio = (float)viewport_w / (float)content_width;
-        int thumb_width = (int)(track_w * thumb_ratio);
-        // 确保滑块最小宽度
-        if (thumb_width < 20) thumb_width = 20;
-        
-        // 滑块X位置：根据滚动百分比
-        int thumb_x = track_x + (int)((track_w - thumb_width) * scroll_percent / 100.0f);
-        int thumb_y = track_y + 1; // 留出1px边距
-        int thumb_h = track_h - 2; // 留出上下边距
-        
-        // 绘制滑块
-        render_rect_fill(thumb_x, thumb_y, thumb_width, thumb_h, scrollbar_thumb_color);
-    }
-}
 /**
  * @brief 设置字体
  * @param ctx HTML上下文
@@ -4011,6 +3915,11 @@ static void update_max_scroll(context *ctx) {
     
     printf("DEBUG: update_max_scroll: max_scroll=(%d,%d)\n", 
            ctx->max_scroll_x, ctx->max_scroll_y);
+}
+
+float html_context_get_scroll_factor(context *ctx) {
+    if (!ctx) return 1.0f;
+    return ctx->scroll_factor;
 }
 
 /**

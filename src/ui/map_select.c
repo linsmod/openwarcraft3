@@ -550,7 +550,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_root_container, title_container);
     UIComponent_SetSize(title_container, 1024.0f, 40.0f);
-    UIComponent_SetLayoutContain(title_container, LAYX_FLEX_DIRECTION_ROW);
+    UIComponent_SetFlexDirection(title_container, LAYX_FLEX_DIRECTION_ROW);
 
     // 创建标题文本
     g_title_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "SELECT MAP",
@@ -562,7 +562,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)title_container, g_title_text);
     UIComponent_SetSize(g_title_text, 700.0f, 40.0f);
-    UIComponent_SetBehave(g_title_text, LAYX_ALIGN_SELF_FLEX_START);
+    UIComponent_SetAlignSelf(g_title_text, LAYX_ALIGN_SELF_FLEX_START);
     UIComponent_SetMargin(g_title_text, 10.0f, 0.0f, 0.0f, 10.0f);
 
     // 2. 创建路径容器（第二行）
@@ -578,7 +578,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_root_container, path_container);
     UIComponent_SetSize(path_container, 1024.0f, 30.0f);
-    UIComponent_SetLayoutContain(path_container, LAYX_FLEX_DIRECTION_ROW);
+    UIComponent_SetFlexDirection(path_container, LAYX_FLEX_DIRECTION_ROW);
 
     // 创建路径文本
     g_path_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "Root",
@@ -590,7 +590,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)path_container, g_path_text);
     UIComponent_SetSize(g_path_text, 1024.0f, 30.0f);
-    UIComponent_SetBehave(g_path_text, LAYX_ALIGN_SELF_FLEX_START);
+    UIComponent_SetAlignSelf(g_path_text, LAYX_ALIGN_SELF_FLEX_START);
     UIComponent_SetMargin(g_path_text, 10.0f, 0.0f, 0.0f, 10.0f);
 
     // 3. 创建内容容器（第三行，左右分栏）
@@ -606,7 +606,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_root_container, content_container);
     UIComponent_SetSize(content_container, 1024.0f, 698.0f);
-    UIComponent_SetLayoutContain(content_container, LAYX_FLEX_DIRECTION_ROW);
+    UIComponent_SetFlexDirection(content_container, LAYX_FLEX_DIRECTION_ROW);
 
     // 4. 创建左侧容器（搜索+列表）
     ui_component_t *left_container = (ui_component_t *)UIContainer_Create(
@@ -621,7 +621,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)content_container, left_container);
     UIComponent_SetSize(left_container, 380.0f, 698.0f);
-    UIComponent_SetLayoutContain(left_container, LAYX_FLEX_DIRECTION_COLUMN);
+    UIComponent_SetFlexDirection(left_container, LAYX_FLEX_DIRECTION_COLUMN);
 
     // 创建筛选标签
     g_filter_label = (ui_component_t *)UILabel_Create(0.0f, 0.0f, 50.0f, 28.0f, "Filter:",
@@ -633,7 +633,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)left_container, g_filter_label);
     UIComponent_SetSize(g_filter_label, 360.0f, 28.0f);
-    UIComponent_SetBehave(g_filter_label, LAYX_ALIGN_SELF_FLEX_START);
+    UIComponent_SetAlignSelf(g_filter_label, LAYX_ALIGN_SELF_FLEX_START);
     UIComponent_SetMargin(g_filter_label, 10.0f, 0.0f, 5.0f, 10.0f);
 
     // 创建筛选输入框
@@ -644,7 +644,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)left_container, g_filter_input);
     UIComponent_SetSize(g_filter_input, 360.0f, 28.0f);
-    UIComponent_SetBehave(g_filter_input, LAYX_ALIGN_SELF_FLEX_START);
+    UIComponent_SetAlignSelf(g_filter_input, LAYX_ALIGN_SELF_FLEX_START);
     UIComponent_SetMargin(g_filter_input, 10.0f, 0.0f, 5.0f, 0.0f);
 
     mgr->focused = g_filter_input;
@@ -665,7 +665,7 @@ int MapSelect_Init(scene_t *scene) {
     // 将列表添加到左侧容器
     UIContainer_AddChild((ui_container_t *)left_container, g_ui_list);
     UIComponent_SetSize(g_ui_list, 360.0f, 630.0f);
-    UIComponent_SetBehave(g_ui_list, LAYX_ALIGN_SELF_FLEX_START);
+    UIComponent_SetAlignSelf(g_ui_list, LAYX_ALIGN_SELF_FLEX_START);
     UIComponent_SetMargin(g_ui_list, 10.0f, 0.0f, 10.0f, 0.0f);
 
     // 5. 创建右侧容器（预览+按钮）
@@ -681,7 +681,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)content_container, right_container);
     UIComponent_SetSize(right_container, 644.0f, 698.0f);
-    UIComponent_SetLayoutContain(right_container, LAYX_FLEX_DIRECTION_COLUMN);
+    UIComponent_SetFlexDirection(right_container, LAYX_FLEX_DIRECTION_COLUMN);
 
     // 创建地图预览容器
     g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 624.0f, 0.0f,
@@ -695,7 +695,7 @@ int MapSelect_Init(scene_t *scene) {
     // 设置布局行为：使用flex自动占据剩余空间
     UIComponent_SetSize(g_preview_container, 624.0f, 0.0f);
     UIComponent_SetFlex(g_preview_container, 1.0f, 0.0f, 0.0f);  // grow=1, 自动填充
-    UIComponent_SetBehave(g_preview_container, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_container, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_container, 10.0f, 0.0f, 10.0f, 0.0f);
 
     // 将预览容器添加到右侧容器
@@ -711,7 +711,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_title_text);
     UIComponent_SetSize(g_preview_title_text, 604.0f, 18.0f);
-    UIComponent_SetBehave(g_preview_title_text, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_title_text, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_title_text, 10.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（文件名）
@@ -724,7 +724,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_filename_text);
     UIComponent_SetSize(g_preview_filename_text, 604.0f, 16.0f);
-    UIComponent_SetBehave(g_preview_filename_text, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_filename_text, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_filename_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（地图名称）
@@ -737,7 +737,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_name_text);
     UIComponent_SetSize(g_preview_name_text, 604.0f, 16.0f);
-    UIComponent_SetBehave(g_preview_name_text, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_name_text, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_name_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（作者）
@@ -750,7 +750,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_author_text);
     UIComponent_SetSize(g_preview_author_text, 604.0f, 16.0f);
-    UIComponent_SetBehave(g_preview_author_text, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_author_text, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_author_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（推荐玩家数）
@@ -763,7 +763,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_players_text);
     UIComponent_SetSize(g_preview_players_text, 604.0f, 16.0f);
-    UIComponent_SetBehave(g_preview_players_text, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_players_text, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_players_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（文件类型）
@@ -776,7 +776,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_type_text);
     UIComponent_SetSize(g_preview_type_text, 604.0f, 16.0f);
-    UIComponent_SetBehave(g_preview_type_text, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_type_text, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_type_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（完整路径）
@@ -789,7 +789,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)g_preview_container, g_preview_path_text);
     UIComponent_SetSize(g_preview_path_text, 604.0f, 14.0f);
-    UIComponent_SetBehave(g_preview_path_text, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_preview_path_text, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_preview_path_text, 5.0f, 10.0f, 10.0f, 0.0f);
 
     // 6. 创建提示容器（底部按钮区域）
@@ -806,7 +806,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)right_container, hint_container);
     UIComponent_SetSize(hint_container, 644.0f, 170.0f);
-    UIComponent_SetLayoutContain(hint_container, LAYX_FLEX_DIRECTION_COLUMN);
+    UIComponent_SetFlexDirection(hint_container, LAYX_FLEX_DIRECTION_COLUMN);
     // hint_container不需要flex，保持固定高度
 
     // 创建提示文本1
@@ -819,7 +819,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)hint_container, g_hint_text1);
     UIComponent_SetSize(g_hint_text1, 644.0f, 50.0f);
-    UIComponent_SetBehave(g_hint_text1, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_hint_text1, LAYX_ALIGN_SELF_STRETCH);
 
     // 创建提示文本2
     g_hint_text2 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "ESC: quit",
@@ -831,7 +831,7 @@ int MapSelect_Init(scene_t *scene) {
     }
     UIContainer_AddChild((ui_container_t *)hint_container, g_hint_text2);
     UIComponent_SetSize(g_hint_text2, 644.0f, 50.0f);
-    UIComponent_SetBehave(g_hint_text2, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_hint_text2, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_hint_text2, 0.0f, 0.0f, 0.0f, 10.0f);
 
     // 7. 创建 START GAME 按钮
@@ -864,7 +864,7 @@ int MapSelect_Init(scene_t *scene) {
     // 将按钮添加到提示容器
     UIContainer_AddChild((ui_container_t *)hint_container, g_start_button);
     UIComponent_SetSize(g_start_button, 644.0f, 50.0f);
-    UIComponent_SetBehave(g_start_button, LAYX_ALIGN_SELF_STRETCH);
+    UIComponent_SetAlignSelf(g_start_button, LAYX_ALIGN_SELF_STRETCH);
     UIComponent_SetMargin(g_start_button, 0.0f, 0.0f, 0.0f, 10.0f);
     // 从(listfile)加载地图列表
     g_map_count = 0;

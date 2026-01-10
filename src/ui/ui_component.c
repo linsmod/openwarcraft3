@@ -552,22 +552,18 @@ void UIComponent_SetMargin(ui_component_t *component, float top, float right, fl
     }
 }
 
-void UIComponent_SetBehave(ui_component_t *component, uint32_t flags) {
+void UIComponent_SetAlignSelf(ui_component_t *component, uint32_t flags) {
     if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
         return;
     }
     layx_set_align_self(component->lay_ctx, component->lay_item_id, flags);
 }
 
-void UIComponent_SetContain(ui_component_t *component, uint32_t flags) {
+void UIComponent_SetFlexDirection(ui_component_t *component, uint32_t direction) {
     if (!component || !component->lay_ctx || component->lay_item_id == LAYX_INVALID_ID) {
         return;
     }
-    layx_set_flex(component->lay_ctx, component->lay_item_id, LAYX_FLEX_DIRECTION_COLUMN, LAYX_FLEX_WRAP_NOWRAP, LAYX_JUSTIFY_FLEX_START, LAYX_ALIGN_ITEMS_STRETCH, LAYX_ALIGN_CONTENT_STRETCH);
-}
-
-void UIComponent_SetLayoutContain(ui_component_t *component, uint32_t flags) {
-    UIComponent_SetContain(component, flags);
+    layx_set_flex_direction(component->lay_ctx, component->lay_item_id, direction);
 }
 
 // Flex属性设置
@@ -621,6 +617,112 @@ void UIComponent_Layout(ui_component_t *root) {
 }
 
 // ==================== 组件渲染默认实现 ====================
+
+// 默认的滚动条渲染实现
+void UIComponent_RenderScrollbars(ui_component_t *component) {
+    if (!component || !UIComponent_IsVisible(component)) return;
+    if (!component->vtable) return;
+    
+    // 检查是否有必要的滚动查询函数
+    if (!component->vtable->can_scroll_vertically || 
+        !component->vtable->can_scroll_horizontally ||
+        !component->vtable->get_scroll_percent_x ||
+        !component->vtable->get_scroll_percent_y) {
+        return;
+    }
+    
+    // 滚动条配置 - 使用固定宽度
+    const int scrollbar_width = 12;
+    const int scrollbar_height = 14; // 滚动条高度（水平）
+    
+    // 滚动条颜色
+    COLOR32 scrollbar_track_color = {224, 224, 224, 255}; // 轨道颜色：浅灰色
+    COLOR32 scrollbar_thumb_color = {176, 176, 176, 255}; // 滑块颜色：深灰色
+    COLOR32 scrollbar_border_color = {192, 192, 192, 255}; // 边框颜色
+    
+    // 获取滚动状态
+    bool can_scroll_v = component->vtable->can_scroll_vertically(component);
+    bool can_scroll_h = component->vtable->can_scroll_horizontally(component);
+    
+    // 获取组件位置和尺寸
+    float viewport_x = component->x;
+    float viewport_y = component->y;
+    float viewport_w = component->width;
+    float viewport_h = component->height;
+    
+    // 绘制垂直滚动条（右侧）
+    if (can_scroll_v) {
+        // 计算轨道位置（在viewport右侧）
+        float track_x = viewport_x + viewport_w - scrollbar_width;
+        float track_y = viewport_y;
+        float track_w = scrollbar_width;
+        float track_h = viewport_h;
+        
+        // 绘制轨道
+        canvas2d_set_fill_style(component->ctx, scrollbar_track_color);
+        canvas2d_fill_rect(component->ctx, track_x, track_y, track_w, track_h);
+        canvas2d_set_stroke_style(component->ctx, scrollbar_border_color);
+        canvas2d_set_line_width(component->ctx, 1.0f);
+        canvas2d_stroke_rect(component->ctx, track_x, track_y, track_w, track_h);
+        
+        // 计算滑块位置和大小
+        float scroll_percent = component->vtable->get_scroll_percent_y(component);
+        
+        // 滑块高度：固定最小高度20px，最大不超过track
+        float thumb_height = 20.0f;
+        if (thumb_height > track_h - 2) {
+            thumb_height = track_h - 2;
+        }
+        
+        // 滑块Y位置：根据滚动百分比
+        float thumb_y = track_y + (track_h - thumb_height) * scroll_percent / 100.0f;
+        float thumb_x = track_x + 1; // 留出1px边距
+        float thumb_w = track_w - 2; // 留出两边边距
+        
+        // 绘制滑块
+        canvas2d_set_fill_style(component->ctx, scrollbar_thumb_color);
+        canvas2d_fill_rect(component->ctx, thumb_x, thumb_y, thumb_w, thumb_height);
+    }
+    
+    // 绘制水平滚动条（底部）
+    if (can_scroll_h) {
+        // 计算轨道位置（在viewport底部）
+        // 如果有垂直滚动条，水平滚动条要缩短以避免重叠
+        float track_w = viewport_w;
+        if (can_scroll_v) {
+            track_w -= scrollbar_width;
+        }
+        
+        float track_x = viewport_x;
+        float track_y = viewport_y + viewport_h - scrollbar_height;
+        float track_h = scrollbar_height;
+        
+        // 绘制轨道
+        canvas2d_set_fill_style(component->ctx, scrollbar_track_color);
+        canvas2d_fill_rect(component->ctx, track_x, track_y, track_w, track_h);
+        canvas2d_set_stroke_style(component->ctx, scrollbar_border_color);
+        canvas2d_set_line_width(component->ctx, 1.0f);
+        canvas2d_stroke_rect(component->ctx, track_x, track_y, track_w, track_h);
+        
+        // 计算滑块位置和大小
+        float scroll_percent = component->vtable->get_scroll_percent_x(component);
+        
+        // 滑块宽度：固定最小宽度20px，最大不超过track
+        float thumb_width = 20.0f;
+        if (thumb_width > track_w - 2) {
+            thumb_width = track_w - 2;
+        }
+        
+        // 滑块X位置：根据滚动百分比
+        float thumb_x = track_x + (track_w - thumb_width) * scroll_percent / 100.0f;
+        float thumb_y = track_y + 1; // 留出1px边距
+        float thumb_h = track_h - 2; // 留出上下边距
+        
+        // 绘制滑块
+        canvas2d_set_fill_style(component->ctx, scrollbar_thumb_color);
+        canvas2d_fill_rect(component->ctx, thumb_x, thumb_y, thumb_width, thumb_h);
+    }
+}
 
 // 默认的组件渲染实现
 void UIComponent_Render(ui_component_t *comp) {
