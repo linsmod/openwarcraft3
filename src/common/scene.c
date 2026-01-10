@@ -1213,6 +1213,13 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event) {
             break;
         }
         
+        case INPUT_EVENT_MOUSE_WHEEL: {
+            // 执行hitTest找到目标组件
+            hit_target = SceneManager_HitTest(mgr, event->wheel.x, event->wheel.y);
+            SceneManager_BubbleEvent(mgr, hit_target, event);
+            break;
+        }
+        
         default:
             // 其他事件类型
             SceneManager_BubbleEvent(mgr, hit_target, event);

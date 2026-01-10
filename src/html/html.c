@@ -2995,9 +2995,6 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
     layx_scalar x, y, width, height;
     layx_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
     
-    // 注意：滚动偏移现在由layx原生处理
-    // layx_init_scroll_fields()已将scroll信息设置到根元素
-    // 这里不再需要手动应用scroll偏移
     
     // 计算并应用CSS样式（重要：这会触发apply_computed_style_to_lay）
     if (node->type == XML_ELEMENT_NODE) {
