@@ -346,6 +346,9 @@ int Scene_CreateResources(scene_t *scene, int width, int height) {
         return -1;
     }
     
+    // 设置 scene_manager 到根组件（递归设置所有子组件）
+    UIComponent_SetSceneManager(scene->root_component, scene->manager);
+    
     // 插入根容器到布局系统
     layx_insert(scene->lay_ctx, 
         canvas2d_getlayid((canvas2d_t *)scene->canvas), 

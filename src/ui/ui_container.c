@@ -216,6 +216,7 @@ static const ui_component_vtable_t g_container_vtable = {
     .init = container_init,
     .shutdown = container_shutdown,
     .update = container_update,
+    .update_animation = UIComponent_UpdateAnimationDefault,
     .render = NULL,
     .set_position = container_set_position,
     .set_size = container_set_size,

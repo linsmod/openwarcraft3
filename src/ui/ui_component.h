@@ -87,6 +87,14 @@ typedef struct {
     bool is_decelerating;  // 是否正在减速
     float overscroll_x;    // 过度滚动距离
     float overscroll_y;    // 过度滚动距离
+    
+    // 事件累积字段
+    float accumulated_delta_x;    // 累积的滚动量
+    float accumulated_delta_y;
+    uint64_t accumulation_start_time;
+    uint64_t last_scroll_time;    // 上次收到滚动事件的时间
+    bool needs_inertia_check;     // 需要检查是否触发惯性
+    uint64_t inertia_check_time;  // 检查惯性的时间点
 } ui_scroll_state_t;
 
 // 惯性滚动的配置参数

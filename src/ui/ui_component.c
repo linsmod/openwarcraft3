@@ -451,6 +451,9 @@ void UIComponent_OnScrolled(ui_component_t *component,int dx,int dy) {
 
 // ==================== 惯性滚动和弹性边界 ====================
 
+// 前向声明
+static void UIComponent_CheckInertiaScroll(ui_component_t *component);
+
 // 初始化惯性滚动（设置初始速度）
 void UIComponent_ScrollWithInertia(ui_component_t *component, 
                                    float delta_x, 
@@ -460,14 +463,17 @@ void UIComponent_ScrollWithInertia(ui_component_t *component,
     uint64_t current_time = SDL_GetTicks();
     ui_scroll_state_t* state = &component->scroll_state;
     
-    // 获取时间差
-    uint64_t dt_ms = timestamp_ms - component->scroll_state.last_update_time;
-    if (dt_ms == 0) dt_ms = 1;
-    float dt_sec = dt_ms / 1000.0f;
+    // 根据累积的位移计算一个初始速度
+    // delta_x 和 delta_y 应该是累积的滚动量，不是速度
+    // 假设传入的是短时间内累积的滚动位移（像素）
     
-    // 设置新的速度（基于拖动距离和时间）
-    component->scroll_state.velocity_x = delta_x / dt_sec;
-    component->scroll_state.velocity_y = delta_y / dt_sec;
+    // 根据位移计算一个初始速度
+    // 如果delta是在100ms内累积的，那么速度 = delta / 0.1
+    float time_window = 0.1f; // 假设是100ms内的累积
+    float initial_velocity_scale = 1.0f / time_window;
+    
+    state->velocity_x = delta_x * initial_velocity_scale;
+    state->velocity_y = delta_y * initial_velocity_scale;
     
     state->is_scrolling = true;
     state->is_decelerating = true;
@@ -480,6 +486,9 @@ void UIComponent_ScrollWithInertia(ui_component_t *component,
 // 更新惯性滚动动画（每帧调用）
 void UIComponent_UpdateScrollAnimation(ui_component_t *component) {
     if (!component) return;
+    
+    // 先检查是否需要触发惯性滚动
+    UIComponent_CheckInertiaScroll(component);
     
     ui_scroll_state_t* state = &component->scroll_state;
     
@@ -684,17 +693,27 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
         return;
     }
 
-    fprintf(stderr, "ScrollBy %f, %f t=%ld\n", delta_x, delta_y,current_time);
+    ui_scroll_state_t* state = &component->scroll_state;
     
-    // 如果是快速滚动（惯性滚动）
-    if (component->scroll_state.is_scrolling || 
-        (fabsf(delta_x) > 5.0f || fabsf(delta_y) > 5.0f)) {
-        
-        UIComponent_ScrollWithInertia(component, delta_x, delta_y, current_time);
-        return;
+    // 如果距离上次滚动时间超过一定阈值，重置累积
+    if (current_time - state->last_scroll_time > 100) { // 100ms无滚动则重置
+        state->accumulated_delta_x = 0;
+        state->accumulated_delta_y = 0;
+        state->accumulation_start_time = current_time;
     }
     
-    // 否则使用原始的直接滚动
+    // 累积滚动量
+    state->accumulated_delta_x += delta_x;
+    state->accumulated_delta_y += delta_y;
+    state->last_scroll_time = current_time;
+    
+    // 限制最大累积量，避免过大
+    const float MAX_ACCUMULATION = 200.0f;
+    state->accumulated_delta_x = CLAMP(state->accumulated_delta_x, -MAX_ACCUMULATION, MAX_ACCUMULATION);
+    state->accumulated_delta_y = CLAMP(state->accumulated_delta_y, -MAX_ACCUMULATION, MAX_ACCUMULATION);
+    printf("Accumulated delta: (%f, %f)\n", state->accumulated_delta_x, state->accumulated_delta_y);
+    
+    // 立即应用当前滚动（为了响应性）
     bool scrolled = false;
     bool can_scroll_x = UIComponent_CanScrollHorizontally(component);
     bool can_scroll_y = UIComponent_CanScrollVertically(component);
@@ -718,7 +737,7 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
         
         // 弹性边界处理
         if (new_scroll_y < 0) {
-            new_scroll_y = old_scroll_y - delta_y * scroll_factor * 0.3f; // 过度滚动时阻力增大
+            new_scroll_y = old_scroll_y - delta_y * scroll_factor * 0.3f;
         } else if (new_scroll_y > max_scroll_y) {
             new_scroll_y = old_scroll_y - delta_y * scroll_factor * 0.3f;
         }
@@ -733,18 +752,92 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
         }
     }
     
-    // 水平滚动类似处理...
+    if (delta_x != 0 && can_scroll_x) {
+        new_scroll_x = old_scroll_x - delta_x * scroll_factor;
+        
+        // 弹性边界处理
+        if (new_scroll_x < 0) {
+            new_scroll_x = old_scroll_x - delta_x * scroll_factor * 0.3f;
+        } else if (new_scroll_x > max_scroll_x) {
+            new_scroll_x = old_scroll_x - delta_x * scroll_factor * 0.3f;
+        }
+        
+        // 最终边界限制
+        if (new_scroll_x < 0) new_scroll_x = 0;
+        if (new_scroll_x > max_scroll_x) new_scroll_x = max_scroll_x;
+        
+        if (new_scroll_x != old_scroll_x) {
+            UIComponent_SetScrollX(component, new_scroll_x);
+            scrolled = true;
+        }
+    }
     
     if (scrolled) {
         UIComponent_OnScrolled(component, 
                               new_scroll_x - old_scroll_x,
                               new_scroll_y - old_scroll_y);
         
+        // 标记需要检查惯性
+        state->needs_inertia_check = true;
+        state->inertia_check_time = current_time + 50; // 50ms后检查
+        
         // 停止任何现有的惯性滚动
-        component->scroll_state.is_decelerating = false;
-        component->scroll_state.is_scrolling = false;
+        state->is_decelerating = false;
+        state->is_scrolling = false;
     }
 }
+// 检查并触发惯性滚动（在主循环中定期调用）
+void UIComponent_CheckInertiaScroll(ui_component_t *component) {
+    if (!component) return;
+    
+    ui_scroll_state_t* state = &component->scroll_state;
+    uint64_t current_time = SDL_GetTicks();
+    
+    // 如果不需要检查或还未到检查时间，返回
+    if (!state->needs_inertia_check || current_time < state->inertia_check_time) {
+        return;
+    }
+    
+    // 如果最近还有滚动事件，重新安排检查
+    if (current_time - state->last_scroll_time < 30) { // 30ms内还有滚动
+        state->inertia_check_time = current_time + 50;
+        return;
+    }
+    
+    // 检查累积的滚动量是否足够触发惯性
+    float accumulated_time = (float)(state->last_scroll_time - state->accumulation_start_time);
+    if (accumulated_time == 0) accumulated_time = 1;
+    
+    // 计算平均速度
+    float avg_speed_x = (state->accumulated_delta_x * 1000.0f) / accumulated_time;
+    float avg_speed_y = (state->accumulated_delta_y * 1000.0f) / accumulated_time;
+    
+    float speed = sqrtf(avg_speed_x * avg_speed_x + avg_speed_y * avg_speed_y);
+    
+    // 如果速度足够快，触发惯性滚动
+    const float MIN_INERTIA_SPEED = 30.0f;
+    if (speed > MIN_INERTIA_SPEED && 
+        (fabsf(state->accumulated_delta_x) > 10 || fabsf(state->accumulated_delta_y) > 10)) {
+        
+        // 停止当前所有动画
+        state->velocity_x = 0;
+        state->velocity_y = 0;
+        state->is_scrolling = false;
+        state->is_decelerating = false;
+        
+        // 根据累积量设置惯性
+        UIComponent_ScrollWithInertia(component, 
+                                     state->accumulated_delta_x * 2.0f, // 乘以系数增强效果
+                                     state->accumulated_delta_y * 2.0f,
+                                     current_time);
+    }
+    
+    // 重置累积状态
+    state->accumulated_delta_x = 0;
+    state->accumulated_delta_y = 0;
+    state->needs_inertia_check = false;
+}
+
 void UIComponent_SetBgColor(ui_component_t *component, COLOR32 color) {
     if (component) {
         // 设置所有状态为相同颜色
