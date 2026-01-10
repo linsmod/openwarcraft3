@@ -98,6 +98,7 @@ typedef struct event_t {
             float delta;
             float x;
             float y;
+            int modifiers;
         } wheel;
         
         // 键盘事件数据

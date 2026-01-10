@@ -2,6 +2,7 @@
 #include "common/shared.h"
 #include "r_local.h"
 #include <SDL2/SDL_video.h>
+#include <SDL2/SDL_keyboard.h>
 #include <string.h>
 
 bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
@@ -60,6 +61,13 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
             SDL_GetMouseState(&mouse_x, &mouse_y);
             output->wheel.x = mouse_x * 1.0 / scale.x;
             output->wheel.y =  mouse_y * 1.0 / scale.y;
+            // 获取键盘修饰键状态
+            SDL_Keymod keymod = SDL_GetModState();
+            output->wheel.modifiers = 0;
+            if (keymod & KMOD_SHIFT)   output->wheel.modifiers |= KEY_MODIFIER_SHIFT;
+            if (keymod & KMOD_CTRL)    output->wheel.modifiers |= KEY_MODIFIER_CTRL;
+            if (keymod & KMOD_ALT)     output->wheel.modifiers |= KEY_MODIFIER_ALT;
+            if (keymod & KMOD_GUI)     output->wheel.modifiers |= KEY_MODIFIER_SUPER;
             return true;
             
         case SDL_TEXTINPUT:

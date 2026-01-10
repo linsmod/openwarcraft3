@@ -21,6 +21,12 @@
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
 
+// 键盘修饰键常量
+#define KEY_MODIFIER_SHIFT   0x01
+#define KEY_MODIFIER_CTRL    0x02
+#define KEY_MODIFIER_ALT     0x04
+#define KEY_MODIFIER_SUPER   0x08
+
 #define BYTE2FLOAT(x) ((x)/255.f)
 
 #define IS_FOURCC(STRING) (STRING && strlen(STRING) == 4)

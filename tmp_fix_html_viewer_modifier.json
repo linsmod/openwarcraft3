@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "call": "replace_by_lines",
+      "title": "更新html_viewer_on_mouse_wheel使用modifier",
+      "args": {
+        "file": "/home/wulin/myopenwarcraft3/src/ui/ui_html_viewer.c",
+        "old_str": "static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event) {\n    ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;\n\n    if (!viewer->html_ctx) return;\n\n    // 获取滚轮滚动值\n    float wheel_delta = event->wheel.delta;\n\n    // 检查是否需要垂直滚动\n    if (html_context_can_scroll_vertically(viewer->html_ctx)) {\n        // 计算新的滚动位置\n        float new_scroll_y = viewer->scroll_y - wheel_delta;\n\n        // 限制滚动范围\n        if (new_scroll_y < 0) new_scroll_y = 0;\n        if (new_scroll_y > viewer->scroll_max_y) new_scroll_y = viewer->scroll_max_y;\n\n        // 更新滚动位置\n        if (new_scroll_y != viewer->scroll_y) {\n            viewer->scroll_y = new_scroll_y;\n            html_context_set_scroll(viewer->html_ctx, viewer->scroll_x, viewer->scroll_y);\n            event->propagation_stopped = true; // 停止事件传播\n        }\n    }\n}",
+        "new_str": "static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event) {\n    ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;\n\n    if (!viewer->html_ctx) return;\n\n    // 获取滚轮滚动值\n    float wheel_delta = event->wheel.delta;\n\n    // 检查是否需要水平滚动（使用Shift键）\n    if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {\n        if (html_context_can_scroll_horizontally(viewer->html_ctx)) {\n            float new_scroll_x = viewer->scroll_x - wheel_delta;\n\n            // 限制滚动范围\n            if (new_scroll_x < 0) new_scroll_x = 0;\n            if (new_scroll_x > viewer->scroll_max_x) new_scroll_x = viewer->scroll_max_x;\n\n            // 更新滚动位置\n            if (new_scroll_x != viewer->scroll_x) {\n                viewer->scroll_x = new_scroll_x;\n                html_context_set_scroll(viewer->html_ctx, viewer->scroll_x, viewer->scroll_y);\n                event->propagation_stopped = true; // 停止事件传播\n            }\n        }\n    }\n    // 垂直滚动\n    else if (html_context_can_scroll_vertically(viewer->html_ctx)) {\n        // 计算新的滚动位置\n        float new_scroll_y = viewer->scroll_y - wheel_delta;\n\n        // 限制滚动范围\n        if (new_scroll_y < 0) new_scroll_y = 0;\n        if (new_scroll_y > viewer->scroll_max_y) new_scroll_y = viewer->scroll_max_y;\n\n        // 更新滚动位置\n        if (new_scroll_y != viewer->scroll_y) {\n            viewer->scroll_y = new_scroll_y;\n            html_context_set_scroll(viewer->html_ctx, viewer->scroll_x, viewer->scroll_y);\n            event->propagation_stopped = true; // 停止事件传播\n        }\n    }\n}"
+      }
+    }
+  ]
+}

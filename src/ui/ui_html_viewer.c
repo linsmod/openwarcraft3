@@ -20,6 +20,7 @@ static void html_viewer_on_click(ui_component_t *component, event_t *event);
 static void html_viewer_on_mouse_down(ui_component_t *component, event_t *event);
 static void html_viewer_on_mouse_up(ui_component_t *component, event_t *event);
 static void html_viewer_on_mouse_move(ui_component_t *component, event_t *event);
+static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event);
 static void html_viewer_print_tree(const ui_component_t *component, int indent, const char *common);
 
 static const ui_component_vtable_t html_viewer_vtable = {
@@ -32,6 +33,7 @@ static const ui_component_vtable_t html_viewer_vtable = {
     .on_mouse_down = html_viewer_on_mouse_down,
     .on_mouse_up = html_viewer_on_mouse_up,
     .on_mouse_move = html_viewer_on_mouse_move,
+    .on_mouse_wheel = html_viewer_on_mouse_wheel,
     .print_tree = html_viewer_print_tree
 };
 
@@ -221,6 +223,7 @@ static void html_viewer_on_click(ui_component_t *component, event_t *event) {
     }
     
     if (in_scrollbar) {
+        event->propagation_stopped = true; // 停止事件传播到scene
         return;
     }
 
@@ -240,6 +243,7 @@ static void html_viewer_on_click(ui_component_t *component, event_t *event) {
     // 处理元素点击
     if (elem && viewer->on_element_clicked) {
         viewer->on_element_clicked(viewer, elem, viewer->callback_user_data);
+        event->propagation_stopped = true; // 停止事件传播到scene
         return; // 处理了元素点击，不再处理链接点击
     }
 
@@ -252,6 +256,7 @@ static void html_viewer_on_click(ui_component_t *component, event_t *event) {
                 xmlFree(href);
             }
         }
+        event->propagation_stopped = true; // 停止事件传播到scene
     }
 }
 
@@ -274,6 +279,7 @@ static void html_viewer_on_mouse_down(ui_component_t *component, event_t *event)
             viewer->vscroll_dragging = true;
             viewer->vscroll_drag_start_y = local_y;
             viewer->vscroll_drag_start_scroll = viewer->scroll_y;
+            event->propagation_stopped = true; // 停止事件传播到scene
             return;
         }
     }
@@ -291,8 +297,9 @@ static void html_viewer_on_mouse_down(ui_component_t *component, event_t *event)
             viewer->hscroll_dragging = true;
             viewer->hscroll_drag_start_x = local_x;
             viewer->hscroll_drag_start_scroll = viewer->scroll_x;
+            event->propagation_stopped = true; // 停止事件传播到scene
             return;
-        }
+}
     }
 }
 
@@ -368,6 +375,49 @@ static void html_viewer_on_mouse_move(ui_component_t *component, event_t *event)
             html_context_set_scroll(viewer->html_ctx, viewer->scroll_x, viewer->scroll_y);
         }
         return;
+    }
+}
+
+static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event) {
+    ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
+
+    if (!viewer->html_ctx) return;
+
+    // 获取滚轮滚动值
+    float wheel_delta = event->wheel.delta;
+
+    // 检查是否需要水平滚动（使用Shift键）
+    if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {
+        if (html_context_can_scroll_horizontally(viewer->html_ctx)) {
+            float new_scroll_x = viewer->scroll_x - wheel_delta;
+
+            // 限制滚动范围
+            if (new_scroll_x < 0) new_scroll_x = 0;
+            if (new_scroll_x > viewer->scroll_max_x) new_scroll_x = viewer->scroll_max_x;
+
+            // 更新滚动位置
+            if (new_scroll_x != viewer->scroll_x) {
+                viewer->scroll_x = new_scroll_x;
+                html_context_set_scroll(viewer->html_ctx, viewer->scroll_x, viewer->scroll_y);
+                event->propagation_stopped = true; // 停止事件传播
+            }
+        }
+    }
+    // 垂直滚动
+    else if (html_context_can_scroll_vertically(viewer->html_ctx)) {
+        // 计算新的滚动位置
+        float new_scroll_y = viewer->scroll_y - wheel_delta;
+
+        // 限制滚动范围
+        if (new_scroll_y < 0) new_scroll_y = 0;
+        if (new_scroll_y > viewer->scroll_max_y) new_scroll_y = viewer->scroll_max_y;
+
+        // 更新滚动位置
+        if (new_scroll_y != viewer->scroll_y) {
+            viewer->scroll_y = new_scroll_y;
+            html_context_set_scroll(viewer->html_ctx, viewer->scroll_x, viewer->scroll_y);
+            event->propagation_stopped = true; // 停止事件传播
+        }
     }
 }
 
