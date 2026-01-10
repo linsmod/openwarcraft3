@@ -2995,6 +2995,12 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
     layx_scalar x, y, width, height;
     layx_get_rect_xywh(ctx->layout_ctx, layout_id, &x, &y, &width, &height);
     
+    // 应用滚动偏移（只对根节点的子元素及更深层的元素应用滚动）
+    // 根节点（depth=0）不应用滚动偏移，因为它是viewport
+    if (depth > 0) {
+        x -= ctx->scroll_x;
+        y -= ctx->scroll_y;
+    }
     
     // 计算并应用CSS样式（重要：这会触发apply_computed_style_to_lay）
     if (node->type == XML_ELEMENT_NODE) {
