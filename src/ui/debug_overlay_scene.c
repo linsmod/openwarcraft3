@@ -69,6 +69,9 @@ void DebugOverlayScene_Render(scene_t *scene) {
 
         float x, y, width, height;
         UIComponent_GetContentBoxRect(target, &x, &y, &width, &height);
+
+        float scroll_x, scroll_y;
+        UIComponent_GetScrollOffset(target, &scroll_x, &scroll_y);
         // 获取画布上下文
         canvas2d_context_t *ctx = mgr->current_scene->canvas_ctx;
         if (!ctx) return;
@@ -145,9 +148,22 @@ void DebugOverlayScene_Render(scene_t *scene) {
                     }
                 }
             }
-            
+
+            // 检查左边是否有足够空间
+            float text_x = x + 5.0f;
+            if (text_x + strlen(info_text) * 14.0f > vpsize.width) {
+                // 左边空间不足，显示在右边
+                text_x = x + width + 5.0f;
+            }
+            else{
+                // 还要检查右边是否有足够空间
+                if (text_x + strlen(info_text) * 14.0f > vpsize.width) {
+                    // 右边空间不足，显示在左边
+                    text_x = x + 5.0f;
+                }
+            }
             // 显示信息
-            canvas2d_fill_text(ctx, info_text, x, text_y);
+            canvas2d_fill_text(ctx, info_text, text_x, text_y);
         }
     }
 }

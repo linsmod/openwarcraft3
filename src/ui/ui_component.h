@@ -284,6 +284,8 @@ const char* UIComponent_GetTypeName(int typeid);
 
 void UIComponent_GetContentBoxRect(ui_component_t *component, float *x, float *y, float *width, float *height);
 
+void UIComponent_GetScrollOffset(ui_component_t *component, float *x, float *y);
+
 // ==================== 事件处理 ====================
 
 bool UIComponent_AddEventHandler(ui_component_t *component, ui_event_type_t event_type,

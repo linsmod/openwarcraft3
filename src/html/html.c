@@ -3807,6 +3807,13 @@ static void find_node_by_point_recursive(context *ctx, xmlNode *node,
         layx_scalar elem_x, elem_y, elem_width, elem_height;
         layx_get_rect_xywh(ctx->layout_ctx, layout_id, &elem_x, &elem_y, &elem_width, &elem_height);
         
+        // 应用滚动偏移（只对根节点的子元素及更深层的元素应用滚动）
+        // 根节点（depth=0）不应用滚动偏移，因为它是viewport
+        if (current_depth > 0) {
+            elem_x -= ctx->scroll_x;
+            elem_y -= ctx->scroll_y;
+        }
+        
         // 检查点是否在矩形内
         if (x >= elem_x && x < elem_x + elem_width &&
             y >= elem_y && y < elem_y + elem_height) {

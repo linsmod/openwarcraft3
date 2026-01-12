@@ -42,6 +42,12 @@ bool UIComponent_IsFocused(const ui_component_t *component) {
 bool UIComponent_IsHovered(const ui_component_t *component) {
     return component ? (component->flags & UI_FLAG_HOVERED) != 0 : false;
 }
+void UIComponent_GetScrollOffset(ui_component_t *component, float *x, float *y){
+    layx_scalar x_,y_;
+    layx_get_scroll_offset_xy(component->lay_ctx, component->lay_item_id, &x_, &y_);
+    *x = (float)x_;
+    *y = (float)y_;
+}
 void UIComponent_GetContentBoxRect(ui_component_t *component, float *x, float *y, float *width, float *height){
     layx_scalar x_,y_,width_,height_;
     layx_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x_, &y_, &width_, &height_);

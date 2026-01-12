@@ -186,15 +186,18 @@ static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, 
         }
     }
 
-    // 不在滚动条区域，将全局坐标转换为HTML内容的本地坐标
-    local_x = x - component->x - viewer->scroll_x;
-    local_y = y - component->y - viewer->scroll_y;
+    // 不在滚动条区域，将全局坐标转换为viewer的本地坐标（viewport坐标）
+    local_x = x - component->x;
+    local_y = y - component->y;
 
-    // 应用zoom缩放
+    // 应用zoom缩放（滚动偏移现在由find_node_by_point_recursive内部处理）
     if (viewer->zoom != 1.0f) {
         local_x /= viewer->zoom;
         local_y /= viewer->zoom;
     }
+    
+    // 传递给html_context_find_by_point的是viewport坐标
+    // 滚动偏移由find_node_by_point_recursive内部处理
 
     // 使用hittest查找命中的HTML节点
     xmlNode *hit_node = html_context_find_by_point(viewer->html_ctx, local_x, local_y);
