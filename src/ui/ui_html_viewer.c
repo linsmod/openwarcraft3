@@ -409,7 +409,7 @@ static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event
     float wheel_delta = event->wheel.delta_y;
 
     // 检查是否需要水平滚动（使用Shift键）
-    if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {
+    if (event->keyboard.modifiers & KEY_MODIFIER_SHIFT) {
         if (html_context_can_scroll_horizontally(viewer->html_ctx)) {
             float new_scroll_x = viewer->scroll_x - wheel_delta;
 

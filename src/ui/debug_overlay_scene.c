@@ -75,6 +75,8 @@ void DebugOverlayScene_Render(scene_t *scene) {
         ui_component_t* scroll_target=  UIComponent_FindScrollableParent(target);
         if(scroll_target)
             UIComponent_GetScrollOffset(scroll_target, &scroll_x, &scroll_y);
+        x -= scroll_x;
+        y -= scroll_y;
         // 获取画布上下文
         canvas2d_context_t *ctx = mgr->current_scene->canvas_ctx;
         if (!ctx) return;
@@ -82,7 +84,7 @@ void DebugOverlayScene_Render(scene_t *scene) {
         // 绘制红色边框表示命中的组件
         canvas2d_set_stroke_style(ctx, MAKE(COLOR32, 255, 0, 0, 255)); // 红色
         canvas2d_set_line_width(ctx, 2.0f);
-        canvas2d_stroke_rect(ctx, x+scroll_x, scroll_y, width, height);
+        canvas2d_stroke_rect(ctx, x, y, width, height);
 
         // 绘制组件类型名称
         const char *type_name = UIComponent_GetTypeName(target->type);

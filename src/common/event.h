@@ -74,8 +74,6 @@ typedef struct event_t {
 
     bool dispatch_immediately;
     
-    // 事件数据
-    union {
         // 鼠标事件数据
         struct {
             int button;
@@ -86,7 +84,18 @@ typedef struct event_t {
             bool down;
             int click_count;
         } mouse;
+
+        // 键盘事件数据
+        struct {
+            int key;
+            int scancode;
+            int modifiers;
+            bool repeat;
+            bool down;
+        } keyboard;
         
+    // 事件数据
+    union {
         // 鼠标移动事件数据（用于鼠标移动事件）
         struct {
             float x;
@@ -99,20 +108,8 @@ typedef struct event_t {
         struct {
             float delta_y;
             float delta_x;
-            float x;
-            float y;
-            int modifiers;
-            char dispatch_immediately;
         } wheel;
         
-        // 键盘事件数据
-        struct {
-            int key;
-            int scancode;
-            int modifiers;
-            bool repeat;
-            bool down;
-        } key;
         
         // 文本输入数据
         struct {

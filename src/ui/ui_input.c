@@ -177,7 +177,7 @@ static void input_on_key_down(ui_component_t *component, event_t *event) {
 
     int text_len = strlen(input->text);
 
-    switch (event->key.key) {
+    switch (event->keyboard.key) {
         case SDLK_BACKSPACE: {
             // 删除光标前的字符（正确处理多字节 UTF-8 字符）
             if (input->cursor_pos > 0) {

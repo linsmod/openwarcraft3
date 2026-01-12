@@ -188,7 +188,7 @@ static void GameScene_OnKeyDown(scene_t *scene, event_t *event) {
     }
     
     // 正常游戏状态下的输入
-    switch (event->key.key) {
+    switch (event->keyboard.key) {
         case K_ESCAPE: {
             // ESC键：打开暂停菜单（叠加场景）
             printf("GameScene: Pausing game\n");
@@ -225,7 +225,7 @@ static void GameScene_OnKeyDown(scene_t *scene, event_t *event) {
         
         default: {
             // 其他键盘按键 - 转换为Key_Event
-            Key_Event(event->key.key, true, event->key.key);
+            Key_Event(event->keyboard.key, true, event->keyboard.key);
             break;
         }
     }
@@ -241,7 +241,7 @@ static void GameScene_OnKeyUp(scene_t *scene, event_t *event) {
         return;
     }
     
-    Key_Event(event->key.key, false, event->key.key);
+    Key_Event(event->keyboard.key, false, event->keyboard.key);
 }
 
 // 处理鼠标按下事件

@@ -46,7 +46,7 @@ bool UIComponent_IsHovered(const ui_component_t *component) {
 
 void UIComponent_GetScrollOffset(ui_component_t *component, float *x, float *y){
     if(!component || !x || !y) return;
-    if(component->flags & UI_CAP_SCROLLABLE){
+    if(component->capabilities & UI_CAP_SCROLLABLE){
         ASSERT(component->vtable->get_scroll_x);
         *x = component->vtable->get_scroll_x(component);
          ASSERT(component->vtable->get_scroll_y);

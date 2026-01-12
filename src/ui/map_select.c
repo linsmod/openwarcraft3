@@ -1382,7 +1382,7 @@ void MapSelectScene_RenderBackground(scene_t *scene,size2_t vpsize) {
 
 // Scene 输入处理
 bool MapSelectScene_OnKeyDown(scene_t *scene, input_event_t *event) {
-    switch (event->key.key) {
+    switch (event->keyboard.key) {
         case SDLK_RETURN: {
             int selected = UIList_GetSelected((ui_list_t *)g_ui_list);
             if (selected >= 0) {

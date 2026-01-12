@@ -937,17 +937,14 @@ void static ProcessUIHandlessEvent(scene_t *scene, event_t *event){
 }
 #define WheelScale 2.0f
 // 推荐实现
-float ApplyWheelResponse(float delta, float sensitivity) {
+float ApplySquareResponse(float delta, float sensitivity) {
     if (delta == 0) return 0;
     
     float sign = (delta > 0) ? 1.0f : -1.0f;
     float abs_delta = fabsf(delta);
     
-    // 方案1：先乘再开方（推荐）
-    return sign * sqrtf(abs_delta * sensitivity) * WheelScale;  // 额外乘10调整尺度
-    
-    // 或者更可控的版本：
-    // return sign * sqrtf(abs_delta * sensitivity * 100.0f);
+    // 平方响应：delta² × sensitivity
+    return sign * (abs_delta * abs_delta) * sensitivity;
 }
 // ========================================
 // 事件冒泡处理
@@ -999,18 +996,27 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
                             float delta_y = event->wheel.delta_y;
                             
                             // 检查是否使用Shift键进行水平滚动
-                            if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {
+                            if (event->keyboard.modifiers & KEY_MODIFIER_SHIFT) {
                                 int capabilities = scrollable->flags & UI_FLAG_H_SCROLL_ALLOWED;
                                 if (capabilities) {  // 可以水平滚动
                                     delta_x = event->wheel.delta_y;
                                     delta_y = 0;
                                 }
                             }
+                            printf("EVENT_MOUSE_WHEEL: %f, %f\n",event->wheel.delta_x,event->wheel.delta_y);
                             float wheel_sensitivity = UIComponent_GetWheelScrollSensitivity(scrollable);
-                            delta_x = ApplyWheelResponse(delta_x, wheel_sensitivity);
-                            delta_y = ApplyWheelResponse(delta_y, wheel_sensitivity);
+                            delta_x = ApplySquareResponse(delta_x, wheel_sensitivity);
+                            delta_y = ApplySquareResponse(delta_y, wheel_sensitivity);
                             UIComponent_ScrollBy(scrollable, delta_x, delta_y);
                             event->propagation_stopped = true;
+
+                            // 内容滚动后，触发一个假的mouse_move事件
+                            event_t mouse_move_event;
+                            memset(&mouse_move_event, 0, sizeof(event_t));
+                            mouse_move_event.type=EVENT_MOUSE_MOTION;
+                            mouse_move_event.motion.x=event->mouse.x;
+                            mouse_move_event.motion.y=event->mouse.y;
+                            SceneManager_ProcessEvent(mgr, &mouse_move_event);
                         }
                         else if (current->vtable->on_mouse_wheel) {
                             // 兼容旧的on_mouse_wheel处理
@@ -1316,7 +1322,7 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event) {
         
         case INPUT_EVENT_MOUSE_WHEEL: {
             // 执行hitTest找到目标组件
-            hit_target = SceneManager_HitTest(mgr, event->wheel.x, event->wheel.y);
+            hit_target = SceneManager_HitTest(mgr, event->mouse.x, event->mouse.y);
             SceneManager_BubbleEvent(mgr, hit_target, event);
             break;
         }

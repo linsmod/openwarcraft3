@@ -306,7 +306,7 @@ static void list_on_key_down(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return;
 
-    switch (event->key.key) {
+    switch (event->keyboard.key) {
         case SDLK_UP: // 上箭头
             if (list->selected_index > 0) {
                 list->pending_selected_index = list->selected_index - 1;

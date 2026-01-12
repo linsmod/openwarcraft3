@@ -11,7 +11,21 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
     }
     
     memset(output, 0, sizeof(event_t));
+    
     VECTOR2 scale = R_GetDisplayScale();
+    // 通用部分
+    int mouse_x, mouse_y;
+    SDL_GetMouseState(&mouse_x, &mouse_y);
+    output->mouse.x = mouse_x * 1.0 / scale.x;
+    output->mouse.y =  mouse_y * 1.0 / scale.y;
+    // 获取键盘修饰键状态
+    SDL_Keymod keymod = SDL_GetModState();
+    output->keyboard.modifiers = 0;
+    if (keymod & KMOD_SHIFT)   output->keyboard.modifiers |= KEY_MODIFIER_SHIFT;
+    if (keymod & KMOD_CTRL)    output->keyboard.modifiers |= KEY_MODIFIER_CTRL;
+    if (keymod & KMOD_ALT)     output->keyboard.modifiers |= KEY_MODIFIER_ALT;
+    if (keymod & KMOD_GUI)     output->keyboard.modifiers |= KEY_MODIFIER_SUPER;
+    output->mouse.button = sdl_event->button.button;
     switch (sdl_event->type) {
         case SDL_QUIT:
             output->type = INPUT_EVENT_QUIT;
@@ -19,14 +33,14 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
             
         case SDL_KEYDOWN:
             output->type = INPUT_EVENT_KEY_DOWN;
-            output->key.key = sdl_event->key.keysym.sym;
-            output->key.down = true;
+            output->keyboard.key = sdl_event->key.keysym.sym;
+            output->keyboard.down = true;
             return true;
             
         case SDL_KEYUP:
             output->type = INPUT_EVENT_KEY_UP;
-            output->key.key = sdl_event->key.keysym.sym;
-            output->key.down = false;
+            output->keyboard.key = sdl_event->key.keysym.sym;
+            output->keyboard.down = false;
             return true;
             
         case SDL_MOUSEBUTTONDOWN:
@@ -58,18 +72,7 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
             output->wheel.delta_y = (float)sdl_event->wheel.y;
             output->wheel.delta_x = (float)sdl_event->wheel.x;
             output->timestamp = SDL_GetTicks();  // 设置时间戳
-            // 滚轮事件本身不包含鼠标位置，需要单独获取
-            int mouse_x, mouse_y;
-            SDL_GetMouseState(&mouse_x, &mouse_y);
-            output->wheel.x = mouse_x * 1.0 / scale.x;
-            output->wheel.y =  mouse_y * 1.0 / scale.y;
-            // 获取键盘修饰键状态
-            SDL_Keymod keymod = SDL_GetModState();
-            output->wheel.modifiers = 0;
-            if (keymod & KMOD_SHIFT)   output->wheel.modifiers |= KEY_MODIFIER_SHIFT;
-            if (keymod & KMOD_CTRL)    output->wheel.modifiers |= KEY_MODIFIER_CTRL;
-            if (keymod & KMOD_ALT)     output->wheel.modifiers |= KEY_MODIFIER_ALT;
-            if (keymod & KMOD_GUI)     output->wheel.modifiers |= KEY_MODIFIER_SUPER;
+            
             return true;
             
         case SDL_TEXTINPUT:
