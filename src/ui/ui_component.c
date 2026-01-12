@@ -368,12 +368,12 @@ static void UIComponent_RenderBorder(ui_component_t *component) {
     }
 }
 
-float UIComponent_GetScrollFactor(const ui_component_t *component){
-    if(component && component->vtable->get_scroll_factor) {
-        return component->vtable->get_scroll_factor(component);
+float UIComponent_GetWheelSensitivity(const ui_component_t *component){
+    if(component && component->vtable->get_wheel_sensitivity) {
+        return component->vtable->get_wheel_sensitivity(component);
     }
     else{
-        return 1.0f;
+        return 40.0f;
     }
 }
 float UIComponent_GetScrollX(const ui_component_t *component) {
@@ -503,6 +503,8 @@ void UIComponent_CancelAnimationFrame(ui_component_t *component) {
 
 void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y, uint64_t current_time) {
     if (!component) return;
+
+    printf("UIComponent_ScrollBy %f, %f\n", delta_x, delta_y);
     
     // 如果有自定义实现，使用它
     if (component->vtable && component->vtable->scroll_by) {
@@ -517,7 +519,7 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
         return;
     }
     
-    float scroll_factor = UIComponent_GetScrollFactor(component);
+    float scroll_factor = UIComponent_GetWheelSensitivity(component);
     float old_scroll_x = UIComponent_GetScrollX(component);
     float old_scroll_y = UIComponent_GetScrollY(component);
     float max_scroll_x = UIComponent_GetMaxScrollX(component);

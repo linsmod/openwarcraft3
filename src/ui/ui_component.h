@@ -163,7 +163,7 @@ typedef struct ui_component_vtable {
     void (*scroll_by)(ui_component_t *component, float delta_x, float delta_y);
 
     // 滚动条查询函数（用于默认滚动条渲染）
-    float (*get_scroll_factor)(const ui_component_t *component);
+    float (*get_wheel_sensitivity)(const ui_component_t *component);
     float (*get_scroll_x)(const ui_component_t *component);
     float (*get_scroll_y)(const ui_component_t *component);
     float (*get_max_scroll_x)(const ui_component_t *component);

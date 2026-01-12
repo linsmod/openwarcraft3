@@ -1135,7 +1135,7 @@ void SceneManager_QueueEvent(scene_manager_t *mgr, event_t *event) {
         
         // 如果最后一个事件也是滚轮事件，并且时间相近，合并它们
         if (last_event->type == INPUT_EVENT_MOUSE_WHEEL &&
-            event->timestamp - last_event->timestamp < 50) {
+            event->timestamp - last_event->timestamp < 100) {
             
             // 合并滚轮增量
             last_event->wheel.delta_x += event->wheel.delta_x;
