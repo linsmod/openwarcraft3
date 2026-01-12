@@ -351,7 +351,7 @@ static const ui_component_vtable_t g_input_vtable = {
     .on_blur = input_on_blur,
     .on_resize = NULL,
     .on_scroll = NULL,
-    .can_scroll = NULL,
+    .scroll_to = NULL,
     .scroll_by = NULL,
     .add_child = NULL,
     .remove_child = NULL,
@@ -428,7 +428,7 @@ input->align = UI_TEXT_ALIGN_LEFT;
     UIComponent_SetPadding(&input->base, 4.0f, 8.0f, 4.0f, 8.0f);
 
     // 启用焦点和Tab访问
-    input->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP;
+    input->base.flags |= UI_CAP_ACCEPT_FOCUS | UI_CAP_TAB_STOP;
 
     return 0;
 }

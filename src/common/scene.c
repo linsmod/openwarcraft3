@@ -827,27 +827,6 @@ void SceneManager_InitMouseState(scene_manager_t *mgr) {
     mgr->captured = NULL;
 }
 
-
-// 查找第一个可以滚动的父组件
-static ui_component_t* FindScrollableParent(ui_component_t *component) {
-    if (!component) return NULL;
-    
-    // 从当前组件开始，向上遍历
-    ui_component_t *current = component;
-    while (current) {
-        // 检查组件是否支持滚动
-        if (current->vtable && current->vtable->can_scroll) {
-            int scroll_capabilities = current->vtable->can_scroll(current);
-            if (scroll_capabilities != 0) {
-                return current;  // 找到可滚动的组件
-            }
-        }
-        // 移动到父组件
-        current = current->parent;
-    }
-    return NULL;
-}
-
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
     if (!mgr || !mgr->current_scene || !mgr->current_scene->root_component) {
         mgr->mouse_target = NULL;
@@ -956,6 +935,20 @@ void static ProcessUIHandlessEvent(scene_t *scene, event_t *event){
                 break;
         }
 }
+#define WheelScale 2.0f
+// 推荐实现
+float ApplyWheelResponse(float delta, float sensitivity) {
+    if (delta == 0) return 0;
+    
+    float sign = (delta > 0) ? 1.0f : -1.0f;
+    float abs_delta = fabsf(delta);
+    
+    // 方案1：先乘再开方（推荐）
+    return sign * sqrtf(abs_delta * sensitivity) * WheelScale;  // 额外乘10调整尺度
+    
+    // 或者更可控的版本：
+    // return sign * sqrtf(abs_delta * sensitivity * 100.0f);
+}
 // ========================================
 // 事件冒泡处理
 // ========================================
@@ -1000,20 +993,23 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
                 case EVENT_MOUSE_WHEEL:
                     // 滚轮事件特殊处理：查找可滚动的父组件
                     {
-                        ui_component_t *scrollable = FindScrollableParent(current);
+                        ui_component_t *scrollable = UIComponent_FindScrollableParent(current);
                         if (scrollable) {
                             float delta_x = 0;
                             float delta_y = event->wheel.delta_y;
                             
                             // 检查是否使用Shift键进行水平滚动
                             if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {
-                                int capabilities = scrollable->vtable->can_scroll(scrollable);
-                                if (capabilities & 2) {  // 可以水平滚动
+                                int capabilities = scrollable->flags & UI_FLAG_H_SCROLL_ALLOWED;
+                                if (capabilities) {  // 可以水平滚动
                                     delta_x = event->wheel.delta_y;
                                     delta_y = 0;
                                 }
                             }
-                            UIComponent_ScrollBy(scrollable, delta_x, delta_y,event->timestamp);
+                            float wheel_sensitivity = UIComponent_GetWheelScrollSensitivity(scrollable);
+                            delta_x = ApplyWheelResponse(delta_x, wheel_sensitivity);
+                            delta_y = ApplyWheelResponse(delta_y, wheel_sensitivity);
+                            UIComponent_ScrollBy(scrollable, delta_x, delta_y);
                             event->propagation_stopped = true;
                         }
                         else if (current->vtable->on_mouse_wheel) {
@@ -1275,7 +1271,7 @@ void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event) {
                 if (drag_dist > mgr->drag_threshold && !mgr->is_dragging) {
                     // 开始拖拽
                     hit_target = SceneManager_HitTest(mgr, event->motion.x, event->motion.y);
-                    if (hit_target && hit_target->flags & UI_FLAG_DRAGGABLE) {
+                    if (hit_target && hit_target->capabilities & UI_CAP_DRAGGABLE) {
                         mgr->is_dragging = true;
                         mgr->dragging_component = hit_target;
                         
@@ -1357,7 +1353,7 @@ void SceneManager_SetFocus(scene_manager_t *mgr, ui_component_t *component) {
             old_focus->flags &= ~UI_FLAG_FOCUSED;
         }
 
-        if (component && (component->flags & UI_FLAG_ACCEPT_FOCUS)) {
+        if (component && (component->flags & UI_CAP_ACCEPT_FOCUS)) {
             event_t focus_event = {
                 .type = EVENT_FOCUS,
                 .timestamp = SDL_GetTicks()

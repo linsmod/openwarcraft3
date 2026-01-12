@@ -382,7 +382,7 @@ static const ui_component_vtable_t g_list_vtable = {
     .on_drag_start = NULL,
     .on_drag = NULL,
     .on_drag_end = NULL,
-    .can_scroll = list_can_scroll,
+    .scroll_to = list_can_scroll,
     .scroll_by = list_scroll_by,
     .on_key_down = list_on_key_down,
     .on_key_up = NULL,
@@ -433,7 +433,7 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
     if (list->visible_count < 1) list->visible_count = 1;
 
 // 启用焦点、Tab访问和拖拽
-    list->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP | UI_FLAG_DRAGGABLE;
+    list->base.flags |= UI_CAP_ACCEPT_FOCUS | UI_CAP_TAB_STOP | UI_CAP_DRAGGABLE;
 
     return list;
 }
@@ -468,7 +468,7 @@ int UIList_Init(ui_list_t *list, canvas2d_context_t *ctx) {
     list->scroll_pos = 0;
 
 // 启用焦点、Tab访问和拖拽
-    list->base.flags |= UI_FLAG_ACCEPT_FOCUS | UI_FLAG_TAB_STOP | UI_FLAG_DRAGGABLE;
+    list->base.flags |= UI_CAP_ACCEPT_FOCUS | UI_CAP_TAB_STOP | UI_CAP_DRAGGABLE;
 
     return 0;
 }

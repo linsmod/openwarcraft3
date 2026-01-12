@@ -1,6 +1,7 @@
 #include "ui_component.h"
 #include "../common/event.h"
 #include "../common/scene.h"
+#include "common/shared.h"
 #include "layx.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,11 +43,19 @@ bool UIComponent_IsFocused(const ui_component_t *component) {
 bool UIComponent_IsHovered(const ui_component_t *component) {
     return component ? (component->flags & UI_FLAG_HOVERED) != 0 : false;
 }
+
 void UIComponent_GetScrollOffset(ui_component_t *component, float *x, float *y){
-    layx_scalar x_,y_;
-    layx_get_scroll_offset_xy(component->lay_ctx, component->lay_item_id, &x_, &y_);
-    *x = (float)x_;
-    *y = (float)y_;
+    if(!component || !x || !y) return;
+    if(component->flags & UI_CAP_SCROLLABLE){
+        ASSERT(component->vtable->get_scroll_x);
+        *x = component->vtable->get_scroll_x(component);
+         ASSERT(component->vtable->get_scroll_y);
+        *y = component->vtable->get_scroll_y(component);
+    }
+    else{
+        *x = 0;
+        *y = 0;
+    }
 }
 void UIComponent_GetContentBoxRect(ui_component_t *component, float *x, float *y, float *width, float *height){
     layx_scalar x_,y_,width_,height_;
@@ -300,7 +309,10 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     else{
         component->lay_item_id = LAYX_INVALID_ID;
     }
-
+    if(component->vtable->scroll_to || component->vtable->scroll_by){
+        component->capabilities |= UI_CAP_SCROLLABLE;
+        component->flags |= UI_FLAG_BOTH_SCROLL_ALLOWED;
+    }
     // 初始化事件处理器数组
     memset(component->event_handlers, 0, sizeof(component->event_handlers));
     memset(component->event_handler_user_data, 0, sizeof(component->event_handler_user_data));
@@ -374,12 +386,12 @@ static void UIComponent_RenderBorder(ui_component_t *component) {
     }
 }
 
-float UIComponent_GetWheelSensitivity(const ui_component_t *component){
+float UIComponent_GetWheelScrollSensitivity(const ui_component_t *component){
     if(component && component->vtable->get_wheel_sensitivity) {
         return component->vtable->get_wheel_sensitivity(component);
     }
     else{
-        return 40.0f;
+        return 32.0f;
     }
 }
 float UIComponent_GetScrollX(const ui_component_t *component) {
@@ -438,12 +450,49 @@ void UIComponent_SetScrollY(ui_component_t *component, float scroll_y) {
         component->scroll_state.scroll_y = scroll_y;
     }
 }
-void UIComponent_SetScrollX(ui_component_t *component, float scroll_x) {
-    if(component && component->vtable->set_scroll_x) {
-        component->vtable->set_scroll_x(component, scroll_x);
+void UIComponent_ScrollTo(ui_component_t *component, float scroll_x, float scroll_y) {
+    if(!component) return;
+
+    if(!(component->capabilities & UI_CAP_SCROLLABLE)){
+        return;
+    }
+
+    // Use current scroll position if scrolling is not allowed
+    if(!(component->flags & UI_FLAG_H_SCROLL_ALLOWED)){
+        scroll_x = component->vtable->get_scroll_x(component);
+    }
+    if(!(component->flags & UI_FLAG_V_SCROLL_ALLOWED)){
+        scroll_y = component->vtable->get_scroll_y(component);
+    }
+    if(component->vtable->scroll_to){
+        component->vtable->scroll_to(component, scroll_x, scroll_y);
     }
     else{
         component->scroll_state.scroll_x = scroll_x;
+        component->scroll_state.scroll_y = scroll_y;
+    }
+}
+void ui_component_apply_default_scroll_by(ui_component_t* comp,float dx,float dy);
+
+// call path: scroll_by -> scroll_to -> set_scroll_offset
+void UIComponent_ScrollBy(ui_component_t *component, float dx, float dy) {
+    if(!component || !component->vtable->scroll_to) return;
+
+    if(!(component->capabilities & UI_CAP_SCROLLABLE)){
+        return;
+    }
+
+    if(dx > 0 && !(component->flags & UI_FLAG_H_SCROLL_ALLOWED)){
+        dx = 0;
+    }
+    if(dy > 0 && !(component->flags & UI_FLAG_V_SCROLL_ALLOWED)){
+        dy = 0;
+    }
+    if(component->vtable->scroll_by){
+        component->vtable->scroll_by(component, dx, dy);
+    }
+    else{
+        ui_component_apply_default_scroll_by(component, dx, dy);
     }
 }
 void UIComponent_OnScrolled(ui_component_t *component,int dx,int dy) {
@@ -507,16 +556,10 @@ void UIComponent_CancelAnimationFrame(ui_component_t *component) {
     SceneManager_UnregisterAnimationComponent(component->scene_manager, component);
 }
 
-void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y, uint64_t current_time) {
+void ui_component_apply_default_scroll_by(ui_component_t *component, float delta_x, float delta_y) {
     if (!component) return;
 
     printf("UIComponent_ScrollBy %f, %f\n", delta_x, delta_y);
-    
-    // 如果有自定义实现，使用它
-    if (component->vtable && component->vtable->scroll_by) {
-        component->vtable->scroll_by(component, delta_x, delta_y);
-        return;
-    }
     bool scrolled = false;
     bool can_scroll_x = UIComponent_CanScrollHorizontally(component);
     bool can_scroll_y = UIComponent_CanScrollVertically(component);
@@ -525,7 +568,6 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
         return;
     }
     
-    float scroll_factor = UIComponent_GetWheelSensitivity(component);
     float old_scroll_x = UIComponent_GetScrollX(component);
     float old_scroll_y = UIComponent_GetScrollY(component);
     float max_scroll_x = UIComponent_GetMaxScrollX(component);
@@ -536,49 +578,21 @@ void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_
     
     // 应用弹性滚动
     if (delta_y != 0 && can_scroll_y) {
-        new_scroll_y = old_scroll_y - delta_y * scroll_factor;
-        
-        // 弹性边界处理
-        if (new_scroll_y < 0) {
-            new_scroll_y = old_scroll_y - delta_y * scroll_factor * 0.3f;
-        } else if (new_scroll_y > max_scroll_y) {
-            new_scroll_y = old_scroll_y - delta_y * scroll_factor * 0.3f;
-        }
-        
-        // 最终边界限制
-        if (new_scroll_y < 0) new_scroll_y = 0;
-        if (new_scroll_y > max_scroll_y) new_scroll_y = max_scroll_y;
-        
-        if (new_scroll_y != old_scroll_y) {
-            UIComponent_SetScrollY(component, new_scroll_y);
-            scrolled = true;
-        }
+        new_scroll_y = old_scroll_y - delta_y;
     }
     
     if (delta_x != 0 && can_scroll_x) {
-        new_scroll_x = old_scroll_x - delta_x * scroll_factor;
-        
-        // 弹性边界处理
-        if (new_scroll_x < 0) {
-            new_scroll_x = old_scroll_x - delta_x * scroll_factor * 0.3f;
-        } else if (new_scroll_x > max_scroll_x) {
-            new_scroll_x = old_scroll_x - delta_x * scroll_factor * 0.3f;
-        }
-        
-        // 最终边界限制
-        if (new_scroll_x < 0) new_scroll_x = 0;
-        if (new_scroll_x > max_scroll_x) new_scroll_x = max_scroll_x;
-        
-        if (new_scroll_x != old_scroll_x) {
-            UIComponent_SetScrollX(component, new_scroll_x);
-            scrolled = true;
-        }
+        new_scroll_x = old_scroll_x - delta_x;
     }
-    
+    if(new_scroll_x>max_scroll_x){
+        new_scroll_x = max_scroll_x;
+    }
+    if(new_scroll_y > max_scroll_y){
+        new_scroll_y = max_scroll_y;
+    }
+    scrolled = new_scroll_x != old_scroll_x || new_scroll_y != old_scroll_y;
     if (scrolled) {
-        UIComponent_OnScrolled(component, 
-                              new_scroll_x - old_scroll_x,
-                              new_scroll_y - old_scroll_y);
+        UIComponent_ScrollTo(component, new_scroll_x, new_scroll_y);
     }
 }
 

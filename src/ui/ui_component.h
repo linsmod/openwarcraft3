@@ -42,14 +42,17 @@ typedef enum {
     UI_FLAG_ENABLED     = 0x02,  // 组件可用
     UI_FLAG_FOCUSED     = 0x04,  // 组件获得焦点
     UI_FLAG_HOVERED     = 0x08,  // 组件被悬停
-    UI_FLAG_DRAGGABLE   = 0x10,  // 组件可以被拖拽
+    UI_CAP_DRAGGABLE   = 0x10,  // 组件可以被拖拽
     UI_FLAG_DRAGGING    = 0x20,  // 组件正在拖拽中
     UI_FLAG_CAPTURED    = 0x40,  // 组件捕获了鼠标
-    UI_FLAG_ACCEPT_FOCUS= 0x80,  // 组件接受焦点
-    UI_FLAG_TAB_STOP    = 0x100, // Tab键停止
-    UI_FLAG_CLIPPING    = 0x200  // 启用裁剪（子组件超出边界时不显示）
+    UI_CAP_ACCEPT_FOCUS= 0x80,  // 组件接受焦点
+    UI_CAP_TAB_STOP    = 0x100, // Tab键停止
+    UI_FLAG_CLIPPING    = 0x200,  // 启用裁剪（子组件超出边界时不显示）
+    UI_CAP_SCROLLABLE = 0x400, 
+    UI_FLAG_H_SCROLL_ALLOWED = 0x800,
+    UI_FLAG_V_SCROLL_ALLOWED = 0x1000,
+    UI_FLAG_BOTH_SCROLL_ALLOWED = UI_FLAG_H_SCROLL_ALLOWED | UI_FLAG_V_SCROLL_ALLOWED,
 } ui_component_flags_t;
-
 // ==================== 事件类型 ====================
 
 // 事件类型现在统一使用 src/common/event.h 中的定义
@@ -157,9 +160,7 @@ typedef struct ui_component_vtable {
     // 滚动事件
     void (*on_scroll)(ui_component_t *component, void *event);
     
-    // 滚动能力查询和滚动函数（用于滚轮事件穿透）
-    // 返回值：1=可垂直滚动, 2=可水平滚动, 3=两者都可, 0=不可滚动
-    int (*can_scroll)(ui_component_t *component);
+    void (*scroll_to)(ui_component_t *component, float x, float y);
     void (*scroll_by)(ui_component_t *component, float delta_x, float delta_y);
 
     // 滚动条查询函数（用于默认滚动条渲染）
@@ -231,6 +232,8 @@ struct ui_component_t {
     
     // 状态标志
     int flags;
+    // 能力标志
+    int capabilities;
     
     // 组件层次
     ui_component_t *parent;
@@ -285,6 +288,22 @@ const char* UIComponent_GetTypeName(int typeid);
 void UIComponent_GetContentBoxRect(ui_component_t *component, float *x, float *y, float *width, float *height);
 
 void UIComponent_GetScrollOffset(ui_component_t *component, float *x, float *y);
+
+// 查找第一个可以滚动的父组件
+static inline ui_component_t* UIComponent_FindScrollableParent(ui_component_t *component) {
+    if (!component) return NULL;
+    
+    // 从当前组件开始，向上遍历
+    ui_component_t *current = component;
+    while (current) {
+        // 检查组件是否支持滚动
+        if(current->capabilities & UI_CAP_SCROLLABLE)
+            return current;
+        // 移动到父组件
+        current = current->parent;
+    }
+    return NULL;
+}
 
 // ==================== 事件处理 ====================
 
@@ -399,7 +418,8 @@ bool UIComponent_IsScrolling(const ui_component_t *component);
 void UIComponent_StopInertiaScroll(ui_component_t *component);
 
 // 滚动组件（停止惯性滚动并进行直接滚动）
-void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y, uint64_t current_time);
+void UIComponent_ScrollBy(ui_component_t *component, float delta_x, float delta_y);
+float UIComponent_GetWheelScrollSensitivity(const ui_component_t *component);
 
 // ==================== RequestAnimationFrame 机制 ====================
 

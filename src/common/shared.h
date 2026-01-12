@@ -21,7 +21,7 @@
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
 #define CLAMP(x, min_val, max_val) ((x) < (min_val) ? (min_val) : ((x) > (max_val) ? (max_val) : (x)))
-
+#define ASSERT(x) do{if(!(x)) printf("ASSERT FAILED: %s:%d\n",__FILE__,__LINE__);}while(0)
 // 键盘修饰键常量
 #define KEY_MODIFIER_SHIFT   0x01
 #define KEY_MODIFIER_CTRL    0x02
