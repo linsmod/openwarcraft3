@@ -346,9 +346,6 @@ int Scene_CreateResources(scene_t *scene, int width, int height) {
         return -1;
     }
     
-    // 设置 scene_manager 到根组件（递归设置所有子组件）
-    UIComponent_SetSceneManager(scene->root_component, scene->manager);
-    
     // 插入根容器到布局系统
     layx_insert(scene->lay_ctx, 
         canvas2d_getlayid((canvas2d_t *)scene->canvas), 
@@ -758,6 +755,10 @@ void SceneManager_Update(scene_manager_t *mgr, int msec) {
         mgr->pending_transition = NULL;
         return;
     }
+    // 注入 scene_manager 到根组件（递归设置所有子组件）
+    // 目前ui_component 调用动画系统需要传递 scene_manager
+    UIComponent_SetSceneManager(mgr->current_scene->root_component, mgr);
+    
     // 先更新非UI逻辑
     // 调用场景的update函数，检查是否有跳转请求
     scene_transition_t *transition = SCENE_UPDATE(mgr->current_scene, msec);

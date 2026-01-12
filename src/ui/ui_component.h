@@ -80,21 +80,9 @@ typedef void (*ui_event_handler_t)(ui_component_t *component, event_t *event, vo
 // ==================== 滚动状态结构 ====================
 
 typedef struct {
-    float velocity_x;      // 水平滚动速度 (px/s)
-    float velocity_y;      // 垂直滚动速度 (px/s)
-    uint64_t last_update_time; // 上次更新时间戳 (ms)
-    bool is_scrolling;     // 是否正在滚动
-    bool is_decelerating;  // 是否正在减速
-    float overscroll_x;    // 过度滚动距离
-    float overscroll_y;    // 过度滚动距离
-    
-    // 事件累积字段
-    float accumulated_delta_x;    // 累积的滚动量
-    float accumulated_delta_y;
-    uint64_t accumulation_start_time;
-    uint64_t last_scroll_time;    // 上次收到滚动事件的时间
-    bool needs_inertia_check;     // 需要检查是否触发惯性
-    uint64_t inertia_check_time;  // 检查惯性的时间点
+    char is_scrolling;
+    float scroll_y;
+    float scroll_x;
 } ui_scroll_state_t;
 
 // 惯性滚动的配置参数
@@ -272,7 +260,7 @@ struct ui_component_t {
     float drag_offset_y;
     bool interact_disabled;
     
-    // 滚动状态（用于惯性滚动和弹性边界）
+    // 滚动状态， 用于动画滚动
     ui_scroll_state_t scroll_state;
 };
 
@@ -371,6 +359,7 @@ void UIComponent_SetLayoutMargins(ui_component_t *component, float left, float t
 
 // 设置布局行为标志（如 LAY_HFILL, LAY_VFILL 等）
 void UIComponent_SetAlignSelf(ui_component_t *component, uint32_t flags);
+void UIComponent_SetFlexDirection(ui_component_t *component, uint32_t direction);
 
 // Flex属性设置
 void UIComponent_SetFlexGrow(ui_component_t *component, float grow);
@@ -399,7 +388,7 @@ void UIComponent_ScrollWithInertia(ui_component_t *component,
                                    float delta_y,uint64_t timestamp_ms);
 
 // 更新惯性滚动动画（每帧调用）
-void UIComponent_UpdateScrollAnimation(ui_component_t *component);
+void UIComponent_RequestAnimationCallback(ui_component_t *component);
 
 // 检查组件是否正在滚动
 bool UIComponent_IsScrolling(const ui_component_t *component);
