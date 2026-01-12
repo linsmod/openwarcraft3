@@ -55,7 +55,8 @@ bool ConvertSDLEvent(SDL_Event *sdl_event, event_t *output) {
             
         case SDL_MOUSEWHEEL:
             output->type = INPUT_EVENT_MOUSE_WHEEL;
-            output->wheel.delta = (float)sdl_event->wheel.y;
+            output->wheel.delta_y = (float)sdl_event->wheel.y;
+            output->wheel.delta_x = (float)sdl_event->wheel.x;
             output->timestamp = SDL_GetTicks();  // 设置时间戳
             // 滚轮事件本身不包含鼠标位置，需要单独获取
             int mouse_x, mouse_y;

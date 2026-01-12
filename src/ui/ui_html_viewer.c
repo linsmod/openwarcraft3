@@ -407,7 +407,7 @@ static void html_viewer_on_mouse_wheel(ui_component_t *component, event_t *event
     if (!viewer->html_ctx) return;
 
     // 获取滚轮滚动值
-    float wheel_delta = event->wheel.delta;
+    float wheel_delta = event->wheel.delta_y;
 
     // 检查是否需要水平滚动（使用Shift键）
     if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {

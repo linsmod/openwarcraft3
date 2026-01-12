@@ -71,6 +71,8 @@ typedef struct event_t {
     
     // 用户数据
     void *user_data;
+
+    bool dispatch_immediately;
     
     // 事件数据
     union {
@@ -95,10 +97,12 @@ typedef struct event_t {
         
         // 滚轮事件数据
         struct {
-            float delta;
+            float delta_y;
+            float delta_x;
             float x;
             float y;
             int modifiers;
+            char dispatch_immediately;
         } wheel;
         
         // 键盘事件数据

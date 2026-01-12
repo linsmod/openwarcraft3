@@ -161,10 +161,15 @@ int main(int argc, LPSTR argv[]) {
                 // 事件转换失败，跳过此事件
                 continue;
             }
-            
-            // 分发输入事件给当前场景
-            SceneManager_ProcessEvent(scene_mgr, &input_event);
+            if (scene_mgr->event_queue_size >= MAX_EVENT_QUEUE_SIZE) {
+                SceneManager_ProcessQueuedEvent(scene_mgr);
+                if (scene_mgr->event_queue_size >= MAX_EVENT_QUEUE_SIZE) {
+                    continue;  // 丢弃
+                }
+            }
+            SceneManager_QueueEvent(scene_mgr, &input_event);
         }
+        SceneManager_ProcessQueuedEvent(scene_mgr);
         // 更新当前场景（如果有transition会自动设置到pending）
         SceneManager_Update(scene_mgr, dt);
         

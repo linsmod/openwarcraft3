@@ -299,7 +299,7 @@ static void list_scroll_by(ui_component_t *component, float delta_x, float delta
 static void list_on_mouse_wheel(ui_component_t *component, event_t *event) {
     // 这个函数现在不再需要了，因为滚轮事件会通过can_scroll/scroll_by机制自动处理
     // 保留它是为了兼容性
-    list_scroll_by(component, 0, event->wheel.delta);
+    list_scroll_by(component, 0, event->wheel.delta_y);
 }
 
 static void list_on_key_down(ui_component_t *component, event_t *event) {

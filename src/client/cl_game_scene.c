@@ -363,7 +363,7 @@ static void GameScene_OnMouseWheel(scene_t *scene, event_t *event) {
     }
     
     // 处理鼠标滚轮（缩放等）
-    if (event->wheel.delta > 0) {
+    if (event->wheel.delta_y > 0) {
         Key_Event(K_MWHEELUP, true, 0);
         Key_Event(K_MWHEELUP, false, 0);
     } else {

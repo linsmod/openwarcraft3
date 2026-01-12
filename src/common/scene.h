@@ -198,6 +198,8 @@ struct scene_t {
     void (*on_mouse_move)(scene_t *this, event_t *event);
 };
 
+#define MAX_EVENT_QUEUE_SIZE 64
+
 // ========================================
 // 场景管理器
 // ========================================
@@ -219,6 +221,9 @@ struct scene_manager_t {
     
     // 当前输入事件
     event_t current_input_event;
+    // 队列事件
+    event_t event_queue[MAX_EVENT_QUEUE_SIZE];
+    int event_queue_size;
     bool input_event_valid;
     
     // 鼠标状态追踪（用于生成细化的事件）
@@ -380,9 +385,10 @@ void SceneManager_InitMouseState(scene_manager_t *mgr);
 ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y);
 
 
-
+void SceneManager_QueueEvent(scene_manager_t *mgr, event_t *event);
 // 处理事件细化
 void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event);
+void SceneManager_ProcessQueuedEvent(scene_manager_t *mgr);
 
 // 递归处理事件冒泡
 void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, input_event_t *event);

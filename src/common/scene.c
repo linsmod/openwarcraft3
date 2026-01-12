@@ -4,6 +4,7 @@
 #include "../ui/ui_container.h"
 #include "../ui/debug_overlay_scene.h"
 
+#include "common/event.h"
 #include "layx.h"
 #include "../canvas2d/canvas2d.h"
 #include "common/shared.h"
@@ -1002,13 +1003,13 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
                         ui_component_t *scrollable = FindScrollableParent(current);
                         if (scrollable) {
                             float delta_x = 0;
-                            float delta_y = event->wheel.delta;
+                            float delta_y = event->wheel.delta_y;
                             
                             // 检查是否使用Shift键进行水平滚动
                             if (event->wheel.modifiers & KEY_MODIFIER_SHIFT) {
                                 int capabilities = scrollable->vtable->can_scroll(scrollable);
                                 if (capabilities & 2) {  // 可以水平滚动
-                                    delta_x = event->wheel.delta;
+                                    delta_x = event->wheel.delta_y;
                                     delta_y = 0;
                                 }
                             }
@@ -1125,6 +1126,40 @@ void SceneManager_BubbleEvent(scene_manager_t *mgr, ui_component_t *target, even
     }
 }
 
+void SceneManager_QueueEvent(scene_manager_t *mgr, event_t *event) {
+    if (!mgr || !event) return;
+    
+    // 如果是滚轮事件，尝试与队列中最后一个滚轮事件合并
+    if (event->type == INPUT_EVENT_MOUSE_WHEEL && mgr->event_queue_size > 0) {
+        event_t *last_event = &mgr->event_queue[mgr->event_queue_size - 1];
+        
+        // 如果最后一个事件也是滚轮事件，并且时间相近，合并它们
+        if (last_event->type == INPUT_EVENT_MOUSE_WHEEL &&
+            event->timestamp - last_event->timestamp < 50) {
+            
+            // 合并滚轮增量
+            last_event->wheel.delta_x += event->wheel.delta_x;
+            last_event->wheel.delta_y += event->wheel.delta_y;
+            
+            // 更新时间为最新的
+            last_event->timestamp = event->timestamp;
+            
+            // 不添加到队列，直接返回
+            return;
+        }
+    }
+    
+    // 普通事件或无法合并的滚轮事件，添加到队列
+    if (mgr->event_queue_size < MAX_EVENT_QUEUE_SIZE) {
+        mgr->event_queue[mgr->event_queue_size++] = *event;
+    }
+}
+void SceneManager_ProcessQueuedEvent(scene_manager_t *mgr){
+    FOR_EACH(event_t, event, mgr->event_queue, mgr->event_queue_size) {
+        SceneManager_ProcessEvent(mgr, event);
+    }
+    mgr->event_queue_size = 0;
+}
 void SceneManager_ProcessEvent(scene_manager_t *mgr, event_t *event) {
     if (!mgr || !event) return;
     
