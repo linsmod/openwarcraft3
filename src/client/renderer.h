@@ -94,6 +94,13 @@ struct drawText_s {
     LPMATRIX4 model_matrix;// for scale, transform,...
 };
 
+
+
+struct textMetrics{
+    FLOAT max_width;   // 最宽行的宽度
+    FLOAT total_height; // 总高度
+};
+
 struct drawImage_s {
     LPCTEXTURE texture;
     SHADERTYPE shader;

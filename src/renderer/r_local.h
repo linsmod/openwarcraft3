@@ -242,6 +242,7 @@ bool R_FontFamilyExists(LPSTR key);
 LPFONT R_LoadFont(LPCSTR filename, DWORD size);
 void R_ReleaseFont(LPFONT font);
 FLOAT R_GetFontWidth(LPFONT font, LPCSTR text);
+TEXTMETRICS R_GetTextMetrics(LPFONT font, LPCSTR text, FLOAT wrap_width);
 FLOAT R_GetFontHeight(LPFONT font);
 VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawUtf8TextEx(LPCDRAWTEXT drawText);

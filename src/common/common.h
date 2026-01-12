@@ -55,6 +55,7 @@ typedef struct model {
 KNOWN_AS(model, MODEL);
 KNOWN_AS(texture, TEXTURE);
 KNOWN_AS(font, FONT);
+KNOWN_AS(textMetrics, TEXTMETRICS);
 KNOWN_AS(War3MapVertex, WAR3MAPVERTEX);
 KNOWN_AS(war3map, WAR3MAP);
 KNOWN_AS(TerrainInfo, TERRAININFO);

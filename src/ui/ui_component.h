@@ -230,6 +230,11 @@ struct ui_component_t {
     int font_size;                   // 字体大小（CSS解析后存储，单位：像素）
     int text_align;                  // 文本对齐（0=left, 1=center, 2=right, 3=justify）
     
+    // 文本测量相关字段
+    char *text_content;              // 文本内容（用于文本测量）
+    char *font_family;               // 字体家族（用于文本测量）
+    int font_weight;                 // 字体粗细（用于文本测量）
+    
     // 状态标志
     int flags;
     // 能力标志

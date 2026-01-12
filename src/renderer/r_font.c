@@ -397,7 +397,77 @@ FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
     }
     return x;
 }
-
+TEXTMETRICS R_GetTextMetrics(LPFONT font, LPCSTR text, FLOAT wrap_width) {
+    TEXTMETRICS metrics = {0};
+    FLOAT current_line_width = 0;
+    FLOAT line_height = font->height;
+    
+    LPCSTR p = text;
+    unsigned codepoint;
+    
+    while (*p) {
+        // 只处理换行符
+        if (*p == '\n') {
+            // 更新最宽行
+            if (current_line_width > metrics.max_width) {
+                metrics.max_width = current_line_width;
+            }
+            // 换行：重置宽度，增加高度
+            current_line_width = 0;
+            metrics.total_height += line_height;
+            p++;
+            continue;
+        }
+        
+        // 处理普通文本字符
+        p = utf8_to_codepoint(p, &codepoint);
+        
+        glyphSet_t *set = R_GetGlyphSet(font, codepoint);
+        if (!set) {
+            // 如果找不到字形集，使用默认宽度
+            FLOAT default_width = line_height * 0.3f;
+            if (wrap_width > 0 && current_line_width + default_width > wrap_width + 0.001f) {
+                if (current_line_width > metrics.max_width) {
+                    metrics.max_width = current_line_width;
+                }
+                current_line_width = default_width;
+                metrics.total_height += line_height;
+            } else {
+                current_line_width += default_width;
+            }
+            continue;
+        }
+        
+        stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
+        FLOAT charWidth = g->xadvance;
+        
+        // 检查是否需要自动换行（与process_text相同的逻辑）
+        if (wrap_width > 0 && (current_line_width + charWidth) - wrap_width > 0.001f) {
+            // 更新最宽行
+            if (current_line_width > metrics.max_width) {
+                metrics.max_width = current_line_width;
+            }
+            // 开始新行
+            current_line_width = charWidth;
+            metrics.total_height += line_height;
+        } else {
+            // 继续当前行
+            current_line_width += charWidth;
+        }
+    }
+    
+    // 检查最后一行
+    if (current_line_width > metrics.max_width) {
+        metrics.max_width = current_line_width;
+    }
+    
+    // 添加最后一行的高度（如果有内容）
+    if (current_line_width > 0) {
+        metrics.total_height += line_height;
+    }
+    
+    return metrics;
+}
 
 FLOAT R_GetFontHeight(LPFONT font) {
     return FONT_SCALE * INV_SCALE_Y(font->height);
@@ -463,18 +533,18 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     VECTOR2 cursor = pos;
     FLOAT maxwidth = 0;
     // FLOAT linesize = 0.5 * arg->font->size / 1000.f;
-    FLOAT linesize = R_GetFontHeight(font);
+    FLOAT line_height = R_GetFontHeight(font);
     for (LPCSTR p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight * 1.1;
+            cursor.y += line_height * arg->lineHeight * 1.1;
             p++;
             continue;
         }
         if (!strncmp(p, "|n", 2) || !strncmp(p, "|N", 2)) {
         // next_line:
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight * 1.1;
+            cursor.y += line_height * arg->lineHeight * 1.1;
             p += 2;
             continue;
         }
@@ -484,11 +554,11 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
                     if (draw && arg->icons[icon]) {
                         R_DrawImage(arg->icons[icon],
-                                    &MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
+                                    &MAKE(RECT, cursor.x, cursor.y + line_height * 0.1, line_height, line_height),
                                     &MAKE(RECT, 0, 0, 1, 1),
                                     COLOR32_WHITE);
                     }
-                    cursor.x += linesize;
+                    cursor.x += line_height;
                     break;
             }
             p = strchr(p + 1, '>') + 1;
@@ -522,7 +592,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         FLOAT charWidth = INV_SCALE_X(g->xadvance);
         if (arg->wordWrap && ((cursor.x + charWidth) - (pos.x + arg->textWidth))> 0.001) {
             cursor.x = pos.x;
-            cursor.y += linesize * arg->lineHeight;
+            cursor.y += line_height * arg->lineHeight;
         }
         if (draw) {
             FLOAT const w = set->image->width;

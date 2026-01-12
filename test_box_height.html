@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Box Height</title>
+    <meta charset="UTF-8">
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 300px;
+            height: 300px;
+            background-color: #333;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .box {
+            width: 80px;
+            height: 80px;
+            background-color: #e53e3e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 5px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <h2>Test: flex-direction: column</h2>
+    <div class="container">
+        <div class="box">A</div>
+        <div class="box">B</div>
+        <div class="box">C</div>
+    </div>
+
+    <h2>Test: flex-direction: row</h2>
+    <div style="display: flex; flex-direction: row; width: 300px; height: 300px; background-color: #333; padding: 10px;">
+        <div class="box">A</div>
+        <div class="box">B</div>
+        <div class="box">C</div>
+    </div>
+
+    <script>
+        // 获取所有box元素并打印它们的实际尺寸
+        const boxes = document.querySelectorAll('.box');
+        boxes.forEach((box, index) => {
+            const rect = box.getBoundingClientRect();
+            const style = window.getComputedStyle(box);
+            console.log(`Box ${index}:`);
+            console.log(`  CSS width/height: ${style.width} / ${style.height}`);
+            console.log(`  Actual width/height: ${rect.width.toFixed(1)}px / ${rect.height.toFixed(1)}px`);
+            console.log(`  display: ${style.display}`);
+            console.log(`  parent display: ${box.parentElement.style.display || 'default'}`);
+            console.log(`  parent flex-direction: ${window.getComputedStyle(box.parentElement).flexDirection}`);
+            console.log('---');
+        });
+    </script>
+</body>
+</html>
