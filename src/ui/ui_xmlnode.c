@@ -1,5 +1,7 @@
 #include "ui_xmlnode.h"
+#include "common/event.h"
 #include "common/shared.h"
+#include "layx.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -18,47 +20,6 @@ static void xmlnode_shutdown(ui_component_t *component) {
 static void xmlnode_update(ui_component_t *component, int msec) {
     (void)component;
     (void)msec;
-}
-
-static void xmlnode_render(ui_component_t *component) {
-    ui_xmlnode_t *xmlnode = (ui_xmlnode_t *)component;
-    if (!xmlnode || !UIComponent_IsVisible(component)) return;
-
-    // 默认渲染：绘制背景（如果有的话）
-    COLOR32 bg_color = UIComponent_GetBgColor(component);
-    if (bg_color.a > 0) {
-        canvas2d_set_fill_style(component->ctx, bg_color);
-        canvas2d_fill_rect(component->ctx, component->x, component->y,
-                          component->width, component->height);
-    }
-
-    // 可以根据需要添加调试信息显示
-    // 例如显示节点名称或内容
-}
-
-static void xmlnode_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void xmlnode_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void xmlnode_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
-}
-
-static ui_component_t* xmlnode_hit_test(ui_component_t *component, float x, float y) {
-    if (x >= component->x && x < component->x + component->width &&
-        y >= component->y && y < component->y + component->height) {
-        return component;
-    }
-    return NULL;
 }
 
 // xmlnode的print_tree实现：打印XML节点信息
@@ -84,13 +45,13 @@ const ui_component_vtable_t g_xmlnode_vtable = {
     .init = xmlnode_init,
     .shutdown = xmlnode_shutdown,
     .update = xmlnode_update,
-    .render = xmlnode_render,
+    .render = NULL,
     .render_background = NULL,
     .render_border = NULL,
-    .set_position = xmlnode_set_position,
-    .set_size = xmlnode_set_size,
-    .set_bounds = xmlnode_set_bounds,
-    .hit_test = xmlnode_hit_test,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
+    .hit_test = NULL,
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
     .on_mouse_down = NULL,
@@ -134,11 +95,7 @@ ui_xmlnode_t* UIXMLNode_Create(float x, float y, float width, float height,
         free(xmlnode);
         return NULL;
     }
-
-    xmlnode->base.x = x;
-    xmlnode->base.y = y;
-    xmlnode->base.width = width;
-    xmlnode->base.height = height;
+    UIComponent_SetSize((ui_component_t*)xmlnode, width, height);
 
     return xmlnode;
 }

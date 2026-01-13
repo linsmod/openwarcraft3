@@ -4,6 +4,7 @@
 #include "../ui/ui_container.h"
 #include "common/scene.h"
 #include "common/shared.h"
+#include "ui/ui_component.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,13 +85,12 @@ int SplashScene_Init(scene_t *scene, const scene_params_t *params) {
         printf("SplashScene: Configured - duration: %dms, fade_in: %dms, fade_out: %dms, can_skip: %s\n",
                duration, fade_in, fade_out, skip ? "true" : "false");
     }
-    
-    // 创建HTML Viewer组件，填满整个场景
-    float scene_width = scene->root_component->width;
-    float scene_height = scene->root_component->height;
+
+    float width,height;
+    UIComponent_GetSize(scene->root_component, &width, &height);
     
     canvas2d_context_t *canvas_ctx = scene->canvas_ctx;
-    ui_html_viewer_t *viewer = UIHTMLViewer_Create(0.0f, 0.0f, scene_width, scene_height, canvas_ctx);
+    ui_html_viewer_t *viewer = UIHTMLViewer_Create(0.0f, 0.0f, width, height, canvas_ctx);
     if (!viewer) {
         printf("SplashScene: Failed to create HTML viewer\n");
         free(data);

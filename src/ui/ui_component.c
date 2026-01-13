@@ -57,7 +57,29 @@ void UIComponent_GetScrollOffset(ui_component_t *component, float *x, float *y){
         *y = 0;
     }
 }
-void UIComponent_GetContentBoxRect(ui_component_t *component, float *x, float *y, float *width, float *height){
+
+
+
+void UIComponent_SetPosition(ui_component_t *component, float x, float y) {
+    if (!component) return;
+    if (component->vtable && component->vtable->set_position) {
+        component->vtable->set_position(component, x, y);
+    }
+    else{
+        layx_set_position_lt(component->lay_ctx, component->lay_item_id, x, y);
+    }
+}
+
+void UIComponent_SetSize(ui_component_t *component, float width, float height) {
+    if (!component) return;
+    if (component->vtable && component->vtable->set_size) {
+        component->vtable->set_size(component, width, height);
+    }
+    else{
+        layx_set_size(component->lay_ctx, component->lay_item_id, width, height);
+    }
+}
+void UIComponent_GetRect(ui_component_t *component, float *x, float *y, float *width, float *height){
     layx_scalar x_,y_,width_,height_;
     layx_get_rect_xywh(component->lay_ctx, component->lay_item_id, &x_, &y_, &width_, &height_);
 
@@ -188,22 +210,18 @@ ui_component_t* UIComponent_HitTest(ui_component_t *component, float x, float y)
     if (!component || !(component->flags & UI_FLAG_VISIBLE)) {
         return NULL;
     }
-    
     // 检查鼠标坐标是否在组件边界内
-    if (x >= component->x && x <= component->x + component->width &&
-        y >= component->y && y <= component->y + component->height) {
-        
-        // 如果有hit_test函数，执行hit_test函数
-        if(component->vtable->hit_test){
-            return component->vtable->hit_test(component,x,y);
-        }
+    if (layx_hit_test(component->lay_ctx,component->lay_item_id, x, y)) {
         // 如果有子组件，从后往前检查（因为后渲染的在上层）
-        else if (component->children && component->child_count > 0) {
+        if (component->children && component->child_count > 0) {
             for (int i = component->child_count - 1; i >= 0; i--) {
                 ui_component_t *child = component->children[i];
-                ui_component_t *hit_child = UIComponent_HitTest(child, x, y);
-                if (hit_child) {
-                    return hit_child;  // 返回命中的子组件
+                // 如果有hit_test函数，执行hit_test函数
+                if(child->vtable->hit_test){
+                    return child->vtable->hit_test(child,x,y);
+                }
+                else if (layx_hit_test(child->lay_ctx, child->lay_item_id, x, y)) {
+                    return child;  // 返回命中的子组件
                 }
             }
         }
@@ -221,10 +239,11 @@ void UIComponent_ScreenToLocal(ui_component_t *component, float screen_x, float 
     if (!component || !local_x || !local_y) {
         return;
     }
-
+    float x,y,w,h;
+    UIComponent_GetRect(component,&x,&y,&w,&h);
     // 计算局部坐标（相对于组件左上角）
-    *local_x = screen_x - component->x;
-    *local_y = screen_y - component->y;
+    *local_x = screen_x - x;
+    *local_y = screen_y - y;
 }
 
 void UIComponent_LocalToScreen(ui_component_t *component, float local_x, float local_y, float *screen_x, float *screen_y) {
@@ -232,9 +251,12 @@ void UIComponent_LocalToScreen(ui_component_t *component, float local_x, float l
         return;
     }
 
+    float x,y,w,h;
+    UIComponent_GetRect(component,&x,&y,&w,&h);
+
     // 计算屏幕坐标
-    *screen_x = local_x + component->x;
-    *screen_y = local_y + component->y;
+    *screen_x = local_x + x;
+    *screen_y = local_y + y;
 }
 
 // ==================== 双击检测 ====================
@@ -271,10 +293,6 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->vtable = vtable;
     component->ctx = ctx;
     component->flags = UI_FLAG_VISIBLE | UI_FLAG_ENABLED;
-    component->x = 0.0f;
-    component->y = 0.0f;
-    component->width = 0.0f;
-    component->height = 0.0f;
     component->bg_color.normal = MAKE(COLOR32, 0, 0, 0, 0);
     component->bg_color.hover = MAKE(COLOR32, 0, 0, 0, 0);
     component->bg_color.active = MAKE(COLOR32, 0, 0, 0, 0);
@@ -282,14 +300,6 @@ void UIComponent_InitBase(ui_component_t *component, ui_component_type_t type, c
     component->text_color = MAKE(COLOR32, 255, 255, 255, 255);
     component->font_size = 0;
     component->text_align = 0;
-    component->margin[0] = 0.0f;
-    component->margin[1] = 0.0f;
-    component->margin[2] = 0.0f;
-    component->margin[3] = 0.0f;
-    component->padding[0] = 0.0f;
-    component->padding[1] = 0.0f;
-    component->padding[2] = 0.0f;
-    component->padding[3] = 0.0f;
     component->parent = NULL;
     component->children = NULL;
     component->child_count = 0;
@@ -629,18 +639,11 @@ void UIComponent_GetMargin(const ui_component_t *component, float *top, float *r
         if (left) *left = 0.0f;
         return;
     }
-    if (top) *top = component->margin[0];
-    if (right) *right = component->margin[1];
-    if (bottom) *bottom = component->margin[2];
-    if (left) *left = component->margin[3];
+    layx_get_margin_ltrb(component->lay_ctx, component->lay_item_id, top, right, bottom, left);
 }
-
 void UIComponent_SetPadding(ui_component_t *component, float top, float right, float bottom, float left) {
     if (!component) return;
-    component->padding[0] = top;
-    component->padding[1] = right;
-    component->padding[2] = bottom;
-    component->padding[3] = left;
+    layx_set_padding_ltrb(component->lay_ctx, component->lay_item_id, top, right, bottom, left);
 }
 
 void UIComponent_GetPadding(const ui_component_t *component, float *top, float *right, float *bottom, float *left) {
@@ -651,10 +654,7 @@ void UIComponent_GetPadding(const ui_component_t *component, float *top, float *
         if (left) *left = 0.0f;
         return;
     }
-    if (top) *top = component->padding[0];
-    if (right) *right = component->padding[1];
-    if (bottom) *bottom = component->padding[2];
-    if (left) *left = component->padding[3];
+    layx_get_padding_ltrb(component->lay_ctx, component->lay_item_id, top, right, bottom, left);
 }
 
 void UIComponent_GetContentRect(const ui_component_t *component, float *x, float *y, float *width, float *height) {
@@ -665,17 +665,7 @@ void UIComponent_GetContentRect(const ui_component_t *component, float *x, float
         if (height) *height = 0.0f;
         return;
     }
-    
-    if (x) *x = component->x + component->padding[3];
-    if (y) *y = component->y + component->padding[0];
-    if (width) {
-        *width = component->width - component->padding[1] - component->padding[3];
-        if (*width < 0.0f) *width = 0.0f;
-    }
-    if (height) {
-        *height = component->height - component->padding[0] - component->padding[2];
-        if (*height < 0.0f) *height = 0.0f;
-    }
+    layx_get_content_rect_xywh(component->lay_ctx, component->lay_item_id, x, y, width, height);
 }
 
 // ==================== 调试函数 ====================
@@ -745,42 +735,20 @@ void UIComponent_SetLayoutMargins(ui_component_t *component, float left, float t
     UIComponent_SetMargin(component, top, right, bottom, left);
 }
 
-void UIComponent_SetSize(ui_component_t *component, float width, float height) {
-    if (!component) return;
-    
-    // 更新组件尺寸
-    component->width = width;
-    component->height = height;
-    
-    // 如果有布局上下文，同步到lay
-    if (component->lay_ctx && component->lay_item_id != LAYX_INVALID_ID) {
-        layx_set_size(component->lay_ctx, component->lay_item_id, width, height);
-    }
-}
-
 void UIComponent_GetSize(const ui_component_t *component, float *width, float *height) {
     if (!component) {
         if (width) *width = 0.0f;
         if (height) *height = 0.0f;
         return;
     }
-    if (width) *width = component->width;
-    if (height) *height = component->height;
+    layx_vec2 size = layx_get_size(component->lay_ctx, component->lay_item_id);
+    if (width) *width = size[0];
+    if (height) *height = size[1];
 }
 
 void UIComponent_SetMargin(ui_component_t *component, float top, float right, float bottom, float left) {
     if (!component) return;
-    
-    // 更新组件边距
-    component->margin[0] = top;
-    component->margin[1] = right;
-    component->margin[2] = bottom;
-    component->margin[3] = left;
-    
-    // 如果有布局上下文，同步到lay
-    if (component->lay_ctx && component->lay_item_id != LAYX_INVALID_ID) {
-        layx_set_margin_ltrb(component->lay_ctx, component->lay_item_id, left, top, right, bottom);
-    }
+    layx_set_margin_ltrb(component->lay_ctx, component->lay_item_id, left, top, right, bottom);
 }
 
 void UIComponent_SetAlignSelf(ui_component_t *component, uint32_t flags) {
@@ -827,12 +795,6 @@ void UIComponent_SetFlex(ui_component_t *component, float grow, float shrink, fl
                              (layx_scalar)grow, (layx_scalar)shrink, (layx_scalar)basis);
 }
 
-void UIComponent_SetPosition(ui_component_t *component, float x, float y) {
-    if (!component) return;
-    component->x = x;
-    component->y = y;
-}
-
 void UIComponent_Layout(ui_component_t *root) {
     if (!root || !root->lay_ctx) {
         return;
@@ -876,10 +838,11 @@ void UIComponent_RenderScrollbars(ui_component_t *component) {
     bool can_scroll_h = component->vtable->can_scroll_horizontally(component);
     
     // 获取组件位置和尺寸
-    float viewport_x = component->x;
-    float viewport_y = component->y;
-    float viewport_w = component->width;
-    float viewport_h = component->height;
+    float viewport_x;
+    float viewport_y;
+    float viewport_w;
+    float viewport_h;
+    UIComponent_GetContentRect(component, &viewport_x, &viewport_y, &viewport_w, &viewport_h);
     
     // 绘制垂直滚动条（右侧）
     if (can_scroll_v) {

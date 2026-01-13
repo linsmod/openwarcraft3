@@ -538,8 +538,7 @@ int MapSelect_Init(scene_t *scene) {
     // =============== 创建UI组件 ===============
 
     // 1. 创建标题容器（第一行）
-    ui_component_t *title_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 40.0f,
+    ui_component_t *title_container = (ui_component_t *)UIContainer_Create(1024.0f, 40.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -553,7 +552,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetFlexDirection(title_container, LAYX_FLEX_DIRECTION_ROW);
 
     // 创建标题文本
-    g_title_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "SELECT MAP",
+    g_title_text = (ui_component_t *)UIText_Create("SELECT MAP",
                                                    (COLOR32){255, 215, 0, 255}, 30.0f,
                                                    UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
     if (!g_title_text) {
@@ -566,8 +565,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_title_text, 10.0f, 0.0f, 0.0f, 10.0f);
 
     // 2. 创建路径容器（第二行）
-    ui_component_t *path_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 30.0f,
+    ui_component_t *path_container = (ui_component_t *)UIContainer_Create(1024.0f, 30.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -581,7 +579,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetFlexDirection(path_container, LAYX_FLEX_DIRECTION_ROW);
 
     // 创建路径文本
-    g_path_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "Root",
+    g_path_text = (ui_component_t *)UIText_Create("Root",
                                                   (COLOR32){200, 200, 200, 255}, 16.0f,
                                                   UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
     if (!g_path_text) {
@@ -594,8 +592,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_path_text, 10.0f, 0.0f, 0.0f, 10.0f);
 
     // 3. 创建内容容器（第三行，左右分栏）
-    ui_component_t *content_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 1024.0f, 698.0f,
+    ui_component_t *content_container = (ui_component_t *)UIContainer_Create(1024.0f, 698.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -609,8 +606,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetFlexDirection(content_container, LAYX_FLEX_DIRECTION_ROW);
 
     // 4. 创建左侧容器（搜索+列表）
-    ui_component_t *left_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 380.0f, 698.0f,
+    ui_component_t *left_container = (ui_component_t *)UIContainer_Create(380.0f, 698.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -624,7 +620,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetFlexDirection(left_container, LAYX_FLEX_DIRECTION_COLUMN);
 
     // 创建筛选标签
-    g_filter_label = (ui_component_t *)UILabel_Create(0.0f, 0.0f, 50.0f, 28.0f, "Filter:",
+    g_filter_label = (ui_component_t *)UILabel_Create(50.0f, 28.0f, "Filter:",
                                                      (COLOR32){200, 200, 200, 255}, 14.0f,
                                                      UI_LABEL_ALIGN_LEFT, UI_LABEL_VALIGN_MIDDLE, g_ctx);
     if (!g_filter_label) {
@@ -637,7 +633,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_filter_label, 10.0f, 0.0f, 5.0f, 10.0f);
 
     // 创建筛选输入框
-    g_filter_input = (ui_component_t *)UIInput_Create(0.0f, 0.0f, 360.0f, 28.0f, 14.0f, "Type to filter...", g_ctx);
+    g_filter_input = (ui_component_t *)UIInput_Create(360.0f, 28.0f, 14.0f, "Type to filter...", g_ctx);
     if (!g_filter_input) {
         printf("Failed to create filter input\n");
         return -1;
@@ -650,7 +646,7 @@ int MapSelect_Init(scene_t *scene) {
     mgr->focused = g_filter_input;
 
     // 创建 UI 列表
-    g_ui_list = (ui_component_t *)UIList_Create(0.0f, 0.0f, 360.0f, 650.0f, 50.0f, 14.0f, g_ctx);
+    g_ui_list = (ui_component_t *)UIList_Create(360.0f, 650.0f, 50.0f, 14.0f, g_ctx);
     if (!g_ui_list) {
         printf("Failed to create UI list\n");
         return -1;
@@ -669,8 +665,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_ui_list, 10.0f, 0.0f, 10.0f, 0.0f);
 
     // 5. 创建右侧容器（预览+按钮）
-    ui_component_t *right_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 644.0f, 698.0f,
+    ui_component_t *right_container = (ui_component_t *)UIContainer_Create( 644.0f, 698.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -684,7 +679,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetFlexDirection(right_container, LAYX_FLEX_DIRECTION_COLUMN);
 
     // 创建地图预览容器
-    g_preview_container = (ui_component_t *)UIContainer_Create(0.0f, 0.0f, 624.0f, 0.0f,
+    g_preview_container = (ui_component_t *)UIContainer_Create( 624.0f, 0.0f,
                                                                (COLOR32){40, 40, 50, 230},
                                                                (COLOR32){255, 215, 0, 255}, g_ctx);
     if (!g_preview_container) {
@@ -702,7 +697,7 @@ int MapSelect_Init(scene_t *scene) {
     UIContainer_AddChild((ui_container_t *)right_container, g_preview_container);
 
     // 创建预览文本组件（标题 "Map Preview"）
-    g_preview_title_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "Map Preview",
+    g_preview_title_text = (ui_component_t *)UIText_Create("Map Preview",
                                                           (COLOR32){255, 215, 0, 255}, 18.0f,
                                                           UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_preview_title_text) {
@@ -715,7 +710,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_preview_title_text, 10.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（文件名）
-    g_preview_filename_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
+    g_preview_filename_text = (ui_component_t *)UIText_Create("",
                                                               (COLOR32){200, 200, 200, 255}, 16.0f,
                                                               UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_preview_filename_text) {
@@ -728,7 +723,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_preview_filename_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（地图名称）
-    g_preview_name_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
+    g_preview_name_text = (ui_component_t *)UIText_Create("",
                                                          (COLOR32){180, 180, 180, 255}, 16.0f,
                                                          UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_preview_name_text) {
@@ -741,7 +736,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_preview_name_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（作者）
-    g_preview_author_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
+    g_preview_author_text = (ui_component_t *)UIText_Create("",
                                                          (COLOR32){160, 160, 160, 255}, 16.0f,
                                                          UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_preview_author_text) {
@@ -754,7 +749,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_preview_author_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（推荐玩家数）
-    g_preview_players_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
+    g_preview_players_text = (ui_component_t *)UIText_Create("",
                                                            (COLOR32){140, 140, 140, 255}, 16.0f,
                                                            UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_preview_players_text) {
@@ -767,7 +762,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_preview_players_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（文件类型）
-    g_preview_type_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
+    g_preview_type_text = (ui_component_t *)UIText_Create("",
                                                         (COLOR32){150, 150, 150, 255}, 16.0f,
                                                         UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_preview_type_text) {
@@ -780,7 +775,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetMargin(g_preview_type_text, 5.0f, 10.0f, 5.0f, 0.0f);
     
     // 创建预览文本组件（完整路径）
-    g_preview_path_text = (ui_component_t *)UIText_Create(0.0f, 0.0f, "",
+    g_preview_path_text = (ui_component_t *)UIText_Create("",
                                                       (COLOR32){100, 100, 100, 255}, 14.0f,
                                                       UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_TOP, g_ctx);
     if (!g_preview_path_text) {
@@ -794,8 +789,7 @@ int MapSelect_Init(scene_t *scene) {
 
     // 6. 创建提示容器（底部按钮区域）
     // 高度计算: hint_text1(50) + hint_text2(50+10margin) + start_button(50+10margin) = 170
-    ui_component_t *hint_container = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, 644.0f, 170.0f,
+    ui_component_t *hint_container = (ui_component_t *)UIContainer_Create(644.0f, 170.0f,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         g_ctx
@@ -810,7 +804,7 @@ int MapSelect_Init(scene_t *scene) {
     // hint_container不需要flex，保持固定高度
 
     // 创建提示文本1
-    g_hint_text1 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "UP/DOWN: navigate  ENTER: select  Type: filter",
+    g_hint_text1 = (ui_component_t *)UIText_Create("UP/DOWN: navigate  ENTER: select  Type: filter",
                                                    (COLOR32){200, 200, 200, 255}, 14.0f,
                                                    UI_TEXT_ALIGN_LEFT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
     if (!g_hint_text1) {
@@ -822,7 +816,7 @@ int MapSelect_Init(scene_t *scene) {
     UIComponent_SetAlignSelf(g_hint_text1, LAYX_ALIGN_SELF_STRETCH);
 
     // 创建提示文本2
-    g_hint_text2 = (ui_component_t *)UIText_Create(0.0f, 0.0f, "ESC: quit",
+    g_hint_text2 = (ui_component_t *)UIText_Create("ESC: quit",
                                                    (COLOR32){200, 200, 200, 255}, 14.0f,
                                                    UI_TEXT_ALIGN_RIGHT, UI_TEXT_VALIGN_MIDDLE, g_ctx);
     if (!g_hint_text2) {
@@ -852,7 +846,7 @@ int MapSelect_Init(scene_t *scene) {
     button_config.font_size = 20.0f;
     button_config.border_width = 2.0f;
     
-    g_start_button = (ui_component_t *)UIButton_CreateWithConfig(0.0f, 0.0f, 250.0f, 50.0f, &button_config, g_ctx);
+    g_start_button = (ui_component_t *)UIButton_CreateWithConfig(250.0f, 50.0f, &button_config, g_ctx);
     if (!g_start_button) {
         printf("Failed to create UI button\n");
         return -1;
@@ -1371,9 +1365,11 @@ void MapSelectScene_RenderBackground(scene_t *scene,size2_t vpsize) {
     // 绘制调试网格（包含半透明背景）
     // 使用场景的实际尺寸
     if (scene && scene->root_component) {
+        float width,height;
+        UIComponent_GetSize(scene->root_component,&width,&height);
         canvas2d_draw_debug_grid(g_ctx, 0, 0, 
-            scene->root_component->width, 
-            scene->root_component->height, 40, 30, true);
+            width, 
+            height, 40, 30, true);
     } else {
         // 回退到vpsize
         canvas2d_draw_debug_grid(g_ctx, 0, 0, vpsize.width, vpsize.height, 40, 30, true);

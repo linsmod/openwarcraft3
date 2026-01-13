@@ -7,14 +7,14 @@
 
 // UI 容器组件（继承自 ui_component_t）
 typedef struct {
-    ui_component_t base;              // 基础组件（包含bg_color）
+    ui_component_t base;              // 组件结构
     COLOR32 border_color;             // 边框色
     float border_width;               // 边框宽度
     int max_children;                 // 最大子组件数量
 } ui_container_t;
 
 // 创建默认容器配置
-ui_container_t* UIContainer_Create(float x, float y, float width, float height,
+ui_container_t* UIContainer_Create(float width, float height,
                                   COLOR32 bg_color, COLOR32 border_color, canvas2d_context_t *ctx);
 
 // 初始化 UI 容器

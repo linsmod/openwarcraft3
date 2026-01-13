@@ -26,17 +26,6 @@ static void button_init(ui_component_t *component, canvas2d_context_t *ctx) {
     button->text_component.wrap = false;
     button->text_component.wrap_width = 0;
 }
-static ui_component_t* button_hit_test(ui_component_t* component, float x, float y){
-    if(x >= component->x && x < component->x + component->width && 
-       y >= component->y && y < component->y + component->height){
-        ui_button_t* button = (ui_button_t*)component;
-        ui_component_t* ret = UIComponent_HitTest((ui_component_t* )&button->text_component,x,y);
-        if(ret)
-            return ret;
-        return component;
-    }
-    return NULL;
-}
 static void button_shutdown(ui_component_t *component) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button) return;
@@ -54,6 +43,8 @@ static void button_render(ui_component_t *component) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsVisible(component)) return;
 
+    float x,y,w,h;
+    UIComponent_GetRect(component,&x,&y,&w,&h);
     // 根据状态选择颜色
     COLOR32 bg_color, border_color, text_color;
     switch (button->state) {
@@ -86,13 +77,13 @@ static void button_render(ui_component_t *component) {
 
     // 绘制背景
     canvas2d_set_fill_style(button->base.ctx, bg_color);
-    canvas2d_fill_rect(button->base.ctx, component->x, component->y, component->width, component->height);
+    canvas2d_fill_rect(button->base.ctx, x, y, w, h);
 
     // 绘制边框
     if (button->config.border_width > 0) {
         canvas2d_set_stroke_style(button->base.ctx, border_color);
         canvas2d_set_line_width(button->base.ctx, button->config.border_width);
-        canvas2d_stroke_rect(button->base.ctx, component->x, component->y, component->width, component->height);
+        canvas2d_stroke_rect(button->base.ctx, x, y, w, h);
     }
 
     // 更新文本组件
@@ -106,29 +97,9 @@ static void button_render(ui_component_t *component) {
         text_offset_y = 2.0f;
     }
 
-    UIText_SetPosition(&button->text_component,
-                       component->x + component->width / 2.0f + text_offset_x,
-                       component->y + component->height / 2.0f + text_offset_y);
+    UIComponent_SetPosition((ui_component_t *)&button->text_component,x+w/2.0f+text_offset_x,y+h/2.0f+text_offset_y);
     UIText_SetFontSize(&button->text_component, button->config.font_size);
-
     UIText_Render(&button->text_component);
-}
-
-static void button_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void button_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void button_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
 }
 
 static void button_on_mouse_enter(ui_component_t *component, event_t *event) {
@@ -191,7 +162,7 @@ static void button_on_mouse_move(ui_component_t *component, event_t *event) {
     ui_button_t *button = (ui_button_t *)component;
     if (!button || !UIComponent_IsEnabled(component)) return;
 
-    bool is_hovered = button_hit_test(component, event->mouse.x, event->mouse.y);
+    bool is_hovered = UIComponent_HitTest(component, event->mouse.x, event->mouse.y);
 
     if (is_hovered && button->state != UI_BUTTON_STATE_PRESSED) {
         button->state = UI_BUTTON_STATE_HOVER;
@@ -230,10 +201,10 @@ static const ui_component_vtable_t g_button_vtable = {
     .shutdown = button_shutdown,
     .update = button_update,
     .render = button_render,
-    .set_position = button_set_position,
-    .set_size = button_set_size,
-    .set_bounds = button_set_bounds,
-    .hit_test = button_hit_test,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
+    .hit_test = NULL,
     .on_mouse_enter = button_on_mouse_enter,
     .on_mouse_leave = button_on_mouse_leave,
     .on_mouse_down = button_on_mouse_down,
@@ -267,12 +238,12 @@ static const ui_component_vtable_t g_button_vtable = {
 
 // ==================== 公共API实现 ====================
 
-ui_button_t* UIButton_Create(float x, float y, float width, float height, canvas2d_context_t *ctx) {
+ui_button_t* UIButton_Create(float width, float height, canvas2d_context_t *ctx) {
     ui_button_config_t config = UIButton_GetDefaultConfig();
-    return UIButton_CreateWithConfig(x, y, width, height, &config, ctx);
+    return UIButton_CreateWithConfig(width, height, &config, ctx);
 }
 
-ui_button_t* UIButton_CreateWithConfig(float x, float y, float width, float height,
+ui_button_t* UIButton_CreateWithConfig(float width, float height,
                                       const ui_button_config_t *config, canvas2d_context_t *ctx) {
     if (!config || !ctx) {
         return NULL;
@@ -287,13 +258,8 @@ ui_button_t* UIButton_CreateWithConfig(float x, float y, float width, float heig
         free(button);
         return NULL;
     }
-
-    button->base.x = x;
-    button->base.y = y;
-    button->base.width = width;
-    button->base.height = height;
-
-    printf("UIButton_Create: x=%.1f, y=%.1f, w=%.1f, h=%.1f, text='%s'\n", x, y, width, height, config->text);
+    layx_set_size(button->base.lay_ctx,button->base.lay_item_id, width, height);
+    printf("UIButton_Create: w=%.1f, h=%.1f, text='%s'\n", width, height, config->text);
     return button;
 }
 

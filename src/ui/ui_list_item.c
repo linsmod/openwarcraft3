@@ -1,5 +1,6 @@
 #include "ui_list_item.h"
 #include "common/shared.h"
+#include "ui/ui_component.h"
 #include "ui/ui_list.h"
 #include <stdlib.h>
 #include <string.h>
@@ -29,11 +30,12 @@ static void list_item_render(ui_component_t *component) {
     ui_list_item_t *item = (ui_list_item_t *)component;
     if (!item || !UIComponent_IsVisible(component)) return;
 
-    float x = component->x;
-    float y = component->y;
-    float width = component->width;
-    float height = component->height;
+    float x;
+    float y;
+    float w;
+    float h;
 
+    UIComponent_GetRect(component,&x,&y,&w,&h);
     // 确定当前状态
     int state = 0; // normal
     if (item->selected) state = 2; // active
@@ -64,18 +66,18 @@ static void list_item_render(ui_component_t *component) {
     // 绘制边框（item 总是绘制边框）
     canvas2d_set_stroke_style(component->ctx, MAKE(COLOR32, 150, 150, 150, 255));
     canvas2d_set_line_width(component->ctx, UI_LIST_ITEM_BORDER_WIDTH);
-    canvas2d_stroke_rect(component->ctx, x, y, width, height);
+    canvas2d_stroke_rect(component->ctx, x, y, w, h);
 
     // 绘制背景（item 总是绘制背景）
     canvas2d_set_fill_style(component->ctx, bg_color);
     canvas2d_fill_rect(component->ctx, x + UI_LIST_ITEM_BORDER_WIDTH, y + UI_LIST_ITEM_BORDER_WIDTH,
-                      width - UI_LIST_ITEM_BORDER_WIDTH * 2, height - UI_LIST_ITEM_BORDER_WIDTH * 2);
+                      w - UI_LIST_ITEM_BORDER_WIDTH * 2, h - UI_LIST_ITEM_BORDER_WIDTH * 2);
 
     // 计算内容区域（去除边框和内边距）
     float content_x = x + UI_LIST_ITEM_BORDER_WIDTH + UI_LIST_ITEM_PADDING_LEFT;
     float content_y = y + UI_LIST_ITEM_BORDER_WIDTH + UI_LIST_ITEM_PADDING_TOP;
-    float content_width = width - UI_LIST_ITEM_BORDER_WIDTH * 2 - UI_LIST_ITEM_PADDING_LEFT - UI_LIST_ITEM_PADDING_RIGHT;
-    float content_height = height - UI_LIST_ITEM_BORDER_WIDTH * 2 - UI_LIST_ITEM_PADDING_TOP - UI_LIST_ITEM_PADDING_BOTTOM;
+    float content_width = w - UI_LIST_ITEM_BORDER_WIDTH * 2 - UI_LIST_ITEM_PADDING_LEFT - UI_LIST_ITEM_PADDING_RIGHT;
+    float content_height = h - UI_LIST_ITEM_BORDER_WIDTH * 2 - UI_LIST_ITEM_PADDING_TOP - UI_LIST_ITEM_PADDING_BOTTOM;
 
     // 使用自定义绘制回调绘制内容
     if (item->draw_callback) {
@@ -90,31 +92,6 @@ static void list_item_render(ui_component_t *component) {
     canvas2d_set_font_size(component->ctx, item->font_size);
     canvas2d_fill_text(component->ctx, item->text,
                      content_x, content_y + item->font_size/2 + (content_height - item->font_size)/2);
-}
-
-static void list_item_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void list_item_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void list_item_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
-}
-
-static ui_component_t * list_item_hit_test(ui_component_t *component, float x, float y) {
-     if(x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height){
-            return component;
-        }
-    return NULL;
 }
 static void list_item_on_mouse_enter(ui_component_t *component, event_t *event) {
     ui_list_item_t *item = (ui_list_item_t *)component;
@@ -160,10 +137,10 @@ static const ui_component_vtable_t g_list_item_vtable = {
     .shutdown = list_item_shutdown,
     .update = list_item_update,
     .render = list_item_render,
-    .set_position = list_item_set_position,
-    .set_size = list_item_set_size,
-    .set_bounds = list_item_set_bounds,
-    .hit_test = list_item_hit_test,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
+    .hit_test = NULL,
     .on_mouse_enter = list_item_on_mouse_enter,
     .on_mouse_leave = list_item_on_mouse_leave,
     .on_mouse_down = NULL,

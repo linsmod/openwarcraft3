@@ -40,7 +40,7 @@ struct ui_list_t {
 };
 
 // 创建默认列表配置
-ui_list_t* UIList_Create(float x, float y, float width, float height,
+ui_list_t* UIList_Create(float width, float height,
                         float item_height, float font_size, canvas2d_context_t *ctx);
 
 // 初始化 UI 列表

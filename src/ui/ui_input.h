@@ -36,7 +36,7 @@ int cursor_pos;                 // 光标位置
 } ui_input_t;
 
 // 创建输入框
-ui_input_t* UIInput_Create(float x, float y, float width, float height, float font_size,
+ui_input_t* UIInput_Create(float width, float height, float font_size,
                           const char *placeholder, canvas2d_context_t *ctx);
 
 // 初始化输入框

@@ -41,78 +41,6 @@ static void container_update(ui_component_t *component, int msec) {
     }
 }
 
-static void container_render(ui_component_t *component) {
-    ui_container_t *container = (ui_container_t *)component;
-    if (!container || !UIComponent_IsVisible(component)) return;
-
-    // 绘制边框
-    if (container->border_width > 0) {
-        canvas2d_set_stroke_style(component->ctx, container->border_color);
-        canvas2d_set_line_width(component->ctx, container->border_width);
-        canvas2d_stroke_rect(component->ctx, component->x, component->y, component->width, component->height);
-    }
-
-    // 裁剪区域（如果需要）
-    // if (component->flags & UI_FLAG_CLIPPING) {
-        // canvas2d_save(component->ctx);
-        // canvas2d_begin_path(component->ctx);
-        // canvas2d_rect(component->ctx, component->x, component->y, component->width, component->height);
-        // canvas2d_clip(component->ctx);
-    // }
-
-    // 渲染所有子组件
-    // for (int i = 0; i < component->child_count; i++) {
-    //     ui_component_t *child = component->children[i];
-    //     if (child && child->vtable && child->vtable->render) {
-    //         child->vtable->render(child);
-    //     }
-    // }
-
-    // 恢复裁剪
-    // if (component->flags & UI_FLAG_CLIPPING) {
-        // canvas2d_restore(component->ctx);
-    // }
-}
-
-static void container_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void container_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void container_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
-}
-
-static ui_component_t *container_hit_test(ui_component_t *component, float x, float y) {
-  // 1. 先判断点击是否在容器 bounds 内
-  if (x >= component->x && x < component->x + component->width &&
-      y >= component->y && y < component->y + component->height) {
-
-    // 2. 如果有子组件，从后往前遍历（即“绘制顺序”的逆序：后绘制的在上层）
-    if (component->children && component->child_count > 0) {
-      for (int i = component->child_count - 1; i >= 0; i--) {
-        ui_component_t *child = component->children[i];
-        ui_component_t *hit_child = UIComponent_HitTest(child, x, y);
-        if (hit_child) {
-            return hit_child;  // 3. 一旦命中，立即返回（最上层命中的子）
-        }
-      }
-    }
-
-    // 4. 如果没有子组件命中，则容器自己响应（说明它是可交互的）
-    return component;
-  }
-  return NULL; // 5. 点击不在容器区域内
-}
-
 // 容器特定的虚函数
 // 容器特定的虚函数
 static int container_add_child(ui_component_t *component, ui_component_t *child) {
@@ -218,10 +146,10 @@ static const ui_component_vtable_t g_container_vtable = {
     .update = container_update,
     .update_animation = NULL,
     .render = NULL,
-    .set_position = container_set_position,
-    .set_size = container_set_size,
-    .set_bounds = container_set_bounds,
-    .hit_test = container_hit_test,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
+    .hit_test = NULL,
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
     .on_mouse_down = NULL,
@@ -254,7 +182,7 @@ static const ui_component_vtable_t g_container_vtable = {
 
 // ==================== 公共API实现 ====================
 
-ui_container_t* UIContainer_Create(float x, float y, float width, float height,
+ui_container_t* UIContainer_Create(float width, float height,
                                   COLOR32 bg_color, COLOR32 border_color, canvas2d_context_t *ctx) {
     ui_container_t *container = malloc(sizeof(ui_container_t));
     if (!container) return NULL;
@@ -263,10 +191,6 @@ ui_container_t* UIContainer_Create(float x, float y, float width, float height,
         free(container);
         return NULL;
     }
-
-    container->base.x = x;
-    container->base.y = y;
-    UIComponent_SetMargin(&container->base, y, 0, 0, x);
     UIComponent_SetSize(&container->base, width, height);
     UIComponent_SetBgColor(&container->base, bg_color);
     container->border_color = border_color;
@@ -298,20 +222,6 @@ int UIContainer_Init(ui_container_t *container, canvas2d_context_t *ctx) {
     container->base.flags |= UI_FLAG_CLIPPING;
 
     return 0;
-}
-
-void UIContainer_SetPosition(ui_container_t *container, float x, float y) {
-    if (!container) return;
-    if (container->base.vtable && container->base.vtable->set_position) {
-        container->base.vtable->set_position(&container->base, x, y);
-    }
-}
-
-void UIContainer_SetSize(ui_container_t *container, float width, float height) {
-    if (!container) return;
-    if (container->base.vtable && container->base.vtable->set_size) {
-        container->base.vtable->set_size(&container->base, width, height);
-    }
 }
 
 void UIContainer_SetBgColor(ui_container_t *container, COLOR32 color) {

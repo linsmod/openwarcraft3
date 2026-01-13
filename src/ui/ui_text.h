@@ -32,7 +32,7 @@ typedef struct {
 } ui_text_t;
 
 // 创建默认文本配置
-ui_text_t* UIText_Create(float x, float y, const char *text, COLOR32 color, float font_size,
+ui_text_t* UIText_Create(const char *text, COLOR32 color, float font_size,
                         ui_text_align_t align, ui_text_valign_t valign, canvas2d_context_t *ctx);
 
 // 初始化 UI 文本

@@ -1,4 +1,5 @@
 #include "ui_html_viewer.h"
+#include "ui/ui_component.h"
 
 // Scrollbar width (fixed value, must match html.c)
 #define SCROLLBAR_WIDTH 12
@@ -122,11 +123,13 @@ static void html_viewer_render(ui_component_t *component) {
 
     // 注意：滚动偏移由html_context_render内部处理，这里不需要应用
     // 如果在这里应用滚动偏移，会和render_html_element中的滚动偏移冲突
+    float x,y,w,h;
+    UIComponent_GetRect(component,&x,&y,&w,&h);
 
     if (viewer->zoom != 1.0f) {
-        canvas2d_translate(component->ctx, component->x, component->y);
+        canvas2d_translate(component->ctx, x, y);
         canvas2d_scale(component->ctx, viewer->zoom, viewer->zoom);
-        canvas2d_translate(component->ctx, -component->x, -component->y);
+        canvas2d_translate(component->ctx, -x, -y);
     }
 
     html_context_render(viewer->html_ctx);
@@ -138,8 +141,7 @@ static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, 
     ui_html_viewer_t *viewer = (ui_html_viewer_t *)component;
 
     // 首先检查是否在viewer的边界内
-    if (x < component->x || x >= component->x + component->width ||
-        y < component->y || y >= component->y + component->height) {
+    if (!UIComponent_HitTest(component, x, y)) {
         return NULL;
     }
 
@@ -148,9 +150,12 @@ static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, 
         return component;
     }
 
+    float comp_x,comp_y,comp_width,comp_height;
+    UIComponent_GetContentRect(component,&comp_x,&comp_y,&comp_width,&comp_height);
+
     // 将全局坐标转换为viewer的本地坐标（不考虑scroll，因为滚动条是相对于viewport的）
-    float local_x = x - component->x;
-    float local_y = y - component->y;
+    float local_x = x - comp_x;
+    float local_y = y - comp_y;
 
     // 检查是否点击在滚动条区域
     int scrollbar_width = SCROLLBAR_WIDTH;
@@ -158,10 +163,10 @@ static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, 
     
     // 检查垂直滚动条
     if (html_context_can_scroll_vertically(viewer->html_ctx)) {
-        int vscroll_x = component->width - scrollbar_width;
+        int vscroll_x = comp_width - scrollbar_width;
         int vscroll_y = 0;
         if (local_x >= vscroll_x && local_x < vscroll_x + scrollbar_width &&
-            local_y >= vscroll_y && local_y < vscroll_y + component->height) {
+            local_y >= vscroll_y && local_y < vscroll_y + comp_height) {
             // 点击在垂直滚动条区域，返回viewer自身
             return component;
         }
@@ -169,12 +174,12 @@ static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, 
     
     // 检查水平滚动条
     if (html_context_can_scroll_horizontally(viewer->html_ctx)) {
-        int hscroll_w = component->width;
+        int hscroll_w = comp_width;
         if (html_context_can_scroll_vertically(viewer->html_ctx)) {
             hscroll_w -= scrollbar_width;
         }
         int hscroll_x = 0;
-        int hscroll_y = component->height - scrollbar_height;
+        int hscroll_y = comp_height - scrollbar_height;
         if (local_x >= hscroll_x && local_x < hscroll_x + hscroll_w &&
             local_y >= hscroll_y && local_y < hscroll_y + scrollbar_height) {
             // 点击在水平滚动条区域，返回viewer自身
@@ -183,8 +188,8 @@ static ui_component_t* html_viewer_hit_test(ui_component_t *component, float x, 
     }
 
     // 不在滚动条区域，将全局坐标转换为viewer的本地坐标（viewport坐标）
-    local_x = x - component->x;
-    local_y = y - component->y;
+    local_x = x - comp_x;
+    local_y = y - comp_y;
 
     // 应用zoom缩放（滚动偏移现在由find_node_by_point_recursive内部处理）
     if (viewer->zoom != 1.0f) {
@@ -220,25 +225,28 @@ static void html_viewer_on_click(ui_component_t *component, event_t *event) {
         return;
     }
 
+    float x,y,w,h;
+    UIComponent_GetContentRect(component,&x,&y,&w,&h);
+
     // 检查是否在滚动条区域，如果是则不处理HTML内容点击
     const int scrollbar_width = 14;
     const int scrollbar_height = 14;
-    float local_x = event->mouse.x - component->x;
-    float local_y = event->mouse.y - component->y;
+    float local_x = event->mouse.x - x;
+    float local_y = event->mouse.y - y;
     
     bool in_scrollbar = false;
     if (html_context_can_scroll_vertically(viewer->html_ctx)) {
-        int vscroll_x = component->width - scrollbar_width;
+        int vscroll_x = w - scrollbar_width;
         if (local_x >= vscroll_x && local_x < vscroll_x + scrollbar_width) {
             in_scrollbar = true;
         }
     }
     if (!in_scrollbar && html_context_can_scroll_horizontally(viewer->html_ctx)) {
-        int hscroll_w = component->width;
+        int hscroll_w = w;
         if (html_context_can_scroll_vertically(viewer->html_ctx)) {
             hscroll_w -= scrollbar_width;
         }
-        int hscroll_y = component->height - scrollbar_height;
+        int hscroll_y = h - scrollbar_height;
         if (local_y >= hscroll_y && local_y < hscroll_y + scrollbar_height) {
             in_scrollbar = true;
         }
@@ -250,8 +258,8 @@ static void html_viewer_on_click(ui_component_t *component, event_t *event) {
     }
 
     // 将全局坐标转换为viewer的本地坐标
-    local_x = event->mouse.x - component->x - viewer->scroll_x;
-    local_y = event->mouse.y - component->y - viewer->scroll_y;
+    local_x = event->mouse.x - x - viewer->scroll_x;
+    local_y = event->mouse.y - y - viewer->scroll_y;
 
     // 应用zoom缩放
     if (viewer->zoom != 1.0f) {
@@ -289,15 +297,17 @@ static void html_viewer_on_mouse_down(ui_component_t *component, event_t *event)
 
     const int scrollbar_width = 14;
     const int scrollbar_height = 14;
-    float local_x = event->mouse.x - component->x;
-    float local_y = event->mouse.y - component->y;
 
+    float x, y, w, h;
+    UIComponent_GetContentRect(component, &x, &y, &w, &h);
+    float local_x = event->mouse.x - x;
+    float local_y = event->mouse.y - y;
     // 检查是否点击了垂直滚动条
     if (html_context_can_scroll_vertically(viewer->html_ctx)) {
-        int vscroll_x = component->width - scrollbar_width;
+        int vscroll_x = w - scrollbar_width;
         int vscroll_y = 0;
         if (local_x >= vscroll_x && local_x < vscroll_x + scrollbar_width &&
-            local_y >= vscroll_y && local_y < vscroll_y + component->height) {
+            local_y >= vscroll_y && local_y < vscroll_y + h) {
             viewer->vscroll_dragging = true;
             viewer->vscroll_drag_start_y = local_y;
             viewer->vscroll_drag_start_scroll = viewer->scroll_y;
@@ -308,12 +318,12 @@ static void html_viewer_on_mouse_down(ui_component_t *component, event_t *event)
 
     // 检查是否点击了水平滚动条
     if (html_context_can_scroll_horizontally(viewer->html_ctx)) {
-        int hscroll_w = component->width;
+        int hscroll_w = w;
         if (html_context_can_scroll_vertically(viewer->html_ctx)) {
             hscroll_w -= scrollbar_width;
         }
         int hscroll_x = 0;
-        int hscroll_y = component->height - scrollbar_height;
+        int hscroll_y = h - scrollbar_height;
         if (local_x >= hscroll_x && local_x < hscroll_x + hscroll_w &&
             local_y >= hscroll_y && local_y < hscroll_y + scrollbar_height) {
             viewer->hscroll_dragging = true;
@@ -344,13 +354,16 @@ static void html_viewer_on_mouse_move(ui_component_t *component, event_t *event)
     const int scrollbar_width = 14;
     const int scrollbar_height = 14;
 
+    float x,y,w,h;
+    UIComponent_GetContentRect(component,&x,&y,&w,&h);
+
     // 处理垂直滚动条拖动
     if (viewer->vscroll_dragging) {
-        float local_y = event->mouse.y - component->y;
+        float local_y = event->mouse.y - y;
         float dy = local_y - viewer->vscroll_drag_start_y;
 
         // 根据移动距离计算滚动比例
-        float track_height = component->height;
+        float track_height = h;
         float thumb_ratio = track_height / (track_height + viewer->scroll_max_y);
         float thumb_height = track_height * thumb_ratio;
         if (thumb_height < 20) thumb_height = 20;
@@ -372,11 +385,11 @@ static void html_viewer_on_mouse_move(ui_component_t *component, event_t *event)
 
     // 处理水平滚动条拖动
     if (viewer->hscroll_dragging) {
-        float local_x = event->mouse.x - component->x;
+        float local_x = event->mouse.x - x;
         float dx = local_x - viewer->hscroll_drag_start_x;
 
         // 根据移动距离计算滚动比例
-        float track_width = component->width;
+        float track_width = w;
         if (html_context_can_scroll_vertically(viewer->html_ctx)) {
             track_width -= scrollbar_width;
         }
@@ -561,7 +574,9 @@ int UIHTMLViewer_LoadFromFile(ui_html_viewer_t *viewer, const char *filename) {
 
     if (!viewer->html_ctx) {
         ui_component_t* viewer_comp = (ui_component_t*)viewer;
-        viewer->html_ctx = html_context_create(viewer_comp->width,viewer_comp->height);
+        float width,height;
+        UIComponent_GetSize(viewer_comp, &width, &height);
+        viewer->html_ctx = html_context_create(width, height);
         if (!viewer->html_ctx) return -1;
     }
 

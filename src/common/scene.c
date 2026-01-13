@@ -332,8 +332,7 @@ int Scene_CreateResources(scene_t *scene, int width, int height) {
     }
     
     // 创建根容器
-    scene->root_component = (ui_component_t *)UIContainer_Create(
-        0.0f, 0.0f, (float)width, (float)height,
+    scene->root_component = (ui_component_t *)UIContainer_Create((float)width, (float)height,
         MAKE(COLOR32, 0, 0, 0, 0),  // 透明背景
         MAKE(COLOR32, 0, 0, 0, 0),
         scene->canvas_ctx
@@ -832,10 +831,11 @@ ui_component_t* SceneManager_HitTest(scene_manager_t *mgr, float x, float y) {
         mgr->mouse_target = NULL;
         return NULL;
     }
-    
-    // 从根组件开始递归遍历
-    ui_component_t *hit = UIComponent_HitTest(mgr->current_scene->root_component, x, y);
-    return hit;
+    ui_component_t* component = mgr->current_scene->root_component;
+    if(component->vtable->hit_test){
+        return component->vtable->hit_test(component,x,y);
+    }
+    return UIComponent_HitTest(mgr->current_scene->root_component, x, y);
 }
 
 void static ProcessUIHandlessEvent(scene_t *scene, event_t *event){
@@ -1479,8 +1479,10 @@ void Scene_RenderUI(scene_t *scene) {
     ui_component_t **stack[128];
     int stack_size = 0;
     stack[stack_size++] = &scene->root_component;
-    canvas2d_draw_debug_grid(scene->canvas_ctx, 0, 0, scene->root_component->width, 
-        scene->root_component->height, 40, 30, 1);
+    float width, height;
+    UIComponent_GetSize(scene->root_component, &width, &height);
+    canvas2d_draw_debug_grid(scene->canvas_ctx, 0, 0, width, 
+        height, 40, 30, 1);
     while (stack_size > 0) {
         ui_component_t **comp_ptr = stack[--stack_size];
         ui_component_t *comp = *comp_ptr;
@@ -1488,22 +1490,6 @@ void Scene_RenderUI(scene_t *scene) {
         
         // 只渲染可见的组件
         if (comp->flags & UI_FLAG_VISIBLE) {
-            // 调用组件的render方法（如果存在）,否则使用默认的
-            // 优先使用 vtable 中的渲染函数，如果存在的话
-            layx_scalar x, y, w, h;
-            layx_get_rect_xywh(scene->lay_ctx, comp->lay_item_id, &x,&y,&w,&h);
-
-            layx_scalar l, t, r, b;
-            layx_get_margin_ltrb(scene->lay_ctx, comp->lay_item_id, &l, &t, &r, &b);
-            // comp->x = x+l;
-            // comp->y = y+t;
-            // comp->width = w;
-            // comp->height = h;
-
-            comp->x = x;
-            comp->y = y;
-            comp->width = w;
-            comp->height = h;
 
             if (comp->vtable && comp->vtable->render) {
                 comp->vtable->render(comp);

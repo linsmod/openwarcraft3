@@ -3,6 +3,8 @@
 #include "../common/shared.h"
 #include "../html/html.h"
 #include "common/event.h"
+#include "layx.h"
+#include "ui/ui_component.h"
 #include <libxml/tree.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
@@ -69,7 +71,7 @@ void DebugOverlayScene_Render(scene_t *scene) {
         ui_component_t *target = mgr->mouse_target;
 
         float x, y, width, height;
-        UIComponent_GetContentBoxRect(target, &x, &y, &width, &height);
+        UIComponent_GetRect(target, &x, &y, &width, &height);
 
         float scroll_x=0, scroll_y=0;
         ui_component_t* scroll_target=  UIComponent_FindScrollableParent(target);
@@ -81,10 +83,23 @@ void DebugOverlayScene_Render(scene_t *scene) {
         canvas2d_context_t *ctx = mgr->current_scene->canvas_ctx;
         if (!ctx) return;
 
+
+        float content_x, content_y, content_width, content_height;
+        UIComponent_GetContentRect(target, &content_x, &content_y, &content_width, &content_height);
+        // 绘制蓝色边框表示内容区域
+        canvas2d_set_stroke_style(ctx, MAKE(COLOR32, 0, 0, 255, 200)); 
+        canvas2d_set_line_width(ctx, 2.0f);
+        canvas2d_stroke_rect(ctx, content_x - scroll_x, content_y - scroll_y, content_width, content_height);
+
+        // 绘制表示内容区域
+        canvas2d_set_fill_style(ctx, MAKE(COLOR32, 130, 0, 200, 80)); 
+        canvas2d_fill_rect(ctx, content_x - scroll_x, content_y - scroll_y, content_width, content_height);
+
         // 绘制红色边框表示命中的组件
-        canvas2d_set_stroke_style(ctx, MAKE(COLOR32, 255, 0, 0, 255)); // 红色
+        canvas2d_set_stroke_style(ctx, MAKE(COLOR32, 255, 0, 0, 200)); // 红色
         canvas2d_set_line_width(ctx, 2.0f);
         canvas2d_stroke_rect(ctx, x, y, width, height);
+
 
         // 绘制组件类型名称
         const char *type_name = UIComponent_GetTypeName(target->type);

@@ -1,5 +1,7 @@
 #include "ui_input.h"
 #include "common/shared.h"
+#include "layx.h"
+#include "ui/ui_component.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,9 +67,12 @@ static void input_render(ui_component_t *component) {
     ui_input_t *input = (ui_input_t *)component;
     if (!input || !UIComponent_IsVisible(component)) return;
 
+    float x,y,w,h;
+    UIComponent_GetRect(component, &x, &y, &w, &h);
+
     // 绘制背景
     canvas2d_set_fill_style(component->ctx, input->bg_color);
-    canvas2d_fill_rect(component->ctx, component->x, component->y, component->width, component->height);
+    canvas2d_fill_rect(component->ctx,  x, y, w, h);
 
     // 绘制边框
     if (input->focused) {
@@ -76,13 +81,11 @@ static void input_render(ui_component_t *component) {
         canvas2d_set_fill_style(component->ctx, input->border_color);
     }
     canvas2d_set_line_width(component->ctx, 2.0f);
-    canvas2d_stroke_rect(component->ctx, component->x, component->y, component->width, component->height);
+    canvas2d_stroke_rect(component->ctx,  x, y, w, h);
 
-    // 计算文本显示位置
-    float padding_left = component->padding[3];
-    float padding_right = component->padding[1];
+    UIComponent_GetContentRect(component, &x, &y, &w, &h);
 
-    float text_x = component->x + padding_left - input->scroll_offset;
+    float text_x = x - input->scroll_offset;
 
     // 设置字体
     canvas2d_set_font_size(component->ctx, input->font_size);
@@ -104,7 +107,7 @@ static void input_render(ui_component_t *component) {
     }
 
     // 绘制文本（垂直居中对齐，使用容器高度中心）
-    float text_baseline_y = component->y + component->height / 2.0f - input->font_size * 0.35f;
+    float text_baseline_y = y + h / 2.0f - input->font_size * 0.35f;
     canvas2d_fill_text(component->ctx, display_text, text_x, text_baseline_y);
 
     // 绘制光标（仅当获得焦点且不是只读模式时）
@@ -123,29 +126,12 @@ static void input_render(ui_component_t *component) {
       }
       // 光标垂直居中，高度为字体高度的80%
       float cursor_height = input->font_size * 0.8f;
-      float cursor_y = component->y + component->height / 2.0f - cursor_height / 2.0f;
+      float cursor_y = y + h / 2.0f - cursor_height / 2.0f;
 
       canvas2d_set_fill_style(component->ctx,
                               MAKE(COLOR32, 255, 255, 255, 255));
       canvas2d_fill_rect(component->ctx, cursor_x, cursor_y, 2, cursor_height);
     }
-}
-
-static void input_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void input_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void input_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
 }
 
 // 鼠标按下事件
@@ -158,7 +144,9 @@ static void input_on_mouse_down(ui_component_t *component, event_t *event) {
     
     // 启动 SDL 文本输入（支持输入法）
     SDL_StartTextInput();
-    SDL_Rect rect = (SDL_Rect){(int)component->x, (int)component->y, (int)component->width, (int)component->height};
+    float x,y,w,h;
+    UIComponent_GetRect(component, &x, &y, &w, &h);
+    SDL_Rect rect = (SDL_Rect){(int)x, (int)y, (int)w, (int)h};
     SDL_SetTextInputRect(&rect);
     // 重置光标闪烁状态，使光标立即显示
     input->cursor_blink_visible = true;
@@ -272,8 +260,9 @@ static void input_on_text_input(ui_component_t *component, event_t *event) {
     
     // 调整滚动偏移以保持光标可见
     float char_width = canvas2d_measure_text(component->ctx, "M");
-    float visible_width = component->width - component->padding[1] - component->padding[3];
-    int max_visible_chars = (int)(visible_width / char_width);
+    float x,y,w,h;
+    UIComponent_GetContentRect(component, &x, &y, &w, &h);
+    int max_visible_chars = (int)(w / char_width);
     
     if (input->cursor_pos - input->scroll_offset > max_visible_chars) {
         input->scroll_offset = input->cursor_pos - max_visible_chars;
@@ -329,9 +318,9 @@ static const ui_component_vtable_t g_input_vtable = {
     .shutdown = input_shutdown,
     .update = input_update,
     .render = input_render,
-    .set_position = input_set_position,
-    .set_size = input_set_size,
-    .set_bounds = input_set_bounds,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
     .on_mouse_down = input_on_mouse_down,
@@ -364,7 +353,7 @@ static const ui_component_vtable_t g_input_vtable = {
 
 // ==================== 公共API实现 ====================
 
-ui_input_t* UIInput_Create(float x, float y, float width, float height, float font_size,
+ui_input_t* UIInput_Create(float width, float height, float font_size,
                           const char *placeholder, canvas2d_context_t *ctx) {
     ui_input_t *input = malloc(sizeof(ui_input_t));
     if (!input) return NULL;
@@ -373,11 +362,6 @@ ui_input_t* UIInput_Create(float x, float y, float width, float height, float fo
         free(input);
         return NULL;
     }
-
-    input->base.x = x;
-    input->base.y = y;
-    input->base.width = width;
-    input->base.height = height;
     
     if (placeholder) {
         strncpy(input->placeholder, placeholder, 255);
@@ -387,6 +371,7 @@ ui_input_t* UIInput_Create(float x, float y, float width, float height, float fo
     }
     
     input->font_size = font_size;
+    layx_set_size(input->base.lay_ctx,input->base.lay_item_id, width, height);
 
     return input;
 }

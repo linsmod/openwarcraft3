@@ -32,13 +32,13 @@ typedef struct {
 } ui_label_t;
 
 // 创建标签（指定位置和大小）
-ui_label_t* UILabel_Create(float x, float y, float width, float height, const char *text,
+ui_label_t* UILabel_Create(float width, float height, const char *text,
                           COLOR32 text_color, float font_size,
                           ui_label_align_t align, ui_label_valign_t valign,
                           canvas2d_context_t *ctx);
 
 // 创建带背景的标签
-ui_label_t* UILabel_CreateWithBackground(float x, float y, float width, float height, const char *text,
+ui_label_t* UILabel_CreateWithBackground(float width, float height, const char *text,
                                          COLOR32 text_color, COLOR32 bg_color, float font_size,
                                          ui_label_align_t align, ui_label_valign_t valign,
                                          canvas2d_context_t *ctx);

@@ -1,5 +1,8 @@
 #include "ui_text.h"
+#include "common/event.h"
 #include "common/shared.h"
+#include "layx.h"
+#include "ui/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -29,6 +32,9 @@ static void text_render(ui_component_t *component) {
     canvas2d_set_fill_style(component->ctx, text->color);
     canvas2d_set_font_size(component->ctx, text->font_size);
 
+    float x,y,w,h;
+    UIComponent_GetContentRect(component, &x, &y, &w, &h);
+
     if (text->wrap && text->wrap_width > 0) {
         // 简单的自动换行实现
         float line_height = text->font_size > 0 ? text->font_size * 1.2f : 20.0f;
@@ -47,20 +53,20 @@ static void text_render(ui_component_t *component) {
             strncpy(line_text, text->text + start, line_len);
             line_text[line_len] = '\0';
 
-            float render_x = component->x;
-            float render_y = component->y + line * line_height;
+            float render_x = x;
+            float render_y = y + line * line_height;
 
             float text_width = line_len * 10.0f;
             switch (text->align) {
                 case UI_TEXT_ALIGN_CENTER:
-                    render_x = component->x - text_width / 2;
+                    render_x = x - text_width / 2;
                     break;
                 case UI_TEXT_ALIGN_RIGHT:
-                    render_x = component->x - text_width;
+                    render_x = x - text_width;
                     break;
                 case UI_TEXT_ALIGN_LEFT:
                 default:
-                    render_x = component->x;
+                    render_x = x;
                     break;
             }
 
@@ -75,31 +81,14 @@ static void text_render(ui_component_t *component) {
     }
 }
 
-static void text_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void text_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void text_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
-}
-
 static ui_component_t * text_hit_test(ui_component_t *component, float x, float y) {
-     if(x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height){
-            return component;
-        }
+    if (!component) return NULL;
+    int hit = layx_hit_test(component->lay_ctx, component->lay_item_id, x, y);
+    if (hit) {
+        return component;
+    }
     return NULL;
 }
-
 // text的print_tree实现：打印文本内容
 static void text_print_tree(const ui_component_t *component, int indent, const char* common) {
     (void)indent;
@@ -129,9 +118,9 @@ static const ui_component_vtable_t g_text_vtable = {
     .shutdown = text_shutdown,
     .update = text_update,
     .render = text_render,
-    .set_position = text_set_position,
-    .set_size = text_set_size,
-    .set_bounds = text_set_bounds,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
     .hit_test = text_hit_test,
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
@@ -166,7 +155,7 @@ static const ui_component_vtable_t g_text_vtable = {
 
 // ==================== 公共API实现 ====================
 
-ui_text_t* UIText_Create(float x, float y, const char *text, COLOR32 color, float font_size,
+ui_text_t* UIText_Create(const char *text, COLOR32 color, float font_size,
                         ui_text_align_t align, ui_text_valign_t valign, canvas2d_context_t *ctx) {
     ui_text_t *ui_text = malloc(sizeof(ui_text_t));
     if (!ui_text) return NULL;
@@ -175,11 +164,6 @@ ui_text_t* UIText_Create(float x, float y, const char *text, COLOR32 color, floa
         free(ui_text);
         return NULL;
     }
-
-    ui_text->base.x = x;
-    ui_text->base.y = y;
-    ui_text->base.width = 0;
-    ui_text->base.height = font_size;
     strncpy(ui_text->text, text, 511);
     ui_text->text[511] = '\0';
     ui_text->color = color;
@@ -188,6 +172,7 @@ ui_text_t* UIText_Create(float x, float y, const char *text, COLOR32 color, floa
     ui_text->valign = valign;
     ui_text->wrap = false;
     ui_text->wrap_width = 0;
+    layx_set_size(ui_text->base.lay_ctx,ui_text->base.lay_item_id, font_size * 1.2f, font_size*1.2f);
 
     return ui_text;
 }
@@ -217,13 +202,6 @@ void UIText_SetText(ui_text_t *text, const char *content) {
     text->text[511] = '\0';
 }
 
-void UIText_SetPosition(ui_text_t *text, float x, float y) {
-    if (!text) return;
-    if (text->base.vtable && text->base.vtable->set_position) {
-        text->base.vtable->set_position(&text->base, x, y);
-    }
-}
-
 void UIText_SetColor(ui_text_t *text, COLOR32 color) {
     if (!text) return;
     text->color = color;
@@ -232,7 +210,6 @@ void UIText_SetColor(ui_text_t *text, COLOR32 color) {
 void UIText_SetFontSize(ui_text_t *text, float font_size) {
     if (!text) return;
     text->font_size = font_size;
-    text->base.height = font_size;
 }
 
 void UIText_SetAlign(ui_text_t *text, ui_text_align_t align, ui_text_valign_t valign) {
@@ -250,41 +227,47 @@ void UIText_SetWrap(ui_text_t *text, bool wrap, float wrap_width) {
 void UIText_CalcPosition(const ui_text_t *text, float *out_x, float *out_y) {
     if (!text || !out_x || !out_y) return;
 
-    *out_x = text->base.x;
-    *out_y = text->base.y;
+    float x,y,w,h;
+    ui_component_t* comp = (ui_component_t*)text;
+    layx_get_rect_xywh(comp->lay_ctx,comp->lay_item_id, &x, &y, &w, &h);
+
+    *out_x = x;
+    *out_y = y;
 
     float text_width = canvas2d_measure_text(text->base.ctx, text->text);
     float text_height = text->font_size > 0 ? text->font_size : 16.0f;
+
+    
 
     // 水平对齐
     switch (text->align) {
         case UI_TEXT_ALIGN_CENTER:
             if (text->wrap) {
-                *out_x = text->base.x;
+                *out_x = x;
             } else {
-                *out_x = text->base.x - text_width / 2;
+                *out_x = x - text_width / 2;
             }
             break;
         case UI_TEXT_ALIGN_RIGHT:
-            *out_x = text->base.x - text_width;
+            *out_x = x - text_width;
             break;
         case UI_TEXT_ALIGN_LEFT:
         default:
-            *out_x = text->base.x;
+            *out_x = x;
             break;
     }
 
     // 垂直对齐
     switch (text->valign) {
         case UI_TEXT_VALIGN_MIDDLE:
-            *out_y = text->base.y - text_height / 2;
+            *out_y = y - text_height / 2;
             break;
         case UI_TEXT_VALIGN_BOTTOM:
-            *out_y = text->base.y - text_height;
+            *out_y = y - text_height;
             break;
         case UI_TEXT_VALIGN_TOP:
         default:
-            *out_y = text->base.y;
+            *out_y = y;
             break;
     }
 }

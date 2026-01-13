@@ -37,10 +37,10 @@ typedef struct {
 ui_button_config_t UIButton_GetDefaultConfig(void);
 
 // 创建按钮（简单版）
-ui_button_t* UIButton_Create(float x, float y, float width, float height, canvas2d_context_t *ctx);
+ui_button_t* UIButton_Create(float width, float height, canvas2d_context_t *ctx);
 
 // 创建按钮（带配置）
-ui_button_t* UIButton_CreateWithConfig(float x, float y, float width, float height,
+ui_button_t* UIButton_CreateWithConfig(float width, float height,
                                       const ui_button_config_t *config, canvas2d_context_t *ctx);
 
 // 初始化按钮

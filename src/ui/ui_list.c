@@ -2,6 +2,8 @@
 #include "common/event.h"
 #include "common/shared.h"
 #include "../common/scene.h"
+#include "layx.h"
+#include "ui/ui_component.h"
 #include "ui/ui_list_item.h"
 #include <stdlib.h>
 #include <string.h>
@@ -63,10 +65,13 @@ static void list_render(ui_component_t *component) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsVisible(component)) return;
 
+    float x,y,w,h;
+    UIComponent_GetRect(component, &x, &y, &w, &h);
+
     // 绘制边框
     canvas2d_set_stroke_style(component->ctx, list->border_color);
     canvas2d_set_line_width(component->ctx, 1.0f);
-    canvas2d_stroke_rect(component->ctx, component->x, component->y, component->width, component->height);
+    canvas2d_stroke_rect(component->ctx, x, y, w, h);
 
     // 裁剪区域
     // canvas2d_save(component->ctx);
@@ -75,7 +80,7 @@ static void list_render(ui_component_t *component) {
     // canvas2d_clip(component->ctx);
 
     // 绘制列表项（只渲染可见区域）
-    float item_y = component->y;
+    float item_y = y;
     int start_index = list->scroll_offset;
     int end_index = start_index + list->visible_count;
     if (end_index > list->item_count) end_index = list->item_count;
@@ -86,12 +91,7 @@ static void list_render(ui_component_t *component) {
 
         bool selected = (i == list->selected_index);
         UIListItem_SetSelected(item, selected);
-
-        // 设置item的位置和尺寸
-        item->base.x = component->x + 1;
-        item->base.y = item_y;
-        item->base.width = component->width - 2;
-        item->base.height = list->item_height;
+        UIComponent_SetPadding((ui_component_t*)item, 1,1,1,1);
         // 渲染item
         UIListItem_Render(item);
 
@@ -103,10 +103,10 @@ static void list_render(ui_component_t *component) {
 
     // 绘制滚动条
     if (list->show_scrollbar && list->item_count > list->visible_count) {
-        float scrollbar_x = component->x + component->width - 12;
+        float scrollbar_x = x + w - 12;
         float scrollbar_width = 10;
-        float track_y = component->y;
-        float track_height = component->height;
+        float track_y = y;
+        float track_height = h;
         int max_scroll = list->item_count - list->visible_count;
         float thumb_height = track_height * list->visible_count / list->item_count;
         float thumb_y = track_y + (track_height - thumb_height) * list->scroll_offset / max_scroll;
@@ -120,27 +120,8 @@ static void list_render(ui_component_t *component) {
         canvas2d_fill_rect(component->ctx, scrollbar_x + 1, thumb_y, scrollbar_width - 2, thumb_height);
     }
 }
-
-static void list_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void list_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void list_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
-}
-
 static ui_component_t * list_hit_test(ui_component_t *component, float x, float y) {
-     if(x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height){
+     if(UIComponent_HitTest(component, x, y)){
             ui_list_t* this = (ui_list_t*)component;
             FOR_EACH_PTR(item, this->items, this->item_count){
                 if(UIComponent_HitTest((ui_component_t*)item, x, y)){
@@ -157,10 +138,13 @@ static void list_on_mouse_move(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return;
 
+    float x,y,w,h;
+    UIComponent_GetRect(component, &x, &y, &w, &h);
+
     // 处理滚动条拖动
     if (list->is_dragging_scrollbar) {
         int max_scroll = list->item_count - list->visible_count;
-        float track_height = component->height;
+        float track_height = h;
         float delta_y = event->mouse.y - list->scrollbar_drag_start_y;
         float thumb_height = track_height * list->visible_count / list->item_count;
         
@@ -176,7 +160,7 @@ static void list_on_mouse_move(ui_component_t *component, event_t *event) {
     }
 
     // 更新所有可见items的hover状态
-    float item_y = component->y;
+    float item_y = y;
     for (int i = 0; i < list->visible_count; i++) {
         int item_index = list->scroll_offset + i;
         if (item_index >= list->item_count) break;
@@ -217,17 +201,20 @@ static void list_on_mouse_down(ui_component_t *component, event_t *event) {
     ui_list_t *list = (ui_list_t *)component;
     if (!list || !UIComponent_IsEnabled(component)) return;
 
+    float x, y, w, h;
+    UIComponent_GetRect(component, &x, &y, &w, &h);
+
     // 检查是否点击滚动条
     if (list->show_scrollbar && list->item_count > list->visible_count) {
-        float scrollbar_x = component->x + component->width - 12;
+        float scrollbar_x = x + w - 12;
         float scrollbar_width = 10;
         
         if (event->mouse.x >= scrollbar_x && event->mouse.x < scrollbar_x + scrollbar_width) {
             // 点击了滚动条，计算滚动条拇指位置
             int max_scroll = list->item_count - list->visible_count;
-            float track_height = component->height;
+            float track_height = h;
             float thumb_height = track_height * list->visible_count / list->item_count;
-            float thumb_y = component->y + (track_height - thumb_height) * list->scroll_offset / max_scroll;
+            float thumb_y = y + (track_height - thumb_height) * list->scroll_offset / max_scroll;
             
             if (event->mouse.y >= thumb_y && event->mouse.y < thumb_y + thumb_height) {
                 // 点击了拇指，开始拖动
@@ -240,7 +227,7 @@ static void list_on_mouse_down(ui_component_t *component, event_t *event) {
                 }
             } else {
                 // 点击了滚动槽，跳转到点击位置
-                float click_ratio = (event->mouse.y - component->y) / track_height;
+                float click_ratio = (event->mouse.y - y) / track_height;
                 int new_offset = (int)(click_ratio * max_scroll + 0.5f);
                 if (new_offset < 0) new_offset = 0;
                 if (new_offset > max_scroll) new_offset = max_scroll;
@@ -257,7 +244,7 @@ static void list_on_mouse_down(ui_component_t *component, event_t *event) {
     }
 
     // 检查是否点击列表项
-    float item_y = component->y;
+    float item_y = y;
     for (int i = 0; i < list->visible_count; i++) {
         int item_index = list->scroll_offset + i;
         if (item_index >= list->item_count) break;
@@ -269,17 +256,6 @@ static void list_on_mouse_down(ui_component_t *component, event_t *event) {
 
         item_y += list->item_height + list->item_spacing;
     }
-}
-
-static int list_can_scroll(ui_component_t *component) {
-    ui_list_t *list = (ui_list_t *)component;
-    if (!list || !UIComponent_IsEnabled(component)) return 0;
-    
-    int max_offset = list->item_count - list->visible_count;
-    if (max_offset > 0) {
-        return 1;  // 可垂直滚动
-    }
-    return 0;
 }
 
 static void list_scroll_by(ui_component_t *component, float delta_x, float delta_y) {
@@ -366,9 +342,9 @@ static const ui_component_vtable_t g_list_vtable = {
     .shutdown = list_shutdown,
     .update = list_update,
     .render = list_render,
-    .set_position = list_set_position,
-    .set_size = list_set_size,
-    .set_bounds = list_set_bounds,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
     .hit_test = list_hit_test,
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
@@ -382,7 +358,7 @@ static const ui_component_vtable_t g_list_vtable = {
     .on_drag_start = NULL,
     .on_drag = NULL,
     .on_drag_end = NULL,
-    .scroll_to = list_can_scroll,
+    .scroll_to = NULL,
     .scroll_by = list_scroll_by,
     .on_key_down = list_on_key_down,
     .on_key_up = NULL,
@@ -403,7 +379,7 @@ static const ui_component_vtable_t g_list_vtable = {
 
 // ==================== 公共API实现 ====================
 
-ui_list_t* UIList_Create(float x, float y, float width, float height,
+ui_list_t* UIList_Create(float width, float height,
                         float item_height, float font_size, canvas2d_context_t *ctx) {
     ui_list_t *list = malloc(sizeof(ui_list_t));
     if (!list) return NULL;
@@ -412,11 +388,6 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
         free(list);
         return NULL;
     }
-
-    list->base.x = x;
-    list->base.y = y;
-    list->base.width = width;
-    list->base.height = height;
     list->scene_manager = NULL;  // 初始化为NULL，需要在创建后设置
     list->item_height = item_height;
     list->item_spacing = 2.0f;
@@ -428,13 +399,11 @@ ui_list_t* UIList_Create(float x, float y, float width, float height,
     list->scrollbar_drag_start_y = 0.0f;
     list->scrollbar_drag_start_offset = 0;
 
-    // 计算可见项数（必须在设置完尺寸后）
-    list->visible_count = (int)(list->base.height / (list->item_height + list->item_spacing));
-    if (list->visible_count < 1) list->visible_count = 1;
+    list->visible_count = 1000; // defalt 1000, 需要在update中更新
 
 // 启用焦点、Tab访问和拖拽
     list->base.flags |= UI_CAP_ACCEPT_FOCUS | UI_CAP_TAB_STOP | UI_CAP_DRAGGABLE;
-
+    layx_set_size(list->base.lay_ctx,list->base.lay_item_id, width, height);
     return list;
 }
 

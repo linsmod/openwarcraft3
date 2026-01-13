@@ -208,10 +208,10 @@ struct ui_component_t {
     canvas2d_context_t *ctx;         // 渲染上下文
     
     // 布局属性
-    float x, y;                     // 组件位置（由布局系统自动更新）
-    float width, height;             // 组件尺寸（由布局系统自动更新）
-    float margin[4];                 // 边距 [top, right, bottom, left]
-    float padding[4];                // 内边距 [top, right, bottom, left]
+    // float x, y;                     // 组件位置（由布局系统自动更新）
+    // float width, height;             // 组件尺寸（由布局系统自动更新）
+    // float margin[4];                 // 边距 [top, right, bottom, left]
+    // float padding[4];                // 内边距 [top, right, bottom, left]
     
     // 布局相关（内部使用）
     layx_context *lay_ctx;            // 布局上下文指针
@@ -290,7 +290,7 @@ void UIComponent_SetFocused(ui_component_t *component, bool focused);
 
 const char* UIComponent_GetTypeName(int typeid);
 
-void UIComponent_GetContentBoxRect(ui_component_t *component, float *x, float *y, float *width, float *height);
+void UIComponent_GetRect(ui_component_t *component, float *x, float *y, float *width, float *height);
 
 void UIComponent_GetScrollOffset(ui_component_t *component, float *x, float *y);
 

@@ -1,5 +1,7 @@
 #include "ui_label.h"
 #include "common/shared.h"
+#include "layx.h"
+#include "ui/ui_component.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -25,10 +27,13 @@ static void label_render(ui_component_t *component) {
     if (!label || !UIComponent_IsVisible(component)) return;
     if (label->text[0] == '\0') return;
 
+    float x, y, w, h;
+    UIComponent_GetContentRect(component, &x, &y, &w, &h);
+
     // 绘制背景（如果启用且不透明）
     if (label->has_background && label->bg_color.a > 0) {
         canvas2d_set_fill_style(component->ctx, label->bg_color);
-        canvas2d_fill_rect(component->ctx, component->x, component->y, component->width, component->height);
+        canvas2d_fill_rect(component->ctx, x, y, w, h);
     }
 
     // 设置字体和颜色
@@ -38,20 +43,22 @@ static void label_render(ui_component_t *component) {
     // 计算文本位置
     float text_width = canvas2d_measure_text(component->ctx, label->text);
     float text_height = label->font_size > 0 ? label->font_size : 16.0f;
-    float render_x = component->x;
-    float render_y = component->y;
+
+    UIComponent_GetContentRect(component, &x, &y, &w, &h);
+    float render_x = x;
+    float render_y = y;
 
     // 水平对齐
     switch (label->align) {
         case UI_LABEL_ALIGN_CENTER:
-            render_x = component->x + (component->width - text_width) / 2.0f;
+            render_x = x + (w - text_width) / 2.0f;
             break;
         case UI_LABEL_ALIGN_RIGHT:
-            render_x = component->x + component->width - text_width;
+            render_x = x + w - text_width;
             break;
         case UI_LABEL_ALIGN_LEFT:
         default:
-            render_x = component->x;
+            render_x = x;
             break;
     }
 
@@ -59,44 +66,19 @@ static void label_render(ui_component_t *component) {
     switch (label->valign) {
         case UI_LABEL_VALIGN_MIDDLE:
             // 文本垂直居中：基线在中心向上偏移字体高度的35%
-            render_y = component->y + component->height / 2.0f - label->font_size * 0.35f;
+            render_y = y + h/ 2.0f - label->font_size * 0.35f;
             break;
         case UI_LABEL_VALIGN_BOTTOM:
-            render_y = component->y + component->height - label->font_size * 0.2f;
+            render_y = y + h - label->font_size * 0.2f;
             break;
         case UI_LABEL_VALIGN_TOP:
         default:
-            render_y = component->y + label->font_size * 0.8f;
+            render_y = y + label->font_size * 0.8f;
             break;
     }
 
     // 绘制文本
     canvas2d_fill_text(component->ctx, label->text, render_x, render_y);
-}
-
-static void label_set_position(ui_component_t *component, float x, float y) {
-    component->x = x;
-    component->y = y;
-}
-
-static void label_set_size(ui_component_t *component, float width, float height) {
-    component->width = width;
-    component->height = height;
-}
-
-static void label_set_bounds(ui_component_t *component, float x, float y, float width, float height) {
-    component->x = x;
-    component->y = y;
-    component->width = width;
-    component->height = height;
-}
-
-static ui_component_t * label_hit_test(ui_component_t *component, float x, float y) {
-     if(x >= component->x && x < component->x + component->width &&
-           y >= component->y && y < component->y + component->height){
-            return component;
-        }
-    return NULL;
 }
 
 // label的print_tree实现：打印标签文本
@@ -129,10 +111,10 @@ static const ui_component_vtable_t g_label_vtable = {
     .shutdown = label_shutdown,
     .update = label_update,
     .render = label_render,
-    .set_position = label_set_position,
-    .set_size = label_set_size,
-    .set_bounds = label_set_bounds,
-    .hit_test = label_hit_test,
+    .set_position = NULL,
+    .set_size = NULL,
+    .set_bounds = NULL,
+    .hit_test = NULL,
     .on_mouse_enter = NULL,
     .on_mouse_leave = NULL,
     .on_mouse_down = NULL,
@@ -164,16 +146,16 @@ static const ui_component_vtable_t g_label_vtable = {
 };
 // ==================== 公共API实现 ====================
 
-ui_label_t* UILabel_Create(float x, float y, float width, float height, const char *text,
+ui_label_t* UILabel_Create(float width, float height, const char *text,
                           COLOR32 text_color, float font_size,
                           ui_label_align_t align, ui_label_valign_t valign,
                           canvas2d_context_t *ctx) {
-    return UILabel_CreateWithBackground(x, y, width, height, text, text_color,
+    return UILabel_CreateWithBackground(width, height, text, text_color,
                                        MAKE(COLOR32, 0, 0, 0, 0), font_size,
                                        align, valign, ctx);
 }
 
-ui_label_t* UILabel_CreateWithBackground(float x, float y, float width, float height, const char *text,
+ui_label_t* UILabel_CreateWithBackground(float width, float height, const char *text,
                                          COLOR32 text_color, COLOR32 bg_color, float font_size,
                                          ui_label_align_t align, ui_label_valign_t valign,
                                          canvas2d_context_t *ctx) {
@@ -185,10 +167,6 @@ ui_label_t* UILabel_CreateWithBackground(float x, float y, float width, float he
         return NULL;
     }
 
-    label->base.x = x;
-    label->base.y = y;
-    label->base.width = width;
-    label->base.height = height;
     strncpy(label->text, text, 511);
     label->text[511] = '\0';
     label->text_color = text_color;
@@ -197,6 +175,7 @@ ui_label_t* UILabel_CreateWithBackground(float x, float y, float width, float he
     label->align = align;
     label->valign = valign;
     label->has_background = (bg_color.a > 0);
+    layx_set_size(label->base.lay_ctx,label->base.lay_item_id, width, height);
 
     return label;
 }
