@@ -299,7 +299,7 @@ static inline ui_component_t* UIComponent_FindScrollableParent(ui_component_t *c
     if (!component) return NULL;
     
     // 从当前组件开始，向上遍历
-    ui_component_t *current = component;
+    ui_component_t *current = component->parent;
     while (current) {
         // 检查组件是否支持滚动
         if(current->capabilities & UI_CAP_SCROLLABLE)

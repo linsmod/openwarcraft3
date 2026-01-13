@@ -114,11 +114,6 @@ typedef struct context {
 	int viewport_width;		/**< Viewport width (from html_viewer) */
 	int viewport_height;		/**< Viewport height (from html_viewer) */
 
-	// Scroll information - cached values from layx (for performance)
-	int scroll_x;			/**< Horizontal scroll offset */
-	int scroll_y;			/**< Vertical scroll offset */
-	int max_scroll_x;		/**< Maximum horizontal scroll offset */
-	int max_scroll_y;		/**< Maximum vertical scroll offset */
 	float scroll_factor;		/**< Scroll factor (for zoom) */
 } context;
 
@@ -243,7 +238,6 @@ void apply_css_to_layout(context *c, xmlNode *node, const char *css);
 void print_layout_info(layx_context *layout_ctx, xmlDoc *document, context *c,int depth);
 static void print_node_layout(layx_context *layout_ctx, xmlNode *node, int depth, context *c);
 static void apply_computed_style_to_lay(context *ctx, xmlNode *node, const css_select_results *results);
-static void update_max_scroll(context *ctx);
 static void render_html_element(context *ctx, xmlNode *node, int depth);
 static void render_scrollbars(context *ctx);
 
@@ -336,11 +330,6 @@ error_code create_context(const char *charset, context **ctx,int width,int heigh
 	c->viewport_width = width;
 	c->viewport_height = height;
 
-	// Initialize scroll state
-	c->scroll_x = 0;
-	c->scroll_y = 0;
-	c->max_scroll_x = 0;
-	c->max_scroll_y = 0;
 	c->scroll_factor = 15.0f;
 
 	// Note: Don't set fixed size for root - let it be adaptive based on content
@@ -3000,8 +2989,10 @@ void render_html_element(context *ctx, xmlNode *node, int depth) {
     // 应用滚动偏移（只对根节点的子元素及更深层的元素应用滚动）
     // 根节点（depth=0）不应用滚动偏移，因为它是viewport
     if (depth > 0) {
-        x -= ctx->scroll_x;
-        y -= ctx->scroll_y;
+        int scroll_x = html_context_get_scroll_x(ctx);
+        int scroll_y = html_context_get_scroll_y(ctx);
+        x -= scroll_x;
+        y -= scroll_y;
     }
     
     // 计算并应用CSS样式（重要：这会触发apply_computed_style_to_lay）
@@ -3632,9 +3623,6 @@ void html_context_update(context *ctx, float delta_time) {
 void html_context_render(context *ctx) {
     if (!ctx || !ctx->document) return;
     
-    // Update max scroll based on current content size
-    update_max_scroll(ctx);
-    
     // 渲染背景
     // draw_html_background(ctx);
     
@@ -3810,8 +3798,10 @@ static void find_node_by_point_recursive(context *ctx, xmlNode *node,
         // 应用滚动偏移（只对根节点的子元素及更深层的元素应用滚动）
         // 根节点（depth=0）不应用滚动偏移，因为它是viewport
         if (current_depth > 0) {
-            elem_x -= ctx->scroll_x;
-            elem_y -= ctx->scroll_y;
+            int scroll_x = html_context_get_scroll_x(ctx);
+            int scroll_y = html_context_get_scroll_y(ctx);
+            elem_x -= scroll_x;
+            elem_y -= scroll_y;
         }
         
         // 检查点是否在矩形内
@@ -3901,28 +3891,6 @@ int html_context_get_viewport_height(context *ctx) {
     return ctx->viewport_height;
 }
 
-/**
- * @brief 更新最大滚动偏移（在布局计算后调用）
- * @param ctx HTML上下文
- */
-static void update_max_scroll(context *ctx) {
-    if (!ctx || !ctx->layout_ctx) return;
-    
-    xmlNode *root = xmlDocGetRootElement(ctx->document);
-    if (!root) return;
-    
-    layx_id root_id = GETLAYID(root);
-    if (root_id == LAYX_INVALID_ID) return;
-    
-    // 从layx获取滚动信息并缓存到context
-    layx_vec2 scroll_max;
-    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
-    ctx->max_scroll_x = (int)scroll_max[0];
-    ctx->max_scroll_y = (int)scroll_max[1];
-    
-    // printf("DEBUG: update_max_scroll: max_scroll=(%d,%d)\n", 
-    //        ctx->max_scroll_x, ctx->max_scroll_y);
-}
 
 float html_context_get_scroll_factor(context *ctx) {
     if (!ctx) return 1.0f;
@@ -3938,23 +3906,24 @@ float html_context_get_scroll_factor(context *ctx) {
 void html_context_set_scroll(context *ctx, int scroll_x, int scroll_y) {
     if (!ctx) return;
     
-    // Clamp scroll values to valid range
-    if (scroll_x < 0) scroll_x = 0;
-    if (scroll_y < 0) scroll_y = 0;
-    if (scroll_x > ctx->max_scroll_x) scroll_x = ctx->max_scroll_x;
-    if (scroll_y > ctx->max_scroll_y) scroll_y = ctx->max_scroll_y;
+    if (!ctx->layout_ctx || !ctx->document) return;
     
-    // 缓存到context
-    ctx->scroll_x = scroll_x;
-    ctx->scroll_y = scroll_y;
-    
-    // 使用layx API设置滚动
     xmlNode *root = xmlDocGetRootElement(ctx->document);
     if (!root) return;
     
     layx_id root_id = GETLAYID(root);
     if (root_id == LAYX_INVALID_ID) return;
     
+    // Clamp scroll values to valid range (基于layx中的max值)
+    layx_vec2 scroll_max;
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    
+    if (scroll_x < 0) scroll_x = 0;
+    if (scroll_y < 0) scroll_y = 0;
+    if (scroll_x > (int)scroll_max[0]) scroll_x = (int)scroll_max[0];
+    if (scroll_y > (int)scroll_max[1]) scroll_y = (int)scroll_max[1];
+    
+    // 直接设置到layx
     layx_scroll_to(ctx->layout_ctx, root_id, (layx_scalar)scroll_x, (layx_scalar)scroll_y);
 }
 
@@ -3964,8 +3933,17 @@ void html_context_set_scroll(context *ctx, int scroll_x, int scroll_y) {
  * @return 水平滚动偏移
  */
 int html_context_get_scroll_x(context *ctx) {
-    if (!ctx) return 0;
-    return ctx->scroll_x;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return 0;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return 0;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return 0;
+    
+    layx_vec2 scroll_offset;
+    layx_get_scroll_offset(ctx->layout_ctx, root_id, &scroll_offset);
+    return (int)scroll_offset[0];
 }
 
 /**
@@ -3974,8 +3952,17 @@ int html_context_get_scroll_x(context *ctx) {
  * @return 垂直滚动偏移
  */
 int html_context_get_scroll_y(context *ctx) {
-    if (!ctx) return 0;
-    return ctx->scroll_y;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return 0;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return 0;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return 0;
+    
+    layx_vec2 scroll_offset;
+    layx_get_scroll_offset(ctx->layout_ctx, root_id, &scroll_offset);
+    return (int)scroll_offset[1];
 }
 
 /**
@@ -3997,8 +3984,10 @@ void html_context_scroll_to(context *ctx, int scroll_x, int scroll_y) {
 void html_context_scroll_by(context *ctx, int delta_x, int delta_y) {
     if (!ctx) return;
     
-    int new_scroll_x = ctx->scroll_x + delta_x;
-    int new_scroll_y = ctx->scroll_y + delta_y;
+    int current_x = html_context_get_scroll_x(ctx);
+    int current_y = html_context_get_scroll_y(ctx);
+    int new_scroll_x = current_x + delta_x;
+    int new_scroll_y = current_y + delta_y;
     
     html_context_set_scroll(ctx, new_scroll_x, new_scroll_y);
 }
@@ -4009,8 +3998,17 @@ void html_context_scroll_by(context *ctx, int delta_x, int delta_y) {
  * @return 最大水平滚动偏移
  */
 int html_context_get_max_scroll_x(context *ctx) {
-    if (!ctx) return 0;
-    return ctx->max_scroll_x;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return 0;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return 0;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return 0;
+    
+    layx_vec2 scroll_max;
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    return (int)scroll_max[0];
 }
 
 /**
@@ -4019,8 +4017,17 @@ int html_context_get_max_scroll_x(context *ctx) {
  * @return 最大垂直滚动偏移
  */
 int html_context_get_max_scroll_y(context *ctx) {
-    if (!ctx) return 0;
-    return ctx->max_scroll_y;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return 0;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return 0;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return 0;
+    
+    layx_vec2 scroll_max;
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    return (int)scroll_max[1];
 }
 
 /**
@@ -4029,9 +4036,17 @@ int html_context_get_max_scroll_y(context *ctx) {
  * @return true 如果内容宽度大于 viewport 宽度
  */
 bool html_context_can_scroll_horizontally(context *ctx) {
-    if (!ctx) return false;
-    // 直接使用缓存值：如果内容宽度超过viewport宽度，则需要水平滚动
-    return ctx->max_scroll_x > 0;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return false;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return false;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return false;
+    
+    layx_vec2 scroll_max;
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    return scroll_max[0] > 0;
 }
 
 /**
@@ -4040,9 +4055,17 @@ bool html_context_can_scroll_horizontally(context *ctx) {
  * @return true 如果内容高度大于 viewport 高度
  */
 bool html_context_can_scroll_vertically(context *ctx) {
-    if (!ctx) return false;
-    // 直接使用缓存值：如果内容高度超过viewport高度，则需要垂直滚动
-    return ctx->max_scroll_y > 0;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return false;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return false;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return false;
+    
+    layx_vec2 scroll_max;
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    return scroll_max[1] > 0;
 }
 
 /**
@@ -4051,8 +4074,20 @@ bool html_context_can_scroll_vertically(context *ctx) {
  * @return 滚动百分比
  */
 float html_context_get_scroll_percent_x(context *ctx) {
-    if (!ctx || ctx->max_scroll_x == 0) return 0.0f;
-    return (float)ctx->scroll_x * 100.0f / (float)ctx->max_scroll_x;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return 0.0f;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return 0.0f;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return 0.0f;
+    
+    layx_vec2 scroll_offset, scroll_max;
+    layx_get_scroll_offset(ctx->layout_ctx, root_id, &scroll_offset);
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    
+    if (scroll_max[0] == 0) return 0.0f;
+    return scroll_offset[0] * 100.0f / scroll_max[0];
 }
 
 /**
@@ -4061,8 +4096,20 @@ float html_context_get_scroll_percent_x(context *ctx) {
  * @return 滚动百分比
  */
 float html_context_get_scroll_percent_y(context *ctx) {
-    if (!ctx || ctx->max_scroll_y == 0) return 0.0f;
-    return (float)ctx->scroll_y * 100.0f / (float)ctx->max_scroll_y;
+    if (!ctx || !ctx->layout_ctx || !ctx->document) return 0.0f;
+    
+    xmlNode *root = xmlDocGetRootElement(ctx->document);
+    if (!root) return 0.0f;
+    
+    layx_id root_id = GETLAYID(root);
+    if (root_id == LAYX_INVALID_ID) return 0.0f;
+    
+    layx_vec2 scroll_offset, scroll_max;
+    layx_get_scroll_offset(ctx->layout_ctx, root_id, &scroll_offset);
+    layx_get_scroll_max(ctx->layout_ctx, root_id, &scroll_max);
+    
+    if (scroll_max[1] == 0) return 0.0f;
+    return scroll_offset[1] * 100.0f / scroll_max[1];
 }
 
 /**
